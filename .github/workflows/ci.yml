@@ -1,0 +1,128 @@
+name: CI
+
+# Phase 0 メモ:
+#   本ワークフローは Flutter プロジェクト生成後に緑化する。
+#   現時点ではプロジェクト未生成のため、pubspec.yaml が存在する場合のみ実ジョブが走る。
+#   ジョブ:
+#     - windows: format / analyze / test / Android debug build
+#     - macos:   無署名 iOS build / test（§16.2 のリリース前提を満たす検証）
+#     - db:      Supabase マイグレーション適用 + pgTAP（認可/RLS 自動テスト、ADR-0008）
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  FLUTTER_CHANNEL: stable
+  # 実キーは使わない。CI 用ダミー env をシークレット/変数から供給する。
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Windows: 共通コード + Android
+  # ---------------------------------------------------------------------------
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard - skip until Flutter project exists
+        id: guard
+        shell: bash
+        run: |
+          if [ -f pubspec.yaml ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; else echo "ready=false" >> "$GITHUB_OUTPUT"; echo "pubspec.yaml not found - scaffold pending (Phase 0)"; fi
+
+      - uses: subosito/flutter-action@v2
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Create CI env file
+        if: steps.guard.outputs.ready == 'true'
+        shell: bash
+        run: |
+          cat > .env.development.json <<'JSON'
+          { "APP_ENV": "development", "SUPABASE_URL": "http://127.0.0.1:54321", "SUPABASE_ANON_KEY": "ci-anon", "PERFORMANCE_HEADCOUNT_MIN_DISPLAY": "10", "LOG_LEVEL": "info" }
+          JSON
+
+      - run: flutter pub get
+        if: steps.guard.outputs.ready == 'true'
+      - name: Regenerate code (drift/freezed/json_serializable)
+        if: steps.guard.outputs.ready == 'true'
+        run: dart run build_runner build --delete-conflicting-outputs
+      - run: dart format --set-exit-if-changed lib test integration_test
+        if: steps.guard.outputs.ready == 'true'
+      - run: flutter analyze
+        if: steps.guard.outputs.ready == 'true'
+      - run: flutter test --coverage
+        if: steps.guard.outputs.ready == 'true'
+      - run: flutter build apk --flavor development --debug --dart-define-from-file=.env.development.json
+        if: steps.guard.outputs.ready == 'true'
+
+  # ---------------------------------------------------------------------------
+  # macOS: iOS 無署名ビルド + テスト（§16.2）
+  # ---------------------------------------------------------------------------
+  macos-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard - skip until Flutter project exists
+        id: guard
+        shell: bash
+        run: |
+          if [ -f pubspec.yaml ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; else echo "ready=false" >> "$GITHUB_OUTPUT"; echo "pubspec.yaml not found - scaffold pending (Phase 0)"; fi
+
+      - uses: subosito/flutter-action@v2
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Create CI env file
+        if: steps.guard.outputs.ready == 'true'
+        shell: bash
+        run: |
+          cat > .env.development.json <<'JSON'
+          { "APP_ENV": "development", "SUPABASE_URL": "http://127.0.0.1:54321", "SUPABASE_ANON_KEY": "ci-anon", "PERFORMANCE_HEADCOUNT_MIN_DISPLAY": "10", "LOG_LEVEL": "info" }
+          JSON
+
+      - run: flutter pub get
+        if: steps.guard.outputs.ready == 'true'
+      - run: flutter test
+        if: steps.guard.outputs.ready == 'true'
+      # NOTE: iOS の flavor 用 Xcode Scheme は未設定（docs/follow-up-work.md #14）。
+      #       設定後に --flavor development を付与する。
+      - run: flutter build ios --no-codesign -t lib/main_development.dart --dart-define-from-file=.env.development.json
+        if: steps.guard.outputs.ready == 'true'
+
+  # ---------------------------------------------------------------------------
+  # DB: Supabase マイグレーション + pgTAP（RLS/認可 自動テスト, ADR-0008）
+  # ---------------------------------------------------------------------------
+  db-authz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard - skip until supabase project exists
+        id: guard
+        shell: bash
+        run: |
+          if [ -d supabase ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; else echo "ready=false" >> "$GITHUB_OUTPUT"; echo "supabase/ not found - scaffold pending (Phase 0)"; fi
+
+      - uses: supabase/setup-cli@v1
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          version: latest
+
+      - name: Start Supabase & apply migrations
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          supabase start
+          supabase db reset --debug
+
+      - name: Run pgTAP authorization tests
+        if: steps.guard.outputs.ready == 'true'
+        run: supabase test db
