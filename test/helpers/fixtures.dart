@@ -1,5 +1,5 @@
-import 'package:oshi_expedition/core/config/env.dart';
-import 'package:oshi_expedition/features/genba/domain/genba.dart';
+import 'package:oshi_trip/core/config/env.dart';
+import 'package:oshi_trip/features/genba/domain/genba.dart';
 
 /// development + Supabase未設定 = デモモードの環境設定。
 const demoEnv = AppEnv(

@@ -3,7 +3,7 @@
 ## 使い方
 
 1. 最初に [Fable根幹実装後レビュー](fable-post-implementation-review-prompt.md)を実行する。
-2. Critical／Highがある場合は、レビューが生成した修正プロンプトを依存順に実行する。
+2. 現行コミット`7415653`については、[現行プログラム再レビューと修正実行プロンプト](current-program-review-and-remediation-prompts.md)のR1〜R8を依存順に実行する。別コミットではレビュー結果を更新してから使う。
 3. 再レビューでCritical／Highが0件になってから、本書のPhase 1以降へ進む。
 4. 各Phaseは新しいClaude Code会話で、共通プロンプトと対象Phaseプロンプトを続けて渡す。
 5. 各Phase後にレビューを実行し、`requirements-traceability.md`へ実装箇所とテスト証拠を記録する。
@@ -42,6 +42,7 @@
 - docs/decisions.md（存在する場合）
 - docs/follow-up-work.md（存在する場合）
 - docs/fable-post-implementation-review-prompt.md
+- docs/current-program-review-and-remediation-prompts.md（現在の基準コミットに対応する場合）
 - 現在のコード、テスト、DBマイグレーション、Git差分
 
 実装原則:

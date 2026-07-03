@@ -32,6 +32,7 @@ _$GenbaImpl _$$GenbaImplFromJson(Map<String, dynamic> json) => _$GenbaImpl(
               _$RequirementStatusEnumMap, json['lodging_requirement']) ??
           RequirementStatus.unknown,
       isCanceled: json['is_canceled'] as bool? ?? false,
+      heroImageLocalPath: json['hero_image_local_path'] as String?,
       manualEndedAt: const NullableUtcDateTimeConverter()
           .fromJson(json['manual_ended_at'] as String?),
       createdAt:
@@ -61,6 +62,7 @@ Map<String, dynamic> _$$GenbaImplToJson(_$GenbaImpl instance) =>
       'lodging_requirement':
           _$RequirementStatusEnumMap[instance.lodgingRequirement]!,
       'is_canceled': instance.isCanceled,
+      'hero_image_local_path': instance.heroImageLocalPath,
       'manual_ended_at':
           const NullableUtcDateTimeConverter().toJson(instance.manualEndedAt),
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),

@@ -4,10 +4,14 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- 写真選択の用途説明（H-04 §15.4）。チケット/思い出の画像を端末内に
+	     保存するために写真ライブラリへアクセスする。書き込みは行わない。 -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>チケットや思い出の画像を選んで端末内に保存するために使用します。選んだ画像以外にはアクセスしません。</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Oshi Expedition</string>
+	<string>$(APP_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +19,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>oshi_expedition</string>
+	<string>OshiTrip</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

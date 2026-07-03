@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:oshi_expedition/app/app.dart';
-import 'package:oshi_expedition/core/db/app_database.dart';
-import 'package:oshi_expedition/core/providers.dart';
-import 'package:oshi_expedition/core/storage/kv_store.dart';
-import 'package:oshi_expedition/core/time/clock.dart';
-import 'package:oshi_expedition/features/genba/application/genba_providers.dart';
+import 'package:oshi_trip/app/app.dart';
+import 'package:oshi_trip/core/db/app_database.dart';
+import 'package:oshi_trip/core/providers.dart';
+import 'package:oshi_trip/core/storage/kv_store.dart';
+import 'package:oshi_trip/core/time/clock.dart';
+import 'package:oshi_trip/features/genba/application/genba_providers.dart';
 
 import '../helpers/fixtures.dart';
 import '../helpers/test_db.dart';

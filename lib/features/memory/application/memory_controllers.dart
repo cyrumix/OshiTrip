@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/images/image_store.dart';
 import '../../../core/providers.dart';
 import '../domain/memory.dart';
 
@@ -65,27 +68,56 @@ class MemoryEditController
     });
   }
 
-  Future<Failure?> addPhoto(String localPath) async {
+  /// [pickedPath]（ImagePicker の一時パス）をアプリ管理領域へコピーし、
+  /// DB には相対参照を保存する（H-04: 一時パスに依存しない耐久保存）。
+  Future<Failure?> addPhoto(String pickedPath) async {
     final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
+    if (owner.isEmpty) return const AuthFailure(message: 'ログインが必要です');
     final now = ref.read(clockProvider).now().toUtc();
     final bundle =
         await ref.read(memoryRepositoryProvider).watchByGenbaId(genbaId).first;
+    final String storedRef;
+    try {
+      storedRef = await ref.read(imageStoreProvider).import(
+            ownerId: owner,
+            category: ImageCategory.memoryPhoto,
+            source: File(pickedPath),
+          );
+    } catch (e) {
+      // 画像コピー失敗は成功扱いにしない（入力は保持されないが DB も汚さない）。
+      return StorageFailure(cause: e);
+    }
     final photo = MemoryPhoto(
       id: const Uuid().v4(),
       genbaId: genbaId,
       ownerId: owner,
-      localPath: localPath,
+      localPath: storedRef,
       sortOrder: bundle.photos.length,
       createdAt: now,
       updatedAt: now,
     );
     final result = await ref.read(memoryRepositoryProvider).addPhoto(photo);
-    return result.failureOrNull;
+    final failure = result.failureOrNull;
+    if (failure != null) {
+      // DB 保存に失敗したらコピー済みファイルは孤立するので削除する
+      // （owner スコープなので他ユーザーのファイルには触れない）。
+      await ref.read(imageStoreProvider).deleteRef(owner, storedRef);
+    }
+    return failure;
   }
 
   Future<Failure?> deletePhoto(String id) async {
+    final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
+    // 物理ファイルも掃除する（DB削除の前に参照を控える）。
+    final bundle =
+        await ref.read(memoryRepositoryProvider).watchByGenbaId(genbaId).first;
+    final target = bundle.photos.where((p) => p.id == id).firstOrNull;
     final result = await ref.read(memoryRepositoryProvider).deletePhoto(id);
-    return result.failureOrNull;
+    final failure = result.failureOrNull;
+    if (failure == null && target?.localPath != null && owner.isNotEmpty) {
+      await ref.read(imageStoreProvider).deleteRef(owner, target!.localPath!);
+    }
+    return failure;
   }
 
   Future<Failure?> addSetlistItem(String songTitle) async {

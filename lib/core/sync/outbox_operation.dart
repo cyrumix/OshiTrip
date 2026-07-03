@@ -50,6 +50,7 @@ class OutboxOperation {
     this.status = OutboxStatus.pending,
     this.attempts = 0,
     this.lastError,
+    this.nextRetryAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -65,6 +66,9 @@ class OutboxOperation {
   final OutboxStatus status;
   final int attempts;
   final String? lastError;
+
+  /// 次に再送してよい時刻（バックオフ待機中は未来。null は即送信可, H-02）。
+  final DateTime? nextRetryAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -72,6 +76,7 @@ class OutboxOperation {
     OutboxStatus? status,
     int? attempts,
     String? lastError,
+    DateTime? nextRetryAt,
     DateTime? updatedAt,
   }) {
     return OutboxOperation(
@@ -84,6 +89,7 @@ class OutboxOperation {
       status: status ?? this.status,
       attempts: attempts ?? this.attempts,
       lastError: lastError ?? this.lastError,
+      nextRetryAt: nextRetryAt ?? this.nextRetryAt,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

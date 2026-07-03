@@ -1,5 +1,5 @@
-name: oshi_expedition
-description: "推し活遠征管理アプリ"
+name: oshi_trip
+description: "OshiTrip"
 publish_to: none
 version: 0.1.0+1
 
@@ -19,9 +19,18 @@ dependencies:
   supabase_flutter: ^2.8.0
   # ローカル永続化/オフライン (ADR-0005)
   drift: ^2.26.0
-  sqlite3_flutter_libs: ^0.5.28
+  # 端末DB暗号化 (H-03): SQLCipher。sqlite3_flutter_libs の代わりに使う
+  # （二重リンク回避のため sqlite3_flutter_libs は外す）。
+  sqlcipher_flutter_libs: ^0.6.0
+  # 暗号鍵の OS Keychain/Keystore 保管 (H-03)
+  flutter_secure_storage: ^9.2.2
+  # SQLite Dart API（暗号化DBの open/export/verify に使用, H-03）
+  sqlite3: ^2.4.0
   path_provider: ^2.1.5
   path: ^1.9.0
+  # 実行中バイナリの applicationId/bundle id を取得し、コンパイル時 flavor との
+  # 不一致を起動時に検知するために使用（H-01）。
+  package_info_plus: ^8.1.2
   # 値オブジェクト/モデル
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
@@ -44,8 +53,6 @@ dev_dependencies:
   freezed: ^2.5.7
   json_serializable: ^6.9.0
   mocktail: ^1.0.4
-  # テスト用（ホストPCの SQLite を読み込む: test/helpers/test_db.dart）
-  sqlite3: ^2.4.0
 
 flutter:
   uses-material-design: true

@@ -1,8 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="推し活遠征管理"
+        android:label="@string/app_name"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"><!--
+        H-04: 機密データ（暗号化DB・チケット画像等）の端末バックアップ流出を
+        防ぐため、クラウド/adb バックアップを全体無効化する（安全な全体バックアップ
+        無効化を採用）。dataExtractionRules でも端末間転送/クラウドを禁止する。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -340,6 +340,10 @@ mixin _$OshiMember {
   @NullableDateOnlyConverter()
   DateTime? get birthday => throw _privateConstructorUsedError;
   String? get memo => throw _privateConstructorUsedError;
+
+  /// 推し画像の端末内参照（`images/<owner>/oshi/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
+  String? get imageLocalPath => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
   DateTime get createdAt => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
@@ -371,6 +375,7 @@ abstract class $OshiMemberCopyWith<$Res> {
       @NullableDateOnlyConverter() DateTime? oshiSince,
       @NullableDateOnlyConverter() DateTime? birthday,
       String? memo,
+      String? imageLocalPath,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -399,6 +404,7 @@ class _$OshiMemberCopyWithImpl<$Res, $Val extends OshiMember>
     Object? oshiSince = freezed,
     Object? birthday = freezed,
     Object? memo = freezed,
+    Object? imageLocalPath = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -439,6 +445,10 @@ class _$OshiMemberCopyWithImpl<$Res, $Val extends OshiMember>
           ? _value.memo
           : memo // ignore: cast_nullable_to_non_nullable
               as String?,
+      imageLocalPath: freezed == imageLocalPath
+          ? _value.imageLocalPath
+          : imageLocalPath // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -469,6 +479,7 @@ abstract class _$$OshiMemberImplCopyWith<$Res>
       @NullableDateOnlyConverter() DateTime? oshiSince,
       @NullableDateOnlyConverter() DateTime? birthday,
       String? memo,
+      String? imageLocalPath,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -495,6 +506,7 @@ class __$$OshiMemberImplCopyWithImpl<$Res>
     Object? oshiSince = freezed,
     Object? birthday = freezed,
     Object? memo = freezed,
+    Object? imageLocalPath = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -535,6 +547,10 @@ class __$$OshiMemberImplCopyWithImpl<$Res>
           ? _value.memo
           : memo // ignore: cast_nullable_to_non_nullable
               as String?,
+      imageLocalPath: freezed == imageLocalPath
+          ? _value.imageLocalPath
+          : imageLocalPath // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -561,6 +577,7 @@ class _$OshiMemberImpl implements _OshiMember {
       @NullableDateOnlyConverter() this.oshiSince,
       @NullableDateOnlyConverter() this.birthday,
       this.memo,
+      this.imageLocalPath,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt});
 
@@ -588,6 +605,11 @@ class _$OshiMemberImpl implements _OshiMember {
   final DateTime? birthday;
   @override
   final String? memo;
+
+  /// 推し画像の端末内参照（`images/<owner>/oshi/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
+  @override
+  final String? imageLocalPath;
   @override
   @UtcDateTimeConverter()
   final DateTime createdAt;
@@ -597,7 +619,7 @@ class _$OshiMemberImpl implements _OshiMember {
 
   @override
   String toString() {
-    return 'OshiMember(id: $id, groupId: $groupId, ownerId: $ownerId, name: $name, rank: $rank, color: $color, oshiSince: $oshiSince, birthday: $birthday, memo: $memo, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'OshiMember(id: $id, groupId: $groupId, ownerId: $ownerId, name: $name, rank: $rank, color: $color, oshiSince: $oshiSince, birthday: $birthday, memo: $memo, imageLocalPath: $imageLocalPath, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -616,6 +638,8 @@ class _$OshiMemberImpl implements _OshiMember {
             (identical(other.birthday, birthday) ||
                 other.birthday == birthday) &&
             (identical(other.memo, memo) || other.memo == memo) &&
+            (identical(other.imageLocalPath, imageLocalPath) ||
+                other.imageLocalPath == imageLocalPath) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -625,7 +649,7 @@ class _$OshiMemberImpl implements _OshiMember {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, groupId, ownerId, name, rank,
-      color, oshiSince, birthday, memo, createdAt, updatedAt);
+      color, oshiSince, birthday, memo, imageLocalPath, createdAt, updatedAt);
 
   /// Create a copy of OshiMember
   /// with the given fields replaced by the non-null parameter values.
@@ -654,6 +678,7 @@ abstract class _OshiMember implements OshiMember {
           @NullableDateOnlyConverter() final DateTime? oshiSince,
           @NullableDateOnlyConverter() final DateTime? birthday,
           final String? memo,
+          final String? imageLocalPath,
           @UtcDateTimeConverter() required final DateTime createdAt,
           @UtcDateTimeConverter() required final DateTime updatedAt}) =
       _$OshiMemberImpl;
@@ -681,6 +706,11 @@ abstract class _OshiMember implements OshiMember {
   DateTime? get birthday;
   @override
   String? get memo;
+
+  /// 推し画像の端末内参照（`images/<owner>/oshi/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
+  @override
+  String? get imageLocalPath;
   @override
   @UtcDateTimeConverter()
   DateTime get createdAt;

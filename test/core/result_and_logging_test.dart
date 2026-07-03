@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:oshi_expedition/core/error/failure.dart';
-import 'package:oshi_expedition/core/error/result.dart';
-import 'package:oshi_expedition/core/logging/app_logger.dart';
+import 'package:oshi_trip/core/error/failure.dart';
+import 'package:oshi_trip/core/error/result.dart';
+import 'package:oshi_trip/core/logging/app_logger.dart';
 
 void main() {
   group('Result / Failure変換', () {

@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import '../../../core/images/image_store.dart';
 import '../../../core/time/clock.dart';
 import '../domain/memory.dart';
 import '../domain/memory_repository.dart';
@@ -16,12 +15,13 @@ import '../domain/memory_repository.dart';
 /// バックグラウンドアップロード・再試行キューは後続範囲
 /// （docs/follow-up-work.md）。
 class SupabasePhotoUploader implements MemoryPhotoUploader {
-  SupabasePhotoUploader(this._client, this._clock);
+  SupabasePhotoUploader(this._client, this._clock, this._imageStore);
 
   static const bucket = 'memory-photos';
 
   final SupabaseClient _client;
   final Clock _clock;
+  final ImageStore _imageStore;
 
   String _objectPath(MemoryPhoto photo) =>
       '${photo.ownerId}/${photo.genbaId}/${photo.id}.jpg';
@@ -32,7 +32,12 @@ class SupabasePhotoUploader implements MemoryPhotoUploader {
     if (localPath == null) {
       return const Err(ValidationFailure('アップロードする端末内の写真がありません'));
     }
-    final file = File(localPath);
+    // 相対参照を owner スコープで安全に解決する（別owner・絶対パス・
+    // パストラバーサルは拒否される）。
+    final file = _imageStore.tryResolveOwned(photo.ownerId, localPath);
+    if (file == null) {
+      return const Err(ValidationFailure('写真の参照が不正です'));
+    }
     if (!file.existsSync()) {
       return const Err(NotFoundFailure(message: '端末内の写真が見つかりません'));
     }

@@ -69,6 +69,10 @@ abstract class Genba with _$Genba {
     @Default(RequirementStatus.unknown) RequirementStatus lodgingRequirement,
     @Default(false) bool isCanceled,
 
+    /// 現場ヒーロー画像の端末内参照（`images/<owner>/hero/...`）。
+    /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
+    String? heroImageLocalPath,
+
     /// ユーザーが明示的に「終演した」とした時刻（余韻中への手動遷移）。
     @NullableUtcDateTimeConverter() DateTime? manualEndedAt,
     @UtcDateTimeConverter() required DateTime createdAt,

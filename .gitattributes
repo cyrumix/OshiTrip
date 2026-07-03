@@ -1,0 +1,11 @@
+# 行末コードの正規化。Dart/共通テキストは LF に統一する。
+* text=auto eol=lf
+
+# Flutter が生成する iOS/Android ネイティブファイルは CRLF のまま扱う
+# （リポジトリ既存の慣習）。CR を「行末の空白」誤検知にしないため
+# whitespace=cr-at-eol を付け、git diff --check を通す。
+*.swift   text eol=crlf whitespace=cr-at-eol
+*.plist   text eol=crlf whitespace=cr-at-eol
+*.pbxproj text eol=crlf whitespace=cr-at-eol
+android/app/src/main/AndroidManifest.xml text eol=crlf whitespace=cr-at-eol
+android/app/src/main/res/**/*.xml        text eol=crlf whitespace=cr-at-eol

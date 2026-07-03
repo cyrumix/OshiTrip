@@ -46,6 +46,7 @@ _$OshiMemberImpl _$$OshiMemberImplFromJson(Map<String, dynamic> json) =>
       birthday: const NullableDateOnlyConverter()
           .fromJson(json['birthday'] as String?),
       memo: json['memo'] as String?,
+      imageLocalPath: json['image_local_path'] as String?,
       createdAt:
           const UtcDateTimeConverter().fromJson(json['created_at'] as String),
       updatedAt:
@@ -64,6 +65,7 @@ Map<String, dynamic> _$$OshiMemberImplToJson(_$OshiMemberImpl instance) =>
           const NullableDateOnlyConverter().toJson(instance.oshiSince),
       'birthday': const NullableDateOnlyConverter().toJson(instance.birthday),
       'memo': instance.memo,
+      'image_local_path': instance.imageLocalPath,
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
     };

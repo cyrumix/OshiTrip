@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/auth/local_data_scope.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
 import '../../../core/providers.dart';
@@ -158,10 +159,22 @@ class GenbaFormController
     extends AutoDisposeFamilyAsyncNotifier<GenbaFormState, String?> {
   String get _draftKey => arg == null ? 'genba_form_new' : 'genba_form_$arg';
 
+  /// 現在の owner（未認証なら null）。下書きは owner 単位で分離する（C-01）。
+  String? get _ownerId {
+    final scope = ref.read(localDataScopeProvider);
+    return scope is LocalDataScopeAuthenticated ? scope.ownerId : null;
+  }
+
   Genba? _editing;
 
   @override
   Future<GenbaFormState> build(String? arg) async {
+    // 認証状態の復元中（起動直後の一瞬）は「未認証」と確定させず、
+    // 復元完了を待ってから owner を決める（前ownerの下書き/空状態を
+    // 誤って確定させない, C-01 要件7）。
+    final user = await ref.watch(currentUserProvider.future);
+    final owner = user?.id;
+
     if (arg != null) {
       final aggregate =
           await ref.read(genbaRepositoryProvider).watchById(arg).first;
@@ -171,7 +184,8 @@ class GenbaFormController
         return GenbaFormState.fromGenba(genba);
       }
     }
-    final draft = await ref.read(draftStoreProvider).load(_draftKey);
+    if (owner == null) return const GenbaFormState();
+    final draft = await ref.read(draftStoreProvider).load(owner, _draftKey);
     if (draft != null) {
       try {
         return GenbaFormState.fromDraftJson(
@@ -179,7 +193,7 @@ class GenbaFormController
         );
       } catch (_) {
         // 壊れた下書きは破棄する。
-        await ref.read(draftStoreProvider).clear(_draftKey);
+        await ref.read(draftStoreProvider).clear(owner, _draftKey);
       }
     }
     return const GenbaFormState();
@@ -191,11 +205,13 @@ class GenbaFormController
     final current = state.valueOrNull ?? const GenbaFormState();
     final next = transform(current);
     state = AsyncData(next);
+    final owner = _ownerId;
+    if (owner == null) return;
     // 自動保存は完了を待たない。
     // ignore: unawaited_futures
     ref
         .read(draftStoreProvider)
-        .save(_draftKey, jsonEncode(next.toDraftJson()));
+        .save(owner, _draftKey, jsonEncode(next.toDraftJson()));
   }
 
   /// 遠征の有無の回答から交通・宿泊の要否既定値も設定する。
@@ -226,18 +242,25 @@ class GenbaFormController
         ValidationFailure('グループ／アーティスト名・公演名・日付を入力してください'),
       );
     }
-    final owner = ref.read(authRepositoryProvider).currentUser?.id;
+    final owner = _ownerId;
     if (owner == null) {
       return const Err(AuthFailure(message: 'ログインが必要です'));
     }
     final now = ref.read(clockProvider).now().toUtc();
     final base = _editing;
+    final newEventDate = dateOnly(form.eventDate!);
+    // 日程（公演日）を変更した場合、既存の手動終演時刻は「変更前の公演日」を
+    // 前提にした値であり、そのまま持ち越すと変更後の公演日でも終演済み・
+    // 思い出扱いに誤判定される（例: 過去日で終演済みにした後、未来日へ
+    // 再スケジュールしても「もう終わった現場」に見えてしまう）。公演日が
+    // 変わったら手動終演を解除し、新しい日程から状態を再導出させる（H-07）。
+    final eventDateChanged = base != null && base.eventDate != newEventDate;
     final genba = Genba(
       id: base?.id ?? const Uuid().v4(),
       ownerId: base?.ownerId ?? owner,
       artistName: form.artistName.trim(),
       title: form.title.trim(),
-      eventDate: dateOnly(form.eventDate!),
+      eventDate: newEventDate,
       oshiGroupId: form.oshiGroupId,
       oshiMemberIds: form.oshiMemberIds,
       venue: form.venue.trim().isEmpty ? null : form.venue.trim(),
@@ -252,14 +275,14 @@ class GenbaFormController
       transportRequirement: form.transportRequirement,
       lodgingRequirement: form.lodgingRequirement,
       isCanceled: base?.isCanceled ?? false,
-      manualEndedAt: base?.manualEndedAt,
+      manualEndedAt: eventDateChanged ? null : base?.manualEndedAt,
       createdAt: base?.createdAt ?? now,
       updatedAt: now,
     );
     final result = await ref.read(genbaRepositoryProvider).upsertGenba(genba);
     final failure = result.failureOrNull;
     if (failure != null) return Err(failure);
-    await ref.read(draftStoreProvider).clear(_draftKey);
+    await ref.read(draftStoreProvider).clear(owner, _draftKey);
     return Ok(genba.id);
   }
 }

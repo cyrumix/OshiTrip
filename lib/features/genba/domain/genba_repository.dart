@@ -32,5 +32,8 @@ abstract interface class GenbaRepository {
   Future<Result<void>> deleteMemo(String id);
 
   /// リモートの最新状態をローカルへ取り込む（キャッシュ先行表示の裏側で実行）。
-  Future<Result<void>> refreshFromRemote();
+  ///
+  /// [isStale] は認証切替検出用（H-02）。各リモート取得後・ローカル適用直前に
+  /// 呼ばれ、true なら以降のローカル書き込みを中断する。
+  Future<Result<void>> refreshFromRemote({bool Function()? isStale});
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/providers.dart';
 import '../../../core/time/date_only.dart';
@@ -261,7 +262,8 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
   }
 }
 
-/// マイ推しから選択（新規のマイ推し登録は「マイ推し」タブで、§9）。
+/// マイ推しから選択。事前登録が無くても、その場で新しい推しを作成できる
+/// 導線を常に用意する（§9「事前のマイ推し登録を必須にしない」）。
 class _OshiGroupSelector extends ConsumerWidget {
   const _OshiGroupSelector({
     required this.selectedGroupId,
@@ -271,11 +273,59 @@ class _OshiGroupSelector extends ConsumerWidget {
   final String? selectedGroupId;
   final void Function(OshiGroup? group) onSelected;
 
+  Future<void> _quickAddGroup(BuildContext context, WidgetRef ref) async {
+    final nameController = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('推しを登録'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'グループ／アーティスト名 *'),
+          onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, nameController.text.trim()),
+            child: const Text('登録'),
+          ),
+        ],
+      ),
+    );
+    nameController.dispose();
+    if (name == null || name.isEmpty || !context.mounted) return;
+
+    final now = ref.read(clockProvider).now().toUtc();
+    final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
+    if (owner.isEmpty) return;
+    final group = OshiGroup(
+      id: const Uuid().v4(),
+      ownerId: owner,
+      name: name,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final result = await ref.read(oshiRepositoryProvider).upsertGroup(group);
+    if (!context.mounted) return;
+    final failure = result.failureOrNull;
+    if (failure != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(failure.message)));
+      return;
+    }
+    // 作成した推しをそのまま現場に紐づける（登録の手間を1往復にする）。
+    onSelected(group);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final groupsAsync = ref.watch(oshiGroupsProvider);
     final groups = groupsAsync.valueOrNull ?? const [];
-    if (groups.isEmpty) return const SizedBox.shrink();
     return Wrap(
       spacing: 8,
       children: [
@@ -285,6 +335,11 @@ class _OshiGroupSelector extends ConsumerWidget {
             selected: selectedGroupId == g.group.id,
             onSelected: (selected) => onSelected(selected ? g.group : null),
           ),
+        ActionChip(
+          avatar: const Icon(Icons.add, size: 16),
+          label: Text(groups.isEmpty ? '推しを登録' : '新しい推しを登録'),
+          onPressed: () => _quickAddGroup(context, ref),
+        ),
       ],
     );
   }

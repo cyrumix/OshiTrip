@@ -6,6 +6,7 @@ import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../onboarding/application/tutorial_controller.dart';
+import '../application/account_controller.dart';
 import '../application/settings_controller.dart';
 
 /// 設定（§13の基礎: テーマ・チュートリアル再表示・アカウント・データ削除・アプリ情報）。
@@ -128,19 +129,19 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (!second || !context.mounted) return;
 
-    final result = await ref.read(accountRepositoryProvider).deleteAccount();
+    final failure =
+        await ref.read(accountControllerProvider.notifier).deleteAccount();
     if (!context.mounted) return;
-    result.when(
-      ok: (_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('アカウントを削除しました')),
-        );
-        context.go('/login');
-      },
-      err: (failure) => ScaffoldMessenger.of(context).showSnackBar(
+    if (failure == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('アカウントを削除しました')),
+      );
+      context.go('/login');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(failure.message)),
-      ),
-    );
+      );
+    }
   }
 }
 

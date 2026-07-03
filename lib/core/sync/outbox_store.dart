@@ -16,6 +16,18 @@ class OutboxStore {
   String get _nowIso => _clock.now().toUtc().toIso8601String();
 
   Future<void> enqueue(OutboxOperation op) async {
+    // 別 owner が発行済みの mutationId を横取り（上書き）できないよう検証する
+    // （C-01 防御強化）。UUIDv4 の衝突は現実的に起きないが、多層防御として
+    // 既存行の owner 不一致を明示的に拒否する。
+    final existing = await (_db.select(_db.outboxOps)
+          ..where((t) => t.mutationId.equals(op.mutationId))
+          ..limit(1))
+        .getSingleOrNull();
+    if (existing != null && existing.ownerId != op.ownerId) {
+      throw StateError(
+        'Outbox mutationId が別ownerに属します（owner不一致のenqueueを拒否）',
+      );
+    }
     await _db.into(_db.outboxOps).insertOnConflictUpdate(
           OutboxOpsCompanion.insert(
             mutationId: op.mutationId,
@@ -32,27 +44,98 @@ class OutboxStore {
         );
   }
 
-  Future<List<OutboxOperation>> pendingOps({int limit = 100}) async {
+  /// [ownerId] の pending/syncing 操作のみを返す（C-01: 別ownerの操作を
+  /// remoteへ渡さないための境界）。バックオフ待機は考慮しない（状態確認用）。
+  Future<List<OutboxOperation>> pendingOps({
+    required String ownerId,
+    int limit = 100,
+  }) async {
     final rows = await (_db.select(_db.outboxOps)
-          ..where((t) => t.status.isIn(const ['pending', 'syncing']))
-          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)])
+          ..where(
+            (t) =>
+                t.status.isIn(const ['pending', 'syncing']) &
+                t.ownerId.equals(ownerId),
+          )
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.createdAt),
+            (_) => OrderingTerm.asc(_rowid),
+          ])
           ..limit(limit))
         .get();
     return rows.map(_toOp).toList();
   }
 
+  /// [ownerId] の「今すぐ送ってよい」操作を返す（H-02）。
+  ///
+  /// バックオフ待機中（next_retry_at が [now] より未来）の op は除外する。
+  /// next_retry_at が null の op は即送信可。作成順で返す（順序保持）。
+  /// created_at が同値のとき（固定Clockのテスト等）も挿入順を保つため、
+  /// 第二キーに rowid（挿入順）を用いる。
+  Future<List<OutboxOperation>> dueOps({
+    required String ownerId,
+    required DateTime now,
+    int limit = 100,
+  }) async {
+    final nowIso = now.toUtc().toIso8601String();
+    final rows = await (_db.select(_db.outboxOps)
+          ..where(
+            (t) =>
+                t.status.isIn(const ['pending', 'syncing']) &
+                t.ownerId.equals(ownerId) &
+                (t.nextRetryAt.isNull() |
+                    t.nextRetryAt.isSmallerOrEqualValue(nowIso)),
+          )
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.createdAt),
+            (_) => OrderingTerm.asc(_rowid),
+          ])
+          ..limit(limit))
+        .get();
+    return rows.map(_toOp).toList();
+  }
+
+  /// 実行順の安定化に使う暗黙 rowid（挿入順）。
+  static const Expression<int> _rowid = CustomExpression<int>('rowid');
+
+  /// [ownerId] に「まだ送っていない（pending/syncing）」op が残っているか。
+  /// バックオフ待機中を含む（UI/coordinator の判断用）。
+  Future<bool> hasUnsent({required String ownerId}) async {
+    final row = await (_db.select(_db.outboxOps)
+          ..where(
+            (t) =>
+                t.status.isIn(const ['pending', 'syncing']) &
+                t.ownerId.equals(ownerId),
+          )
+          ..limit(1))
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  /// [mutationId] の状態を更新する。[ownerId] を必須にし、別ownerの操作を
+  /// 変更できないようにする（C-01 防御強化）。owner が一致する行のみ更新する。
+  ///
+  /// [nextRetryAt] を渡すとバックオフ待機時刻を保存する（H-02）。null を明示
+  /// したい場合は [clearNextRetryAt] を true にする（成功・即送信可へ戻す時）。
   Future<void> updateStatus(
     String mutationId,
     OutboxStatus status, {
+    required String ownerId,
     String? error,
     bool incrementAttempts = false,
+    DateTime? nextRetryAt,
+    bool clearNextRetryAt = false,
   }) async {
     final current = await (_db.select(_db.outboxOps)
-          ..where((t) => t.mutationId.equals(mutationId)))
+          ..where(
+            (t) => t.mutationId.equals(mutationId) & t.ownerId.equals(ownerId),
+          ))
         .getSingleOrNull();
+    // 存在しない、または別ownerの mutationId は変更しない。
     if (current == null) return;
     await (_db.update(_db.outboxOps)
-          ..where((t) => t.mutationId.equals(mutationId)))
+          ..where(
+            (t) => t.mutationId.equals(mutationId) & t.ownerId.equals(ownerId),
+          ))
         .write(
       OutboxOpsCompanion(
         status: Value(status.name),
@@ -60,32 +143,52 @@ class OutboxStore {
         attempts: incrementAttempts
             ? Value(current.attempts + 1)
             : const Value.absent(),
+        nextRetryAt: clearNextRetryAt
+            ? const Value(null)
+            : (nextRetryAt == null
+                ? const Value.absent()
+                : Value(nextRetryAt.toUtc().toIso8601String())),
         updatedAt: Value(_nowIso),
       ),
     );
   }
 
-  /// 成功済みopの後片付け。
-  Future<void> deleteSynced() =>
-      (_db.delete(_db.outboxOps)..where((t) => t.status.equals('synced'))).go();
+  /// [ownerId] の成功済みopの後片付け。他ownerの行には触れない。
+  Future<void> deleteSynced({required String ownerId}) =>
+      (_db.delete(_db.outboxOps)
+            ..where(
+              (t) => t.status.equals('synced') & t.ownerId.equals(ownerId),
+            ))
+          .go();
 
-  /// 失敗した op を再送対象へ戻す（内容は失わない）。
-  Future<void> retryFailed() =>
-      (_db.update(_db.outboxOps)..where((t) => t.status.equals('failed')))
+  /// [ownerId] の失敗した op を再送対象へ戻す（内容は失わない）。
+  /// 手動再試行なのでバックオフ待機（next_retry_at）も解除して即送信可にする。
+  Future<void> retryFailed({required String ownerId}) =>
+      (_db.update(_db.outboxOps)
+            ..where(
+              (t) => t.status.equals('failed') & t.ownerId.equals(ownerId),
+            ))
           .write(
         OutboxOpsCompanion(
           status: const Value('pending'),
+          nextRetryAt: const Value(null),
           updatedAt: Value(_nowIso),
         ),
       );
 
-  /// 対象エンティティに未同期変更が残っているか（pull時の上書き防止用）。
-  Future<bool> hasPendingFor(String entityTable, String entityId) async {
+  /// 対象エンティティ（[ownerId] 限定）に未同期変更が残っているか
+  /// （pull時の上書き防止用）。別ownerの同一IDは対象にしない。
+  Future<bool> hasPendingFor(
+    String entityTable,
+    String entityId,
+    String ownerId,
+  ) async {
     final row = await (_db.select(_db.outboxOps)
           ..where(
             (t) =>
                 t.entityTable.equals(entityTable) &
                 t.entityId.equals(entityId) &
+                t.ownerId.equals(ownerId) &
                 t.status.isNotIn(const ['synced']),
           )
           ..limit(1))
@@ -93,9 +196,12 @@ class OutboxStore {
     return row != null;
   }
 
-  /// 同期状態サマリの監視（UIバナー用）。
-  Stream<Map<OutboxStatus, int>> watchStatusCounts() {
-    return _db.select(_db.outboxOps).watch().map((rows) {
+  /// [ownerId] の同期状態サマリの監視（UIバナー用）。前ownerの残留件数を
+  /// 引き継いで表示しない。
+  Stream<Map<OutboxStatus, int>> watchStatusCounts({required String ownerId}) {
+    return (_db.select(_db.outboxOps)..where((t) => t.ownerId.equals(ownerId)))
+        .watch()
+        .map((rows) {
       final counts = <OutboxStatus, int>{};
       for (final row in rows) {
         final status = OutboxStatus.values.byName(row.status);
@@ -115,6 +221,8 @@ class OutboxStore {
         status: OutboxStatus.values.byName(row.status),
         attempts: row.attempts,
         lastError: row.lastError,
+        nextRetryAt:
+            row.nextRetryAt == null ? null : DateTime.parse(row.nextRetryAt!),
         createdAt: DateTime.parse(row.createdAt),
         updatedAt: DateTime.parse(row.updatedAt),
       );

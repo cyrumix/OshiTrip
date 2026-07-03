@@ -47,6 +47,10 @@ mixin _$Genba {
       throw _privateConstructorUsedError;
   bool get isCanceled => throw _privateConstructorUsedError;
 
+  /// 現場ヒーロー画像の端末内参照（`images/<owner>/hero/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
+  String? get heroImageLocalPath => throw _privateConstructorUsedError;
+
   /// ユーザーが明示的に「終演した」とした時刻（余韻中への手動遷移）。
   @NullableUtcDateTimeConverter()
   DateTime? get manualEndedAt => throw _privateConstructorUsedError;
@@ -87,6 +91,7 @@ abstract class $GenbaCopyWith<$Res> {
       RequirementStatus transportRequirement,
       RequirementStatus lodgingRequirement,
       bool isCanceled,
+      String? heroImageLocalPath,
       @NullableUtcDateTimeConverter() DateTime? manualEndedAt,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
@@ -124,6 +129,7 @@ class _$GenbaCopyWithImpl<$Res, $Val extends Genba>
     Object? transportRequirement = null,
     Object? lodgingRequirement = null,
     Object? isCanceled = null,
+    Object? heroImageLocalPath = freezed,
     Object? manualEndedAt = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
@@ -197,6 +203,10 @@ class _$GenbaCopyWithImpl<$Res, $Val extends Genba>
           ? _value.isCanceled
           : isCanceled // ignore: cast_nullable_to_non_nullable
               as bool,
+      heroImageLocalPath: freezed == heroImageLocalPath
+          ? _value.heroImageLocalPath
+          : heroImageLocalPath // ignore: cast_nullable_to_non_nullable
+              as String?,
       manualEndedAt: freezed == manualEndedAt
           ? _value.manualEndedAt
           : manualEndedAt // ignore: cast_nullable_to_non_nullable
@@ -238,6 +248,7 @@ abstract class _$$GenbaImplCopyWith<$Res> implements $GenbaCopyWith<$Res> {
       RequirementStatus transportRequirement,
       RequirementStatus lodgingRequirement,
       bool isCanceled,
+      String? heroImageLocalPath,
       @NullableUtcDateTimeConverter() DateTime? manualEndedAt,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
@@ -273,6 +284,7 @@ class __$$GenbaImplCopyWithImpl<$Res>
     Object? transportRequirement = null,
     Object? lodgingRequirement = null,
     Object? isCanceled = null,
+    Object? heroImageLocalPath = freezed,
     Object? manualEndedAt = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
@@ -346,6 +358,10 @@ class __$$GenbaImplCopyWithImpl<$Res>
           ? _value.isCanceled
           : isCanceled // ignore: cast_nullable_to_non_nullable
               as bool,
+      heroImageLocalPath: freezed == heroImageLocalPath
+          ? _value.heroImageLocalPath
+          : heroImageLocalPath // ignore: cast_nullable_to_non_nullable
+              as String?,
       manualEndedAt: freezed == manualEndedAt
           ? _value.manualEndedAt
           : manualEndedAt // ignore: cast_nullable_to_non_nullable
@@ -384,6 +400,7 @@ class _$GenbaImpl implements _Genba {
       this.transportRequirement = RequirementStatus.unknown,
       this.lodgingRequirement = RequirementStatus.unknown,
       this.isCanceled = false,
+      this.heroImageLocalPath,
       @NullableUtcDateTimeConverter() this.manualEndedAt,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt})
@@ -444,6 +461,11 @@ class _$GenbaImpl implements _Genba {
   @JsonKey()
   final bool isCanceled;
 
+  /// 現場ヒーロー画像の端末内参照（`images/<owner>/hero/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
+  @override
+  final String? heroImageLocalPath;
+
   /// ユーザーが明示的に「終演した」とした時刻（余韻中への手動遷移）。
   @override
   @NullableUtcDateTimeConverter()
@@ -457,7 +479,7 @@ class _$GenbaImpl implements _Genba {
 
   @override
   String toString() {
-    return 'Genba(id: $id, ownerId: $ownerId, artistName: $artistName, title: $title, eventDate: $eventDate, oshiGroupId: $oshiGroupId, oshiMemberIds: $oshiMemberIds, venue: $venue, doorTimeMinutes: $doorTimeMinutes, startTimeMinutes: $startTimeMinutes, endTimeMinutes: $endTimeMinutes, performanceType: $performanceType, performanceId: $performanceId, isExpedition: $isExpedition, transportRequirement: $transportRequirement, lodgingRequirement: $lodgingRequirement, isCanceled: $isCanceled, manualEndedAt: $manualEndedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Genba(id: $id, ownerId: $ownerId, artistName: $artistName, title: $title, eventDate: $eventDate, oshiGroupId: $oshiGroupId, oshiMemberIds: $oshiMemberIds, venue: $venue, doorTimeMinutes: $doorTimeMinutes, startTimeMinutes: $startTimeMinutes, endTimeMinutes: $endTimeMinutes, performanceType: $performanceType, performanceId: $performanceId, isExpedition: $isExpedition, transportRequirement: $transportRequirement, lodgingRequirement: $lodgingRequirement, isCanceled: $isCanceled, heroImageLocalPath: $heroImageLocalPath, manualEndedAt: $manualEndedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -495,6 +517,8 @@ class _$GenbaImpl implements _Genba {
                 other.lodgingRequirement == lodgingRequirement) &&
             (identical(other.isCanceled, isCanceled) ||
                 other.isCanceled == isCanceled) &&
+            (identical(other.heroImageLocalPath, heroImageLocalPath) ||
+                other.heroImageLocalPath == heroImageLocalPath) &&
             (identical(other.manualEndedAt, manualEndedAt) ||
                 other.manualEndedAt == manualEndedAt) &&
             (identical(other.createdAt, createdAt) ||
@@ -524,6 +548,7 @@ class _$GenbaImpl implements _Genba {
         transportRequirement,
         lodgingRequirement,
         isCanceled,
+        heroImageLocalPath,
         manualEndedAt,
         createdAt,
         updatedAt
@@ -564,6 +589,7 @@ abstract class _Genba implements Genba {
       final RequirementStatus transportRequirement,
       final RequirementStatus lodgingRequirement,
       final bool isCanceled,
+      final String? heroImageLocalPath,
       @NullableUtcDateTimeConverter() final DateTime? manualEndedAt,
       @UtcDateTimeConverter() required final DateTime createdAt,
       @UtcDateTimeConverter() required final DateTime updatedAt}) = _$GenbaImpl;
@@ -611,6 +637,11 @@ abstract class _Genba implements Genba {
   RequirementStatus get lodgingRequirement;
   @override
   bool get isCanceled;
+
+  /// 現場ヒーロー画像の端末内参照（`images/<owner>/hero/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
+  @override
+  String? get heroImageLocalPath;
 
   /// ユーザーが明示的に「終演した」とした時刻（余韻中への手動遷移）。
   @override

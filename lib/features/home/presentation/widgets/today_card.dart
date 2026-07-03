@@ -1,9 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/images/image_store.dart';
+import '../../../../core/providers.dart';
 import '../../../genba/domain/genba.dart';
 import '../../../genba/domain/genba_schedule.dart';
 
@@ -150,11 +151,17 @@ class _TodayModeCard extends StatelessWidget {
                       label: const Text('チケットサイトを開く'),
                     ),
                   if (ticket?.imageLocalPath != null)
-                    FilledButton.tonalIcon(
-                      onPressed: () =>
-                          _showTicketImage(context, ticket!.imageLocalPath!),
-                      icon: const Icon(Icons.image_outlined, size: 18),
-                      label: const Text('保存済みチケット画像'),
+                    Consumer(
+                      builder: (context, ref, _) => FilledButton.tonalIcon(
+                        onPressed: () => _showTicketImage(
+                          context,
+                          ref.read(imageStoreProvider),
+                          ticket!.ownerId,
+                          ticket.imageLocalPath!,
+                        ),
+                        icon: const Icon(Icons.image_outlined, size: 18),
+                        label: const Text('保存済みチケット画像'),
+                      ),
                     ),
                   OutlinedButton.icon(
                     onPressed: () => context.push('/genba/${genba.id}'),
@@ -198,7 +205,13 @@ class _TodayModeCard extends StatelessWidget {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  void _showTicketImage(BuildContext context, String path) {
+  void _showTicketImage(
+    BuildContext context,
+    ImageStore store,
+    String ownerId,
+    String ref,
+  ) {
+    final file = store.tryResolveOwned(ownerId, ref);
     showDialog<void>(
       context: context,
       builder: (context) => Dialog(
@@ -213,13 +226,18 @@ class _TodayModeCard extends StatelessWidget {
               ),
             ),
             Flexible(
-              child: Image.file(
-                File(path),
-                errorBuilder: (_, __, ___) => const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('画像を読み込めませんでした'),
-                ),
-              ),
+              child: file == null
+                  ? const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('画像を読み込めませんでした'),
+                    )
+                  : Image.file(
+                      file,
+                      errorBuilder: (_, __, ___) => const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text('画像を読み込めませんでした'),
+                      ),
+                    ),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

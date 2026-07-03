@@ -144,6 +144,35 @@ class EmptyView extends StatelessWidget {
   }
 }
 
+/// 破壊的ではないが誤操作の影響が大きい操作の確認ダイアログ（例:
+/// 「終演した」— 誤って押すと状態が余韻中/思い出へ進んでしまう）。
+/// [confirmDangerAction] と異なり赤色の危険色は使わない。
+Future<bool> confirmAction(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String confirmLabel = 'OK',
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('キャンセル'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
+
 /// 削除などの危険操作の確認ダイアログ（削除は確認必須, §7.2）。
 Future<bool> confirmDangerAction(
   BuildContext context, {

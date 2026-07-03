@@ -1,9 +1,14 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/error/failure.dart';
 import '../../../../core/error/result.dart';
+import '../../../../core/images/image_store.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/time/date_only.dart';
 import '../../domain/genba.dart';
@@ -110,6 +115,14 @@ class _TicketEditorState extends ConsumerState<_TicketEditor> {
   late final TextEditingController _memo;
   String? _imageLocalPath;
 
+  /// この編集セッションで import した参照。保存確定時に、最終的に参照されない
+  /// もの（差替えで捨てた画像・保存失敗した画像）を孤立させず削除する。
+  /// 保存されずに閉じられた場合は dispose で全て削除する（未確定のため）。
+  final List<String> _sessionImports = [];
+
+  /// import 実行時の owner（dispose 時の owner スコープ削除に使う）。
+  String? _sessionOwnerId;
+
   @override
   void initState() {
     super.initState();
@@ -127,6 +140,19 @@ class _TicketEditorState extends ConsumerState<_TicketEditor> {
 
   @override
   void dispose() {
+    // 保存されずに閉じられた場合（戻る・シートを閉じる・破棄）、この編集で
+    // import した未確定画像を owner スコープで削除する。保存確定時は
+    // _reconcileImageFiles が _sessionImports を空にするため、ここでは
+    // 保存済み画像（widget.existing?.imageLocalPath）に触れることはない。
+    final owner = _sessionOwnerId;
+    if (owner != null && _sessionImports.isNotEmpty) {
+      final store = ref.read(imageStoreProvider);
+      final refs = List<String>.of(_sessionImports);
+      _sessionImports.clear();
+      for (final r in refs) {
+        unawaited(store.deleteRef(owner, r));
+      }
+    }
     _seat.dispose();
     _entryNumber.dispose();
     _gate.dispose();
@@ -137,7 +163,35 @@ class _TicketEditorState extends ConsumerState<_TicketEditor> {
 
   Future<void> _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) setState(() => _imageLocalPath = picked.path);
+    if (picked == null) return;
+    final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
+    if (owner.isEmpty) return;
+    try {
+      // チケット画像は最も機密度の高い区分としてアプリ管理領域へ耐久保存する
+      // （一時パスに依存しない, H-04）。相対参照を DB へ保存する。
+      // バックアップ除外に失敗した場合は import が例外を投げ、生成ファイルは
+      // 削除済み（確定保存されない）。
+      final storedRef = await ref.read(imageStoreProvider).import(
+            ownerId: owner,
+            category: ImageCategory.ticket,
+            source: File(picked.path),
+          );
+      _sessionOwnerId = owner;
+      _sessionImports.add(storedRef);
+      if (mounted) setState(() => _imageLocalPath = storedRef);
+    } on ImageStorageException catch (e) {
+      if (mounted) {
+        _showResult(
+          context,
+          Err(StorageFailure(message: 'チケット画像の保存に失敗しました', cause: e)),
+          '',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showResult(context, Err(StorageFailure(cause: e)), '');
+      }
+    }
   }
 
   Future<void> _save() async {
@@ -162,9 +216,44 @@ class _TicketEditorState extends ConsumerState<_TicketEditor> {
       updatedAt: now,
     );
     final result = await ref.read(genbaRepositoryProvider).upsertTicket(ticket);
+    await _reconcileImageFiles(
+      ownerId: ticket.ownerId,
+      saved: result.failureOrNull == null,
+      keptRef: _imageLocalPath,
+      originalRef: widget.existing?.imageLocalPath,
+    );
     if (!mounted) return;
     Navigator.of(context).pop();
     _showResult(context, result, 'チケットを保存しました');
+  }
+
+  /// 保存後に孤立画像を掃除する（差替え・クリア・保存失敗いずれも対象）。
+  /// owner スコープの [ImageStore.deleteRef] を使うため他ユーザーのファイルには
+  /// 決して触れない。
+  Future<void> _reconcileImageFiles({
+    required String ownerId,
+    required bool saved,
+    required String? keptRef,
+    required String? originalRef,
+  }) async {
+    if (ownerId.isEmpty) return;
+    final store = ref.read(imageStoreProvider);
+    if (saved) {
+      // 保存確定: 元画像が差し替え/クリアされたら削除。
+      if (originalRef != null && originalRef != keptRef) {
+        await store.deleteRef(ownerId, originalRef);
+      }
+      // 今回 import したが最終的に採用されなかった中間画像を削除。
+      for (final r in _sessionImports) {
+        if (r != keptRef) await store.deleteRef(ownerId, r);
+      }
+    } else {
+      // 保存失敗: DB は更新されていないので今回の import は全て孤立。
+      for (final r in _sessionImports) {
+        await store.deleteRef(ownerId, r);
+      }
+    }
+    _sessionImports.clear();
   }
 
   @override
@@ -766,7 +855,9 @@ class _MemoEditorState extends ConsumerState<_MemoEditor> {
 // 共通部品
 // ---------------------------------------------------------------------------
 
-class _EditorScaffold extends StatelessWidget {
+/// 子データ編集シートの共通枠。保存ボタンは二重タップで多重送信しないよう、
+/// 保存処理中は無効化しローディングを示す（H-07/M-01）。
+class _EditorScaffold extends StatefulWidget {
   const _EditorScaffold({
     required this.title,
     required this.onSave,
@@ -776,6 +867,26 @@ class _EditorScaffold extends StatelessWidget {
   final String title;
   final Future<void> Function() onSave;
   final List<Widget> children;
+
+  @override
+  State<_EditorScaffold> createState() => _EditorScaffoldState();
+}
+
+class _EditorScaffoldState extends State<_EditorScaffold> {
+  bool _saving = false;
+
+  Future<void> _handleSave() async {
+    if (_saving) return; // 二重タップ: 保存処理中は再入を無視する。
+    setState(() => _saving = true);
+    try {
+      await widget.onSave();
+    } finally {
+      // onSave が正常終了すると大抵はシート自体が pop されているため、
+      // まだ mounted の場合のみ解除する（保存失敗時など、シートが残る場合に
+      // ボタンを再度押せるようにする）。
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -791,7 +902,7 @@ class _EditorScaffold extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    title,
+                    widget.title,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
@@ -807,7 +918,7 @@ class _EditorScaffold extends StatelessWidget {
             child: ListView(
               controller: scrollController,
               padding: const EdgeInsets.all(16),
-              children: children,
+              children: widget.children,
             ),
           ),
           SafeArea(
@@ -816,8 +927,17 @@ class _EditorScaffold extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: onSave,
-                  child: const Text('保存する'),
+                  onPressed: _saving ? null : _handleSave,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            semanticsLabel: '保存中',
+                          ),
+                        )
+                      : const Text('保存する'),
                 ),
               ),
             ),

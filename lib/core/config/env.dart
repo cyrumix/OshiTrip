@@ -39,8 +39,8 @@ class AppEnv {
   }
 
   String get appTitle => switch (flavor) {
-        Flavor.development => '推し活遠征管理（dev）',
-        Flavor.staging => '推し活遠征管理（stg）',
-        Flavor.production => '推し活遠征管理',
+        Flavor.development => 'OshiTrip Dev',
+        Flavor.staging => 'OshiTrip Staging',
+        Flavor.production => 'OshiTrip',
       };
 }

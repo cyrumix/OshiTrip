@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
 import '../../genba/application/genba_providers.dart';
 import '../../genba/domain/genba.dart';
@@ -51,6 +50,11 @@ class _MemoryCard extends ConsumerWidget {
     final bundle = ref.watch(memoryBundleProvider(genba.id)).valueOrNull;
     final cover = _coverPhoto(bundle);
     final impression = bundle?.entry?.impression ?? '';
+    final coverFile = cover?.localPath == null
+        ? null
+        : ref
+            .read(imageStoreProvider)
+            .tryResolveOwned(cover!.ownerId, cover.localPath!);
 
     return Card(
       child: InkWell(
@@ -58,12 +62,12 @@ class _MemoryCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (cover?.localPath != null)
+            if (coverFile != null)
               SizedBox(
                 height: 140,
                 width: double.infinity,
                 child: Image.file(
-                  File(cover!.localPath!),
+                  coverFile,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 ),

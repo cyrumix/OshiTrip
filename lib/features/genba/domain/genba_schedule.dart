@@ -91,21 +91,23 @@ GenbaStatus deriveGenbaStatus(
   return GenbaStatus.scheduled;
 }
 
-/// 「現場」タブ・通常ホームに表示すべきか（未来・当日・余韻中）。
-bool isUpcoming(Genba genba, DateTime now) {
-  final status = deriveGenbaStatus(genba, now);
-  return status != GenbaStatus.memory && status != GenbaStatus.canceled;
-}
-
 /// 「思い出」タブに表示すべきか。中止した現場も記録として思い出に残す。
 bool isMemory(Genba genba, DateTime now) {
   final status = deriveGenbaStatus(genba, now);
   if (status == GenbaStatus.canceled) {
-    // 中止現場は公演日を過ぎたら思い出側に表示する。
+    // 中止現場は公演日を過ぎたら思い出側に表示する（それまでは現場一覧に残す。
+    // 中止操作の直後に一覧から消えて確認・編集・取消ができなくなることを
+    // 防ぐ, H-07）。
     return !now.isBefore(GenbaSchedule(genba).memoryStartAt);
   }
   return status == GenbaStatus.memory;
 }
+
+/// 「現場」タブ・通常ホームに表示すべきか（未来・当日・余韻中・
+/// まだ思い出へ移っていない中止済みを含む）。[isMemory] の否定として定義し、
+/// 「現場一覧」と「思い出」が常に排他的にすべての現場を分担するようにする
+/// （どちらにも出ない・両方に出る、を構造的に防ぐ）。
+bool isUpcoming(Genba genba, DateTime now) => !isMemory(genba, now);
 
 /// 公演日までの残日数（暦日ベース）。過去は負値。
 int daysUntil(Genba genba, DateTime now) =>

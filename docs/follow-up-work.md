@@ -73,12 +73,19 @@
 11. **マネタイズ導線**（§12: 要否=required かつ未登録のときのみ。`GenbaPreparation` が判定材料）
 12. **l10n（ARB化）**: 現状は ja リテラル直書き（decisions.md D-30）
 13. **riverpod_generator への移行**（decisions.md D-01。機械的変換）
-14. **iOS flavor 対応**: Xcode Scheme/Config（macOS 必須工程、setup.md §6）
+14. ~~**iOS flavor 対応**: Xcode Scheme/Config~~ 解消済み（H-01/M-02、decisions.md）。
+    development/staging/production の共有Schemeとxcconfigを追加した。
+    macOS実機/CIでのXcodeビルド・アーカイブ検証のみ未実施（macOS 必須工程、setup.md §6）。
 15. **分析・クラッシュレポート・ストア提出自動化**
 
 ## 検証の未完了項目（環境依存）
 
-- `flutter build apk --flavor development`: Android SDK / JDK17 未導入のため未実行（setup.md §2）。
+- `flutter build apk --flavor development`: 現行の開発機に Android SDK が
+  未導入のため未実行（setup.md §2）。Gradle設定・productFlavor・署名境界
+  （H-01/M-02, decisions.md）はソースレビュー済み。
 - `flutter test integration_test`: エミュレータ/実機が必要。テスト自体は `integration_test/app_flow_test.dart` に実装済み。
 - `supabase test db`（pgTAP）: Supabase CLI + Docker 未導入のため未実行。`supabase/tests/` に実装済み。CI の db-authz ジョブで実行される。
-- iOS ビルド: macOS 環境が必要（従来からのブロッカー）。
+- iOS ビルド・Xcode Scheme(development/staging/production)の実機/CI検証:
+  macOS 環境が必要（従来からのブロッカー）。pbxproj/xcconfig/xcscheme は
+  再パース・ID参照整合性の検証済みだが、実際の Xcode でのビルド・
+  アーカイブは未実施。

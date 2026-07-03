@@ -1,9 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/error/failure.dart';
+import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
 import '../application/memory_controllers.dart';
 import '../domain/memory.dart';
@@ -59,10 +59,21 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null) return;
     final failure = await _controller.addPhoto(picked.path);
-    if (failure != null && mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(failure.message)));
-    }
+    _showFailure(failure);
+  }
+
+  Future<void> _deletePhoto(String id) async {
+    final failure = await _controller.deletePhoto(id);
+    _showFailure(failure);
+  }
+
+  /// 失敗（null以外）だけを SnackBar で示す。成功していない操作を成功表示しない
+  /// （H-07/M-01）。
+  void _showFailure(Object? failure) {
+    if (failure == null || !mounted) return;
+    final message = failure is Failure ? failure.message : '操作に失敗しました';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -112,6 +123,11 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       final photo = bundle.photos[index];
+                      final file = photo.localPath == null
+                          ? null
+                          : ref
+                              .read(imageStoreProvider)
+                              .tryResolveOwned(photo.ownerId, photo.localPath!);
                       return Stack(
                         children: [
                           ClipRRect(
@@ -119,9 +135,9 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                             child: SizedBox(
                               width: 96,
                               height: 96,
-                              child: photo.localPath != null
+                              child: file != null
                                   ? Image.file(
-                                      File(photo.localPath!),
+                                      file,
                                       fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) =>
                                           const Icon(Icons.broken_image),
@@ -140,8 +156,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                               ),
                               iconSize: 16,
                               icon: const Icon(Icons.close),
-                              onPressed: () =>
-                                  _controller.deletePhoto(photo.id),
+                              onPressed: () => _deletePhoto(photo.id),
                             ),
                           ),
                         ],
@@ -203,8 +218,10 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                       label: '${item.position}. ${item.songTitle}',
                     ),
                 ],
-                onAdd: (text) => _controller.addSetlistItem(text),
-                onDelete: (id) => _controller.deleteSetlistItem(id),
+                onAdd: (text) =>
+                    _controller.addSetlistItem(text).then(_showFailure),
+                onDelete: (id) =>
+                    _controller.deleteSetlistItem(id).then(_showFailure),
               ),
               const SizedBox(height: 24),
               const _StageHeader(
@@ -228,8 +245,10 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                   for (final item in bundle.goods)
                     (id: item.id, label: item.name),
                 ],
-                onAdd: (text) => _controller.addGoodsItem(text),
-                onDelete: (id) => _controller.deleteGoodsItem(id),
+                onAdd: (text) =>
+                    _controller.addGoodsItem(text).then(_showFailure),
+                onDelete: (id) =>
+                    _controller.deleteGoodsItem(id).then(_showFailure),
               ),
               const SizedBox(height: 12),
               _ListEditor(
@@ -241,8 +260,11 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                   for (final place in bundle.places)
                     (id: place.id, label: place.name),
                 ],
-                onAdd: (text) => _controller.addVisitedPlace(text, 'spot'),
-                onDelete: (id) => _controller.deleteVisitedPlace(id),
+                onAdd: (text) => _controller
+                    .addVisitedPlace(text, 'spot')
+                    .then(_showFailure),
+                onDelete: (id) =>
+                    _controller.deleteVisitedPlace(id).then(_showFailure),
               ),
               const SizedBox(height: 48),
             ],

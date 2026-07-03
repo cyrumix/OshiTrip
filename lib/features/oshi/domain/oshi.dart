@@ -65,6 +65,10 @@ abstract class OshiMember with _$OshiMember {
     @NullableDateOnlyConverter() DateTime? oshiSince,
     @NullableDateOnlyConverter() DateTime? birthday,
     String? memo,
+
+    /// 推し画像の端末内参照（`images/<owner>/oshi/...`）。
+    /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
+    String? imageLocalPath,
     @UtcDateTimeConverter() required DateTime createdAt,
     @UtcDateTimeConverter() required DateTime updatedAt,
   }) = _OshiMember;

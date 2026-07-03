@@ -4,9 +4,23 @@ name: CI
 #   本ワークフローは Flutter プロジェクト生成後に緑化する。
 #   現時点ではプロジェクト未生成のため、pubspec.yaml が存在する場合のみ実ジョブが走る。
 #   ジョブ:
-#     - windows: format / analyze / test / Android debug build
-#     - macos:   無署名 iOS build / test（§16.2 のリリース前提を満たす検証）
+#     - windows: format / analyze / test（development/staging/production の
+#       設定不備・デモフォールバック禁止・flavor/entry不一致ガードは
+#       test/core/env_flavor_test.dart 等の Dart 単体テストで検証する） /
+#       tool/verify_flavor_config.dart（Android/iOS 3flavor全ての設定静的検証、
+#       ビルド不要） / Android development flavor debug build
+#     - macos:   無署名 iOS development flavor build / test（§16.2 のリリース前提を満たす検証）
 #     - db:      Supabase マイグレーション適用 + pgTAP（認可/RLS 自動テスト、ADR-0008）
+#
+#   H-01/M-02: flavor（Dart entry）と Android productFlavor / iOS scheme の
+#   組合せは、必ず development=lib/main_development.dart、
+#   staging=lib/main_staging.dart、production=lib/main_production.dart で
+#   固定する（README.md「開発ビルドの起動手順」参照）。この対応関係が崩れる
+#   ビルド（例: production の applicationId + development entry）は、
+#   core/config/flavor_guard.dart による起動時ガードで拒否される。
+#   staging/production は実ネイティブビルドをCIで行わない（実鍵が無い）ため、
+#   `tool/verify_flavor_config.dart` が Android Gradle・iOS xcconfig/scheme/
+#   pbxproj の設定欠落・entry取り違えをビルド無しで検出する。
 
 on:
   push:
@@ -44,7 +58,7 @@ jobs:
         shell: bash
         run: |
           cat > .env.development.json <<'JSON'
-          { "APP_ENV": "development", "SUPABASE_URL": "http://127.0.0.1:54321", "SUPABASE_ANON_KEY": "ci-anon", "PERFORMANCE_HEADCOUNT_MIN_DISPLAY": "10", "LOG_LEVEL": "info" }
+          { "SUPABASE_URL": "http://127.0.0.1:54321", "SUPABASE_ANON_KEY": "ci-anon", "PERFORMANCE_HEADCOUNT_MIN_DISPLAY": "10", "LOG_LEVEL": "info" }
           JSON
 
       - run: flutter pub get
@@ -58,7 +72,17 @@ jobs:
         if: steps.guard.outputs.ready == 'true'
       - run: flutter test --coverage
         if: steps.guard.outputs.ready == 'true'
-      - run: flutter build apk --flavor development --debug --dart-define-from-file=.env.development.json
+      # Android/iOS 3flavor（development/staging/production）の設定
+      # （applicationId/bundle id・Debug/Profile/Release configuration・
+      # APP_DISPLAY_NAME・FLUTTER_TARGET・Dart entry の対応）が過不足なく
+      # 揃っているかを静的検証する（H-01/M-02）。ビルドを要さないため、
+      # staging/production の設定欠落や entry 取り違えもここで検出できる
+      # （必須ネイティブビルドは development のみ、下のステップ）。
+      - run: dart run tool/verify_flavor_config.dart
+        if: steps.guard.outputs.ready == 'true'
+      # flavor（Gradle productFlavor）と Dart entry の組合せを固定する
+      # （development flavor は必ず main_development.dart, H-01）。
+      - run: flutter build apk --flavor development --debug -t lib/main_development.dart --dart-define-from-file=.env.development.json
         if: steps.guard.outputs.ready == 'true'
 
   # ---------------------------------------------------------------------------
@@ -86,16 +110,17 @@ jobs:
         shell: bash
         run: |
           cat > .env.development.json <<'JSON'
-          { "APP_ENV": "development", "SUPABASE_URL": "http://127.0.0.1:54321", "SUPABASE_ANON_KEY": "ci-anon", "PERFORMANCE_HEADCOUNT_MIN_DISPLAY": "10", "LOG_LEVEL": "info" }
+          { "SUPABASE_URL": "http://127.0.0.1:54321", "SUPABASE_ANON_KEY": "ci-anon", "PERFORMANCE_HEADCOUNT_MIN_DISPLAY": "10", "LOG_LEVEL": "info" }
           JSON
 
       - run: flutter pub get
         if: steps.guard.outputs.ready == 'true'
       - run: flutter test
         if: steps.guard.outputs.ready == 'true'
-      # NOTE: iOS の flavor 用 Xcode Scheme は未設定（docs/follow-up-work.md #14）。
-      #       設定後に --flavor development を付与する。
-      - run: flutter build ios --no-codesign -t lib/main_development.dart --dart-define-from-file=.env.development.json
+      # iOS の development scheme（ios/Runner.xcodeproj/xcshareddata/xcschemes/
+      # development.xcscheme）を使い、flavor と Dart entry の組合せを固定する
+      # （H-01）。
+      - run: flutter build ios --no-codesign --flavor development -t lib/main_development.dart --dart-define-from-file=.env.development.json
         if: steps.guard.outputs.ready == 'true'
 
   # ---------------------------------------------------------------------------

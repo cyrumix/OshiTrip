@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:oshi_expedition/core/db/app_database.dart';
+import 'package:oshi_trip/core/db/app_database.dart';
 
 import '../helpers/test_db.dart';
 

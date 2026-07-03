@@ -30,11 +30,16 @@ Genba genbaFromRow(GenbaRow row) => Genba(
       isCanceled: row.isCanceled,
       manualEndedAt:
           row.manualEndedAt == null ? null : DateTime.parse(row.manualEndedAt!),
+      heroImageLocalPath: row.heroImageLocalPath,
       createdAt: DateTime.parse(row.createdAt),
       updatedAt: DateTime.parse(row.updatedAt),
     );
 
-GenbasCompanion genbaToCompanion(Genba g) => GenbasCompanion.insert(
+/// [preserveLocalImage] が true のとき hero_image_local_path を companion に
+/// 含めない（`Value.absent`）。リモート pull はサーバーに存在しないこの端末内
+/// 参照を null で上書きしてはならないため（H-04）。ローカル書き込みでは false。
+GenbasCompanion genbaToCompanion(Genba g, {bool preserveLocalImage = false}) =>
+    GenbasCompanion.insert(
       id: g.id,
       ownerId: g.ownerId,
       artistName: g.artistName,
@@ -53,6 +58,9 @@ GenbasCompanion genbaToCompanion(Genba g) => GenbasCompanion.insert(
       lodgingRequirement: Value(_requirementName(g.lodgingRequirement)),
       isCanceled: Value(g.isCanceled),
       manualEndedAt: Value(g.manualEndedAt?.toUtc().toIso8601String()),
+      heroImageLocalPath: preserveLocalImage
+          ? const Value.absent()
+          : Value(g.heroImageLocalPath),
       createdAt: _ts(g.createdAt),
       updatedAt: _ts(g.updatedAt),
     );

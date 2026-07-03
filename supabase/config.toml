@@ -1,5 +1,5 @@
 # Supabase CLI ローカル開発設定（supabase start / db reset / test db 用）
-project_id = "oshi-expedition-app"
+project_id = "oshi-trip"
 
 [api]
 enabled = true

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:oshi_expedition/features/genba/domain/genba.dart';
-import 'package:oshi_expedition/features/genba/domain/genba_schedule.dart';
+import 'package:oshi_trip/features/genba/domain/genba.dart';
+import 'package:oshi_trip/features/genba/domain/genba_schedule.dart';
 
 import '../helpers/fixtures.dart';
 
@@ -148,11 +148,38 @@ void main() {
       );
     });
 
-    test('中止現場は公演日を過ぎると思い出一覧に入る', () {
+    test(
+        '中止現場は公演日を過ぎるまで現場一覧に残り（消えない）、'
+        '過ぎると思い出に移る（H-07）', () {
       final genba = makeGenba(eventDate: eventDate, isCanceled: true);
+      // 中止操作の直後（公演日より前）は現場一覧に残り、思い出には出ない。
+      // ここが消えると確認・編集・日程変更・中止取消・削除ができなくなる
+      // （H-07の欠陥そのもの）。
+      expect(isUpcoming(genba, DateTime(2026, 7, 1)), isTrue);
+      expect(isMemory(genba, DateTime(2026, 7, 1)), isFalse);
       expect(isMemory(genba, DateTime(2026, 7, 9)), isFalse);
+      // 公演日を過ぎたら思い出に記録として残る。
       expect(isMemory(genba, DateTime(2026, 7, 11, 0, 1)), isTrue);
-      expect(isUpcoming(genba, DateTime(2026, 7, 1)), isFalse);
+      expect(isUpcoming(genba, DateTime(2026, 7, 11, 0, 1)), isFalse);
+    });
+
+    test('現場一覧と思い出は常に排他的（どちらにも出ない・両方に出るがない）', () {
+      final canceled = makeGenba(eventDate: eventDate, isCanceled: true);
+      final scheduled = makeGenba(eventDate: eventDate);
+      for (final now in [
+        DateTime(2026, 7, 1),
+        DateTime(2026, 7, 10, 12),
+        DateTime(2026, 7, 11, 0, 1),
+      ]) {
+        for (final g in [canceled, scheduled]) {
+          expect(
+            isUpcoming(g, now) != isMemory(g, now),
+            isTrue,
+            reason:
+                'isUpcoming/isMemory は $now 時点で排他的であるべき（isCanceled=${g.isCanceled}）',
+          );
+        }
+      }
     });
 
     test('「終演した」操作で予定より早く余韻中になる', () {

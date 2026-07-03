@@ -29,6 +29,9 @@ class Genbas extends Table {
       text().withDefault(const Constant('unknown'))();
   BoolColumn get isCanceled => boolean().withDefault(const Constant(false))();
   TextColumn get manualEndedAt => text().nullable()();
+
+  /// ヒーロー画像の端末内相対参照（同期対象外, H-04, schema v4）。
+  TextColumn get heroImageLocalPath => text().nullable()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
@@ -248,6 +251,9 @@ class OshiMembers extends Table {
   TextColumn get oshiSince => text().nullable()();
   TextColumn get birthday => text().nullable()();
   TextColumn get memo => text().nullable()();
+
+  /// 推し画像の端末内相対参照（同期対象外, H-04, schema v4）。
+  TextColumn get imageLocalPath => text().nullable()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
@@ -267,11 +273,32 @@ class OutboxOps extends Table {
   TextColumn get status => text().withDefault(const Constant('pending'))();
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+
+  /// 次に再送してよい時刻（UTC ISO8601）。バックオフ待機中はこの時刻まで
+  /// 送信対象にしない（H-02）。再起動後もこの値で待機を復元する。null は即送信可。
+  TextColumn get nextRetryAt => text().nullable()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
   @override
   Set<Column<Object>> get primaryKey => {mutationId};
+}
+
+/// 各エンティティのサーバー既知バージョン（H-02 の競合制御）。
+///
+/// サーバー側 `version`（書き込みごとに単調増加）を owner/table/id 単位で
+/// キャッシュし、upsert 送信時に「自分が把握している版（base_version）」として
+/// 添える。サーバー RPC がこの版と現在版を比較し、食い違えば競合とする。
+/// これにより競合判定を端末時計に依存させない。
+@DataClassName('RemoteVersionRow')
+class RemoteVersions extends Table {
+  TextColumn get ownerId => text()();
+  TextColumn get entityTable => text()();
+  TextColumn get entityId => text()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {ownerId, entityTable, entityId};
 }
 
 /// 端末ローカル設定（チュートリアル完了、テーマ、デモユーザー等）。
@@ -285,14 +312,19 @@ class AppKvs extends Table {
 }
 
 /// フォーム下書き（自動保存・再開、§2.1）。
+///
+/// owner_id を主キーへ含める（C-01）。下書きは端末内のみで完結し
+/// サーバーへ同期しないため、同一端末で複数ユーザーが使っても
+/// 「genba_form_new」等の下書きキーが owner をまたいで衝突しないようにする。
 @DataClassName('FormDraftRow')
 class FormDrafts extends Table {
+  TextColumn get ownerId => text()();
   TextColumn get key => text()();
   TextColumn get payload => text()();
   TextColumn get updatedAt => text()();
 
   @override
-  Set<Column<Object>> get primaryKey => {key};
+  Set<Column<Object>> get primaryKey => {ownerId, key};
 }
 
 @DriftDatabase(
@@ -313,16 +345,97 @@ class FormDrafts extends Table {
     OutboxOps,
     AppKvs,
     FormDrafts,
+    RemoteVersions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
+  /// v2（C-01）: owner 絞り込み索引 + form_drafts の owner 複合キー。
+  /// v3（H-02）: outbox_ops.next_retry_at（バックオフ復元）+ remote_versions
+  /// テーブル（サーバー版キャッシュによる競合制御）。
+  /// v4（H-04）: genbas.hero_image_local_path / oshi_members.image_local_path
+  /// （端末内画像の相対参照。同期対象外の nullable 列を安全に追加）。
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
+        onCreate: (m) async {
+          await m.createAll();
+          await _createOwnerIndices(m);
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // 下書きは owner 情報を持たない旧スキーマのため、推測して
+            // 割り当てず安全側に倒して破棄する（新スキーマで作り直す）。
+            await m.deleteTable('form_drafts');
+            await m.createTable(formDrafts);
+          }
+          if (from < 3) {
+            await m.addColumn(outboxOps, outboxOps.nextRetryAt);
+            await m.createTable(remoteVersions);
+          }
+          if (from < 4) {
+            // 既存データを保持したまま nullable 列を追加する（既存行は null）。
+            await m.addColumn(genbas, genbas.heroImageLocalPath);
+            await m.addColumn(oshiMembers, oshiMembers.imageLocalPath);
+          }
+          await _createOwnerIndices(m);
+        },
       );
+
+  /// owner 単位の絞り込み・ソートで使う索引（M-04）。
+  /// SQLite の `CREATE INDEX IF NOT EXISTS` を使い、onCreate/onUpgrade の
+  /// どちらから呼んでも安全に冪等実行できるようにする。
+  Future<void> _createOwnerIndices(Migrator m) async {
+    Future<void> idx(String name, String sql) =>
+        m.database.customStatement('CREATE INDEX IF NOT EXISTS $name $sql');
+
+    await idx(
+      'idx_genbas_owner_date',
+      'ON genbas (owner_id, event_date)',
+    );
+    await idx('idx_tickets_genba', 'ON tickets (genba_id)');
+    await idx('idx_tickets_owner', 'ON tickets (owner_id)');
+    await idx('idx_transports_genba', 'ON transports (genba_id)');
+    await idx('idx_transports_owner', 'ON transports (owner_id)');
+    await idx('idx_lodgings_genba', 'ON lodgings (genba_id)');
+    await idx('idx_lodgings_owner', 'ON lodgings (owner_id)');
+    await idx(
+      'idx_todos_owner_due',
+      'ON todos (owner_id, due_date)',
+    );
+    await idx('idx_todos_genba', 'ON todos (genba_id)');
+    await idx('idx_genba_memos_owner', 'ON genba_memos (owner_id)');
+    await idx('idx_genba_memos_genba', 'ON genba_memos (genba_id)');
+    await idx('idx_memory_entries_owner', 'ON memory_entries (owner_id)');
+    await idx('idx_memory_photos_owner', 'ON memory_photos (owner_id)');
+    await idx('idx_memory_photos_genba', 'ON memory_photos (genba_id)');
+    await idx('idx_setlist_items_owner', 'ON setlist_items (owner_id)');
+    await idx('idx_setlist_items_genba', 'ON setlist_items (genba_id)');
+    await idx('idx_goods_items_owner', 'ON goods_items (owner_id)');
+    await idx('idx_goods_items_genba', 'ON goods_items (genba_id)');
+    await idx('idx_visited_places_owner', 'ON visited_places (owner_id)');
+    await idx('idx_visited_places_genba', 'ON visited_places (genba_id)');
+    await idx('idx_oshi_groups_owner', 'ON oshi_groups (owner_id)');
+    await idx('idx_oshi_members_owner', 'ON oshi_members (owner_id)');
+    await idx('idx_oshi_members_group', 'ON oshi_members (group_id)');
+    await idx(
+      'idx_outbox_ops_owner_status',
+      'ON outbox_ops (owner_id, status)',
+    );
+    await idx(
+      'idx_outbox_ops_entity',
+      'ON outbox_ops (entity_table, entity_id, owner_id)',
+    );
+    await idx(
+      'idx_outbox_ops_owner_retry',
+      'ON outbox_ops (owner_id, status, next_retry_at)',
+    );
+    await idx(
+      'idx_remote_versions_owner',
+      'ON remote_versions (owner_id)',
+    );
+  }
 }

@@ -1,0 +1,236 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/error/failure.dart';
+import '../../../core/providers.dart';
+import '../domain/genba.dart';
+
+/// 現場詳細の主要操作（中止/終演/要否/子データ削除）を一箇所へ集約する
+/// application 層（H-07/M-01）。
+///
+/// - state は「進行中の操作キー集合」。各操作は固有キー（例: `todo:<id>`）で
+///   二重タップを防ぐ。キーは操作ごとに分けているため、あるTodoの完了操作の
+///   実行中に別のTodoやチケット削除など「別の操作」まで巻き添えでブロックする
+///   ことはない（同一キーの再入だけを弾く）。
+/// - 成功していない操作を成功表示しない: 各メソッドは [Failure]（null=成功）を
+///   返し、呼び出し側（presentation）が必ず結果を見てユーザーへ伝える。
+/// - 画像を伴う削除（チケット/ヒーロー）は、レコード削除成功後にのみ
+///   owner スコープでファイルを掃除する（他ユーザーのファイルには触れない, H-04）。
+class GenbaActionsController
+    extends AutoDisposeFamilyNotifier<Set<String>, String> {
+  @override
+  Set<String> build(String genbaId) => const {};
+
+  /// [key] の操作が進行中か（二重タップ防止のUI表示に使う）。
+  bool isBusy(String key) => state.contains(key);
+
+  /// 何らかの操作が進行中か（全体を一時的に止めたいUI向け）。
+  bool get isAnyBusy => state.isNotEmpty;
+
+  Future<Failure?> _run(
+    String key,
+    Future<Failure?> Function() action,
+  ) async {
+    if (state.contains(key)) return null; // 二重タップ: 同一操作の再入を無視。
+    state = {...state, key};
+    try {
+      return await action();
+    } finally {
+      state = {...state}..remove(key);
+    }
+  }
+
+  // ---- 中止 ---------------------------------------------------------------
+
+  Future<Failure?> cancel(Genba genba) => _run('cancel', () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(isCanceled: true));
+        return result.failureOrNull;
+      });
+
+  Future<Failure?> uncancel(Genba genba) => _run('uncancel', () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(isCanceled: false));
+        return result.failureOrNull;
+      });
+
+  // ---- 終演（手動）----------------------------------------------------------
+
+  static const endedKey = 'ended';
+
+  /// 「終演した」。呼び出し前に presentation 側で確認ダイアログを表示すること。
+  Future<Failure?> markEnded(Genba genba) => _run(endedKey, () async {
+        final now = ref.read(clockProvider).now().toUtc();
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(manualEndedAt: now));
+        return result.failureOrNull;
+      });
+
+  /// 誤操作からの復旧: 手動終演を取り消し、日時からの自動導出に戻す。
+  Future<Failure?> undoMarkEnded(Genba genba) => _run(endedKey, () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(manualEndedAt: null));
+        return result.failureOrNull;
+      });
+
+  /// 終演時刻の訂正（取り消さず、正しい時刻へ直接修正する）。
+  Future<Failure?> correctEndedAt(Genba genba, DateTime endedAt) =>
+      _run(endedKey, () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(manualEndedAt: endedAt.toUtc()));
+        return result.failureOrNull;
+      });
+
+  // ---- 交通・宿泊の要否 -------------------------------------------------------
+
+  Future<Failure?> setTransportRequirement(
+    Genba genba,
+    RequirementStatus value,
+  ) =>
+      _run('transportRequirement', () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(transportRequirement: value));
+        return result.failureOrNull;
+      });
+
+  Future<Failure?> setLodgingRequirement(
+    Genba genba,
+    RequirementStatus value,
+  ) =>
+      _run('lodgingRequirement', () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(lodgingRequirement: value));
+        return result.failureOrNull;
+      });
+
+  // ---- Todo -----------------------------------------------------------------
+
+  String todoKey(String todoId) => 'todo:$todoId';
+
+  Future<Failure?> toggleTodo(GenbaTodo todo, bool done) =>
+      _run(todoKey(todo.id), () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertTodo(todo.copyWith(isDone: done));
+        return result.failureOrNull;
+      });
+
+  // ---- 子データ削除（画像を伴うものは owner スコープで後始末する） --------------------
+
+  String ticketKey(String ticketId) => 'ticket:$ticketId';
+  String transportKey(String transportId) => 'transport:$transportId';
+  String lodgingKey(String lodgingId) => 'lodging:$lodgingId';
+
+  Future<Failure?> deleteTicket(Ticket ticket) =>
+      _run(ticketKey(ticket.id), () async {
+        final result =
+            await ref.read(genbaRepositoryProvider).deleteTicket(ticket.id);
+        final imageRef = ticket.imageLocalPath;
+        if (result.isOk && imageRef != null) {
+          await ref
+              .read(imageStoreProvider)
+              .deleteRef(ticket.ownerId, imageRef);
+        }
+        return result.failureOrNull;
+      });
+
+  Future<Failure?> deleteTransport(Transport transport) =>
+      _run(transportKey(transport.id), () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .deleteTransport(transport.id);
+        return result.failureOrNull;
+      });
+
+  Future<Failure?> deleteLodging(Lodging lodging) =>
+      _run(lodgingKey(lodging.id), () async {
+        final result =
+            await ref.read(genbaRepositoryProvider).deleteLodging(lodging.id);
+        return result.failureOrNull;
+      });
+
+  // ---- ヒーロー画像 -----------------------------------------------------------
+
+  static const heroImageKey = 'heroImage';
+
+  Future<Failure?> setHeroImage(Genba genba, String storedRef) =>
+      _run(heroImageKey, () async {
+        final owner = genba.ownerId;
+        final old = genba.heroImageLocalPath;
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(heroImageLocalPath: storedRef));
+        final store = ref.read(imageStoreProvider);
+        if (result.isOk) {
+          // 差替え成功: 旧画像を掃除。新規保存で使う画像は残す。
+          if (old != null && old != storedRef) {
+            await store.deleteRef(owner, old);
+          }
+        } else {
+          // 保存失敗: 取り込んだファイルは孤立するので削除する。
+          await store.deleteRef(owner, storedRef);
+        }
+        return result.failureOrNull;
+      });
+
+  Future<Failure?> removeHeroImage(Genba genba) => _run(heroImageKey, () async {
+        final owner = genba.ownerId;
+        final old = genba.heroImageLocalPath;
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .upsertGenba(genba.copyWith(heroImageLocalPath: null));
+        if (result.isOk && old != null && owner.isNotEmpty) {
+          await ref.read(imageStoreProvider).deleteRef(owner, old);
+        }
+        return result.failureOrNull;
+      });
+
+  // ---- 現場削除（子データ・画像の孤立を残さない） -------------------------------------
+
+  static const deleteGenbaKey = 'deleteGenba';
+
+  /// 現場と子データを削除する。呼び出し前に presentation 側で確認ダイアログを
+  /// 表示すること。成功時のみ画像を owner スコープで掃除する。
+  ///
+  /// [collectMemoryPhotoRefs] は思い出写真の画像参照一覧を返す（削除後は
+  /// 取得できなくなるため、削除前に呼び出し側で収集させる）。収集に失敗しても
+  /// 削除自体は妨げない（掃除は後続の cleanupOrphans/account 削除でも回収可能）。
+  Future<Failure?> deleteGenba({
+    required Genba genba,
+    required List<String> imageRefs,
+    Future<List<String>> Function()? collectMemoryPhotoRefs,
+  }) =>
+      _run(deleteGenbaKey, () async {
+        final owner = genba.ownerId;
+        final refs = <String>[...imageRefs];
+        if (collectMemoryPhotoRefs != null) {
+          try {
+            refs.addAll(await collectMemoryPhotoRefs());
+          } catch (_) {
+            // 画像参照の収集失敗は削除自体を妨げない。
+          }
+        }
+        final result =
+            await ref.read(genbaRepositoryProvider).deleteGenba(genba.id);
+        if (result.isOk && owner.isNotEmpty) {
+          // レコード削除成功後に owner スコープでファイルを掃除する
+          // （他ユーザーのファイルには決して触れない）。
+          final store = ref.read(imageStoreProvider);
+          for (final r in refs) {
+            await store.deleteRef(owner, r);
+          }
+        }
+        return result.failureOrNull;
+      });
+}
+
+final genbaActionsControllerProvider = NotifierProvider.autoDispose
+    .family<GenbaActionsController, Set<String>, String>(
+  GenbaActionsController.new,
+);

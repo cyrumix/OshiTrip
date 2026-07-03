@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
 import '../../genba/application/genba_providers.dart';
 import '../../genba/domain/genba.dart';
@@ -221,22 +220,25 @@ class _TextSection extends StatelessWidget {
   }
 }
 
-class _PhotoThumb extends StatelessWidget {
+class _PhotoThumb extends ConsumerWidget {
   const _PhotoThumb({required this.photo});
 
   final MemoryPhoto photo;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final local = photo.localPath;
+    final file = local == null
+        ? null
+        : ref.read(imageStoreProvider).tryResolveOwned(photo.ownerId, local);
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         width: 110,
         height: 110,
-        child: local != null
+        child: file != null
             ? Image.file(
-                File(local),
+                file,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const _PhotoPlaceholder(),
               )

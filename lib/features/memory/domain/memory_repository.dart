@@ -19,6 +19,12 @@ abstract interface class MemoryRepository {
 
   Future<Result<void>> upsertVisitedPlace(VisitedPlace place);
   Future<Result<void>> deleteVisitedPlace(String id);
+
+  /// リモートの思い出データ（entry / photos メタ / setlist / goods / places）を
+  /// 現在 owner 限定でローカルへ取り込む（H-02: キャッシュ先行→背景更新）。
+  /// ローカル未同期変更は上書きしない。デモ・未ログインでは何もしない。
+  /// [isStale] は認証切替検出用（true で以降のローカル適用を中断）。
+  Future<Result<void>> refreshFromRemote({bool Function()? isStale});
 }
 
 /// 写真アップロードの境界（§8 / 今回はローカル参照＋境界まで）。

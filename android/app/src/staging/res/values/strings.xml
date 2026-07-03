@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- staging flavor 専用のアプリ表示名（ADR-0007 環境分離）。 -->
+<resources>
+    <string name="app_name">OshiTrip Staging</string>
+</resources>

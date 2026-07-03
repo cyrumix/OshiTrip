@@ -1,0 +1,13 @@
+// development flavor（ADR-0007 環境分離）。
+// bundle id は core/config/flavor_guard.dart の起動時検証（完全一致）と
+// 同じ値を使う（H-01）。
+#include "Generated.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = app.oshitrip.mobile.dev
+APP_DISPLAY_NAME = OshiTrip Dev
+
+// Generated.xcconfig の FLUTTER_TARGET は `flutter build/run -t <file>` の
+// 都度上書きされ、Xcode から直接 Run/Archive した場合は既定値
+// lib/main.dart にフォールバックしてしまう（xcode_backend.dart）。
+// この scheme では常に development entry を使うよう明示的に固定する。
+FLUTTER_TARGET = lib/main_development.dart
