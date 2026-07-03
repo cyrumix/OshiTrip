@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -194,6 +195,108 @@ class MemoryRepositoryImpl implements MemoryRepository {
   }
 
   @override
+  Future<Result<void>> setEntryFavorite({
+    required String genbaId,
+    required bool isFavorite,
+  }) async {
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    final bundle = await watchByGenbaId(genbaId).first;
+    final existing = bundle.entry;
+    final now = _now;
+    final entry = existing?.copyWith(isFavorite: isFavorite) ??
+        MemoryEntry(
+          id: _uuid.v4(),
+          genbaId: genbaId,
+          ownerId: owner,
+          isFavorite: isFavorite,
+          createdAt: now,
+          updatedAt: now,
+        );
+    return upsertEntry(entry);
+  }
+
+  @override
+  Future<Result<void>> setCoverPhoto({
+    required String genbaId,
+    required String photoId,
+  }) async {
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    var changed = false;
+    try {
+      // 旧表紙解除・新表紙設定・Outbox登録をすべて同一 transaction 内で行う。
+      // 途中で失敗すれば全て巻き戻り、古い表紙が維持される（R6独立レビュー#1）。
+      await _db.transaction(() async {
+        // 現在owner・同一genbaの写真のみを対象にする（別ownerに触れない）。
+        final rows = await (_db.select(_db.memoryPhotos)
+              ..where(
+                (t) => t.genbaId.equals(genbaId) & t.ownerId.equals(owner),
+              ))
+            .get();
+        final target = rows.firstWhereOrNull((r) => r.id == photoId);
+        if (target == null) {
+          throw const _CoverNotFound();
+        }
+        final now = _now;
+        // 旧表紙を先に外す（部分ユニーク索引違反を避けるため set より前に clear）。
+        for (final r in rows) {
+          if (r.id != photoId && r.isCover) {
+            final off =
+                photoFromRow(r).copyWith(isCover: false, updatedAt: now);
+            await _db
+                .into(_db.memoryPhotos)
+                .insertOnConflictUpdate(photoToCompanion(off));
+            await _enqueuePhotoUpsert(off, owner, now);
+            changed = true;
+          }
+        }
+        if (!target.isCover) {
+          final on =
+              photoFromRow(target).copyWith(isCover: true, updatedAt: now);
+          await _db
+              .into(_db.memoryPhotos)
+              .insertOnConflictUpdate(photoToCompanion(on));
+          await _enqueuePhotoUpsert(on, owner, now);
+          changed = true;
+        }
+      });
+    } on _CoverNotFound {
+      return const Err(NotFoundFailure(message: '対象の写真が見つかりません'));
+    } catch (e) {
+      return Err(StorageFailure(cause: e));
+    }
+    if (changed) _syncEngine.poke();
+    return const Ok(null);
+  }
+
+  /// 写真の upsert 操作を Outbox へ積む（[setCoverPhoto] の transaction 内から
+  /// 呼ぶ）。写真バイナリ（local_path）は同期対象外なので payload から除く。
+  Future<void> _enqueuePhotoUpsert(
+    MemoryPhoto photo,
+    String owner,
+    DateTime now,
+  ) async {
+    final payload = photo.toJson()..remove('local_path');
+    await _outbox.enqueue(
+      OutboxOperation(
+        mutationId: _uuid.v4(),
+        ownerId: owner,
+        entityTable: SyncEntity.memoryPhotos,
+        entityId: photo.id,
+        opType: OutboxOpType.upsert,
+        payload: payload,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  @override
   Future<Result<void>> addPhoto(MemoryPhoto photo) => updatePhoto(photo);
 
   @override
@@ -332,7 +435,12 @@ class MemoryRepositoryImpl implements MemoryRepository {
           owner: owner,
           tableName: SyncEntity.memoryPhotos,
           rows: await client.from(SyncEntity.memoryPhotos).select(),
-          toCompanion: (json) => photoToCompanion(MemoryPhoto.fromJson(json)),
+          // 端末内の写真参照(local_path)はサーバーに無い。pull で null 上書き
+          // しない（R6独立レビュー#3。hero/oshi 画像と同じ方針, H-04）。
+          toCompanion: (json) => photoToCompanion(
+            MemoryPhoto.fromJson(json),
+            preserveLocalImage: true,
+          ),
           table: _db.memoryPhotos,
           idColumn: (t) => t.id,
           ownerColumn: (t) => t.ownerId,
@@ -382,4 +490,10 @@ class MemoryRepositoryImpl implements MemoryRepository {
       onError: (e, _) => NetworkFailure(cause: e),
     );
   }
+}
+
+/// [MemoryRepositoryImpl.setCoverPhoto] の transaction 内で「対象写真なし」を
+/// 通知する番兵例外（transaction をロールバックさせ、外側で NotFoundFailure へ変換）。
+class _CoverNotFound implements Exception {
+  const _CoverNotFound();
 }

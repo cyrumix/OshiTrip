@@ -33,6 +33,9 @@ Future<void> purgeLocalDataForOwner(
         .go();
     await (db.delete(db.memoryEntries)..where((t) => t.ownerId.equals(ownerId)))
         .go();
+    await (db.delete(db.oshiAnniversaries)
+          ..where((t) => t.ownerId.equals(ownerId)))
+        .go();
     await (db.delete(db.oshiMembers)..where((t) => t.ownerId.equals(ownerId)))
         .go();
     await (db.delete(db.oshiGroups)..where((t) => t.ownerId.equals(ownerId)))

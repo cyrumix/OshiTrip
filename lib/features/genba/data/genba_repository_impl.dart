@@ -198,7 +198,8 @@ class GenbaRepositoryImpl implements GenbaRepository {
 
   @override
   Future<Result<void>> upsertGenba(Genba genba) {
-    final stamped = genba.copyWith(updatedAt: _now);
+    // 中止 ⟹ 参加状態 canceled の整合を保つ（design-spec §12.1）。
+    final stamped = normalizeAttendance(genba).copyWith(updatedAt: _now);
     // 端末内のヒーロー画像参照は同期しない（サーバー列にも存在しない, H-04）。
     final payload = stamped.toJson()..remove('hero_image_local_path');
     return _localWrite(
@@ -235,7 +236,9 @@ class GenbaRepositoryImpl implements GenbaRepository {
         if (row == null) return false;
         final current = genbaFromRow(row);
         previous = current;
-        final next = update(current).copyWith(updatedAt: _now);
+        // 中止 ⟹ 参加状態 canceled の整合を保つ（design-spec §12.1）。
+        final next =
+            normalizeAttendance(update(current)).copyWith(updatedAt: _now);
         await _db
             .into(_db.genbas)
             .insertOnConflictUpdate(genbaToCompanion(next));

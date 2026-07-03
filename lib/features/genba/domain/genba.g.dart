@@ -6,6 +6,32 @@ part of 'genba.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_$GenbaHeroImageImpl _$$GenbaHeroImageImplFromJson(Map<String, dynamic> json) =>
+    _$GenbaHeroImageImpl(
+      localPath: json['localPath'] as String?,
+      storagePath: json['storagePath'] as String?,
+      uploadStatus: $enumDecodeNullable(
+              _$ImageUploadStatusEnumMap, json['uploadStatus']) ??
+          ImageUploadStatus.localOnly,
+      altText: json['altText'] as String?,
+    );
+
+Map<String, dynamic> _$$GenbaHeroImageImplToJson(
+        _$GenbaHeroImageImpl instance) =>
+    <String, dynamic>{
+      'localPath': instance.localPath,
+      'storagePath': instance.storagePath,
+      'uploadStatus': _$ImageUploadStatusEnumMap[instance.uploadStatus]!,
+      'altText': instance.altText,
+    };
+
+const _$ImageUploadStatusEnumMap = {
+  ImageUploadStatus.localOnly: 'local_only',
+  ImageUploadStatus.queued: 'queued',
+  ImageUploadStatus.uploaded: 'uploaded',
+  ImageUploadStatus.failed: 'failed',
+};
+
 _$GenbaImpl _$$GenbaImplFromJson(Map<String, dynamic> json) => _$GenbaImpl(
       id: json['id'] as String,
       ownerId: json['owner_id'] as String,
@@ -32,7 +58,15 @@ _$GenbaImpl _$$GenbaImplFromJson(Map<String, dynamic> json) => _$GenbaImpl(
               _$RequirementStatusEnumMap, json['lodging_requirement']) ??
           RequirementStatus.unknown,
       isCanceled: json['is_canceled'] as bool? ?? false,
+      attendanceStatus: $enumDecodeNullable(
+              _$AttendanceStatusEnumMap, json['attendance_status']) ??
+          AttendanceStatus.planned,
       heroImageLocalPath: json['hero_image_local_path'] as String?,
+      heroImageStoragePath: json['hero_image_storage_path'] as String?,
+      heroImageUploadStatus: $enumDecodeNullable(
+              _$ImageUploadStatusEnumMap, json['hero_image_upload_status']) ??
+          ImageUploadStatus.localOnly,
+      heroImageAltText: json['hero_image_alt_text'] as String?,
       manualEndedAt: const NullableUtcDateTimeConverter()
           .fromJson(json['manual_ended_at'] as String?),
       createdAt:
@@ -62,7 +96,13 @@ Map<String, dynamic> _$$GenbaImplToJson(_$GenbaImpl instance) =>
       'lodging_requirement':
           _$RequirementStatusEnumMap[instance.lodgingRequirement]!,
       'is_canceled': instance.isCanceled,
+      'attendance_status':
+          _$AttendanceStatusEnumMap[instance.attendanceStatus]!,
       'hero_image_local_path': instance.heroImageLocalPath,
+      'hero_image_storage_path': instance.heroImageStoragePath,
+      'hero_image_upload_status':
+          _$ImageUploadStatusEnumMap[instance.heroImageUploadStatus]!,
+      'hero_image_alt_text': instance.heroImageAltText,
       'manual_ended_at':
           const NullableUtcDateTimeConverter().toJson(instance.manualEndedAt),
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
@@ -73,6 +113,13 @@ const _$RequirementStatusEnumMap = {
   RequirementStatus.unknown: 'unknown',
   RequirementStatus.required: 'required',
   RequirementStatus.notRequired: 'not_required',
+};
+
+const _$AttendanceStatusEnumMap = {
+  AttendanceStatus.planned: 'planned',
+  AttendanceStatus.attended: 'attended',
+  AttendanceStatus.notAttended: 'not_attended',
+  AttendanceStatus.canceled: 'canceled',
 };
 
 _$TicketImpl _$$TicketImplFromJson(Map<String, dynamic> json) => _$TicketImpl(

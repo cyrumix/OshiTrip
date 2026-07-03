@@ -55,4 +55,23 @@ extension OwnerGuard on AppDatabase {
     ).getSingleOrNull();
     return row != null;
   }
+
+  /// 推しメン [memberId] が、現在 [owner] に属し、かつグループ [groupId] に
+  /// 所属するか（記念日の member_id 整合検証用, C-01 / R6独立レビュー）。
+  Future<bool> memberInGroupOfOwner(
+    String memberId,
+    String groupId,
+    String owner,
+  ) async {
+    final row = await customSelect(
+      'SELECT 1 FROM oshi_members '
+      'WHERE id = ? AND group_id = ? AND owner_id = ? LIMIT 1',
+      variables: [
+        Variable.withString(memberId),
+        Variable.withString(groupId),
+        Variable.withString(owner),
+      ],
+    ).getSingleOrNull();
+    return row != null;
+  }
 }

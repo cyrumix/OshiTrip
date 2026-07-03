@@ -3,6 +3,7 @@
 import 'package:collection/collection.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/images/image_upload_status.dart';
 import '../../../core/time/date_only.dart';
 
 part 'genba.freezed.dart';
@@ -10,6 +11,51 @@ part 'genba.g.dart';
 
 /// 現場の状態（§7.1）。日時と明示操作から純粋ロジックで導出する。
 enum GenbaStatus { scheduled, preparing, today, afterglow, memory, canceled }
+
+/// 明示的な参加状態（§7.2 / design-spec §12.1）。
+///
+/// 日時から自動的に [attended] にはしない。ユーザーが明示的に「参戦済み」と
+/// した場合のみ [attended]。統計の「参戦数」は [attended] だけを数える。
+/// [canceled] は現場中止（[Genba.isCanceled]）と一致させる（[normalizeAttendance]）。
+enum AttendanceStatus {
+  @JsonValue('planned')
+  planned,
+  @JsonValue('attended')
+  attended,
+  @JsonValue('not_attended')
+  notAttended,
+  @JsonValue('canceled')
+  canceled,
+}
+
+extension AttendanceStatusLabel on AttendanceStatus {
+  String get label => switch (this) {
+        AttendanceStatus.planned => '予定',
+        AttendanceStatus.attended => '参戦済み',
+        AttendanceStatus.notAttended => '不参加',
+        AttendanceStatus.canceled => '中止',
+      };
+}
+
+/// 現場ヒーロー画像（design-spec §7.1/§12.1）。
+///
+/// チケット画像（[Ticket.imagePath] / [Ticket.imageLocalPath]）とは
+/// **完全に別用途・別型**。ユーザーが明示的に選んだ公演用画像を表す。
+/// [localPath] は端末内相対参照（同期対象外, H-04）、[storagePath] は
+/// Supabase Storage パス（境界）、[uploadStatus] はアップロード状態、
+/// [altText] は読み上げ用代替説明（§14, 同期対象）。
+@freezed
+abstract class GenbaHeroImage with _$GenbaHeroImage {
+  const factory GenbaHeroImage({
+    String? localPath,
+    String? storagePath,
+    @Default(ImageUploadStatus.localOnly) ImageUploadStatus uploadStatus,
+    String? altText,
+  }) = _GenbaHeroImage;
+
+  factory GenbaHeroImage.fromJson(Map<String, dynamic> json) =>
+      _$GenbaHeroImageFromJson(json);
+}
 
 extension GenbaStatusLabel on GenbaStatus {
   String get label => switch (this) {
@@ -43,6 +89,8 @@ extension RequirementStatusLabel on RequirementStatus {
 /// 現場（1公演参加）の集約ルート。
 @freezed
 abstract class Genba with _$Genba {
+  const Genba._();
+
   @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
   const factory Genba({
     required String id,
@@ -69,9 +117,23 @@ abstract class Genba with _$Genba {
     @Default(RequirementStatus.unknown) RequirementStatus lodgingRequirement,
     @Default(false) bool isCanceled,
 
+    /// 明示的な参加状態（§7.2 / design-spec §12.1）。日時から自動導出しない。
+    /// [isCanceled] とは [normalizeAttendance] で整合させる。
+    @Default(AttendanceStatus.planned) AttendanceStatus attendanceStatus,
+
     /// 現場ヒーロー画像の端末内参照（`images/<owner>/hero/...`）。
     /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
     String? heroImageLocalPath,
+
+    /// 現場ヒーロー画像の Storage パス（境界・同期対象）。
+    String? heroImageStoragePath,
+
+    /// 現場ヒーロー画像のアップロード状態（同期対象）。
+    @Default(ImageUploadStatus.localOnly)
+    ImageUploadStatus heroImageUploadStatus,
+
+    /// 現場ヒーロー画像の代替説明（読み上げ用, §14・同期対象）。
+    String? heroImageAltText,
 
     /// ユーザーが明示的に「終演した」とした時刻（余韻中への手動遷移）。
     @NullableUtcDateTimeConverter() DateTime? manualEndedAt,
@@ -80,6 +142,37 @@ abstract class Genba with _$Genba {
   }) = _Genba;
 
   factory Genba.fromJson(Map<String, dynamic> json) => _$GenbaFromJson(json);
+
+  /// 現場ヒーロー画像を「明確な型」でまとめて取得する（design-spec §12.1）。
+  /// 参照が一切無ければ null（画像なしで各画面が縮退できるようにする）。
+  GenbaHeroImage? get heroImage {
+    if (heroImageLocalPath == null &&
+        heroImageStoragePath == null &&
+        heroImageAltText == null) {
+      return null;
+    }
+    return GenbaHeroImage(
+      localPath: heroImageLocalPath,
+      storagePath: heroImageStoragePath,
+      uploadStatus: heroImageUploadStatus,
+      altText: heroImageAltText,
+    );
+  }
+}
+
+/// 中止フラグ [Genba.isCanceled] と [Genba.attendanceStatus] を整合させる
+/// （design-spec §12.1 の整合規則）。
+///
+/// 不変条件（一方向）: **中止された現場は必ず参加状態も canceled**。
+/// - 中止なのに参加状態が canceled でなければ canceled へ矯正する。
+/// - 参加状態を明示的に変える操作（cancel/uncancel/setAttendance）は
+///   isCanceled も合わせて設定するため、ここでは「中止 ⟹ canceled」だけを
+///   守る（attended を勝手に消さない）。
+Genba normalizeAttendance(Genba g) {
+  if (g.isCanceled && g.attendanceStatus != AttendanceStatus.canceled) {
+    return g.copyWith(attendanceStatus: AttendanceStatus.canceled);
+  }
+  return g;
 }
 
 /// チケット取得状況（§7.3）。

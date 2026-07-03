@@ -2,6 +2,30 @@ import 'package:drift/drift.dart';
 
 part 'app_database.g.dart';
 
+/// 同一 genba に複数の表紙（is_cover=true）が存在する場合に、決定的に1件だけ
+/// 残して他を false へ落とす dedup 文（cover 一意インデックス作成前に実行する,
+/// R6独立レビュー#5）。
+///
+/// 保持する1件の選択規則: `sort_order` 昇順 → `created_at` 昇順 →
+/// `id` 昇順 で最小のもの（ウィンドウ関数に依存しない相関サブクエリで、
+/// より小さい他の cover が存在する行だけを false にする）。この規則は
+/// docs/decisions.md D-141 に記録。
+const String dedupeMemoryCoversSql = '''
+UPDATE memory_photos SET is_cover = 0
+WHERE is_cover = 1 AND EXISTS (
+  SELECT 1 FROM memory_photos other
+  WHERE other.genba_id = memory_photos.genba_id
+    AND other.is_cover = 1
+    AND (
+      other.sort_order < memory_photos.sort_order
+      OR (other.sort_order = memory_photos.sort_order
+          AND other.created_at < memory_photos.created_at)
+      OR (other.sort_order = memory_photos.sort_order
+          AND other.created_at = memory_photos.created_at
+          AND other.id < memory_photos.id)
+    )
+)''';
+
 /// ローカルDB（Drift / SQLite, ADR-0005）。
 ///
 /// 役割: 画面用キャッシュ・下書き・Outbox。サーバー（Supabase）のスキーマと
@@ -28,10 +52,21 @@ class Genbas extends Table {
   TextColumn get lodgingRequirement =>
       text().withDefault(const Constant('unknown'))();
   BoolColumn get isCanceled => boolean().withDefault(const Constant(false))();
+
+  /// 明示参加状態（planned/attended/not_attended/canceled, schema v5）。
+  /// 日時から自動導出しない。is_canceled と整合させる（normalizeAttendance）。
+  TextColumn get attendanceStatus =>
+      text().withDefault(const Constant('planned'))();
   TextColumn get manualEndedAt => text().nullable()();
 
   /// ヒーロー画像の端末内相対参照（同期対象外, H-04, schema v4）。
   TextColumn get heroImageLocalPath => text().nullable()();
+
+  /// ヒーロー画像の Storage パス・アップロード状態・代替説明（同期対象, v5）。
+  TextColumn get heroImageStoragePath => text().nullable()();
+  TextColumn get heroImageUploadStatus =>
+      text().withDefault(const Constant('local_only'))();
+  TextColumn get heroImageAltText => text().nullable()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
@@ -153,6 +188,9 @@ class MemoryEntries extends Table {
   TextColumn get seatView => text().withDefault(const Constant(''))();
   TextColumn get tags => text().withDefault(const Constant('[]'))();
   TextColumn get declinedFields => text().withDefault(const Constant('[]'))();
+
+  /// 思い出単位のお気に入り（同期対象, schema v5）。
+  BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
@@ -233,6 +271,15 @@ class OshiGroups extends Table {
   TextColumn get kind => text().nullable()();
   TextColumn get color => text().nullable()();
   TextColumn get memo => text().nullable()();
+
+  /// グループ画像の端末内相対参照（同期対象外, H-04, schema v5）。
+  TextColumn get imageLocalPath => text().nullable()();
+
+  /// グループ画像の代替説明（同期対象, v5）。
+  TextColumn get imageAltText => text().nullable()();
+
+  /// グループ単位のお気に入り（同期対象, v5）。
+  BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
@@ -254,6 +301,26 @@ class OshiMembers extends Table {
 
   /// 推し画像の端末内相対参照（同期対象外, H-04, schema v4）。
   TextColumn get imageLocalPath => text().nullable()();
+
+  /// 推し画像の代替説明（同期対象, v5）。
+  TextColumn get imageAltText => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// ユーザー定義の記念日（design-spec §10/§12.1, schema v5）。グループに属し、
+/// 任意でメンバーへ紐づく。誕生日・推し始めた日とは別に自由登録する。
+@DataClassName('OshiAnniversaryRow')
+class OshiAnniversaries extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get groupId => text()();
+  TextColumn get memberId => text().nullable()();
+  TextColumn get label => text()();
+  TextColumn get date => text()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
@@ -342,6 +409,7 @@ class FormDrafts extends Table {
     VisitedPlaces,
     OshiGroups,
     OshiMembers,
+    OshiAnniversaries,
     OutboxOps,
     AppKvs,
     FormDrafts,
@@ -356,14 +424,19 @@ class AppDatabase extends _$AppDatabase {
   /// テーブル（サーバー版キャッシュによる競合制御）。
   /// v4（H-04）: genbas.hero_image_local_path / oshi_members.image_local_path
   /// （端末内画像の相対参照。同期対象外の nullable 列を安全に追加）。
+  /// v5（H-05）: 画像基調UIのデータ契約。参加状態・hero画像storage/upload/alt・
+  /// 思い出isFavorite・推しグループ画像/alt/favorite・推しメンalt・
+  /// 記念日テーブル・cover一意インデックス。既存データは安全な既定値へ移行し、
+  /// is_canceled=true は attendance_status=canceled へ明示移行する。
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
           await _createOwnerIndices(m);
+          await _createCoverUniqueIndex(m);
         },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
@@ -381,8 +454,41 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(genbas, genbas.heroImageLocalPath);
             await m.addColumn(oshiMembers, oshiMembers.imageLocalPath);
           }
+          if (from < 5) {
+            await m.addColumn(genbas, genbas.attendanceStatus);
+            await m.addColumn(genbas, genbas.heroImageStoragePath);
+            await m.addColumn(genbas, genbas.heroImageUploadStatus);
+            await m.addColumn(genbas, genbas.heroImageAltText);
+            await m.addColumn(memoryEntries, memoryEntries.isFavorite);
+            await m.addColumn(oshiGroups, oshiGroups.imageLocalPath);
+            await m.addColumn(oshiGroups, oshiGroups.imageAltText);
+            await m.addColumn(oshiGroups, oshiGroups.isFavorite);
+            await m.addColumn(oshiMembers, oshiMembers.imageAltText);
+            await m.createTable(oshiAnniversaries);
+            // 既存の中止済み現場を参加状態 canceled へ明示移行する。
+            // 過去公演を勝手に attended へ推測しない（既定は planned のまま）。
+            await m.database.customStatement(
+              "UPDATE genbas SET attendance_status = 'canceled' "
+              'WHERE is_canceled = 1',
+            );
+            // cover 一意インデックス作成前に、既存データの重複 cover を
+            // 決定的に1件へ整理する（複数 cover でも migration が失敗しない,
+            // R6独立レビュー#5）。既存写真は削除せず is_cover のみ修正する。
+            await m.database.customStatement(dedupeMemoryCoversSql);
+          }
           await _createOwnerIndices(m);
+          await _createCoverUniqueIndex(m);
         },
+      );
+
+  /// 同一現場に cover 写真は最大1件（design-spec §12.1）。SQLite の部分
+  /// ユニークインデックスで DB レベルで担保する。作成前に
+  /// [dedupeMemoryCoversSql] で重複 cover を1件へ整理してあるため、既存データに
+  /// 複数 cover があっても作成に失敗しない（R6独立レビュー#5）。
+  Future<void> _createCoverUniqueIndex(Migrator m) =>
+      m.database.customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_photos_cover_unique '
+        'ON memory_photos (genba_id) WHERE is_cover',
       );
 
   /// owner 単位の絞り込み・ソートで使う索引（M-04）。
@@ -421,6 +527,18 @@ class AppDatabase extends _$AppDatabase {
     await idx('idx_oshi_groups_owner', 'ON oshi_groups (owner_id)');
     await idx('idx_oshi_members_owner', 'ON oshi_members (owner_id)');
     await idx('idx_oshi_members_group', 'ON oshi_members (group_id)');
+    await idx(
+      'idx_oshi_anniversaries_owner',
+      'ON oshi_anniversaries (owner_id)',
+    );
+    await idx(
+      'idx_oshi_anniversaries_group',
+      'ON oshi_anniversaries (group_id)',
+    );
+    await idx(
+      'idx_genbas_owner_oshi_group',
+      'ON genbas (owner_id, oshi_group_id)',
+    );
     await idx(
       'idx_outbox_ops_owner_status',
       'ON outbox_ops (owner_id, status)',

@@ -28,6 +28,17 @@ mixin _$OshiGroup {
   /// 推しカラー（#RRGGBB）。アクセントのみに使用しコントラストを壊さない。
   String? get color => throw _privateConstructorUsedError;
   String? get memo => throw _privateConstructorUsedError;
+
+  /// グループ画像の端末内参照（`images/<owner>/oshi/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。写真なしはイニシャル
+  /// フォールバック（design-spec §10/§12.1）。
+  String? get imageLocalPath => throw _privateConstructorUsedError;
+
+  /// グループ画像の代替説明（読み上げ用, §14・同期対象）。
+  String? get imageAltText => throw _privateConstructorUsedError;
+
+  /// グループ単位のお気に入り（design-spec §10/§12.1・同期対象）。
+  bool get isFavorite => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
   DateTime get createdAt => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
@@ -55,6 +66,9 @@ abstract class $OshiGroupCopyWith<$Res> {
       String? kind,
       String? color,
       String? memo,
+      String? imageLocalPath,
+      String? imageAltText,
+      bool isFavorite,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -80,6 +94,9 @@ class _$OshiGroupCopyWithImpl<$Res, $Val extends OshiGroup>
     Object? kind = freezed,
     Object? color = freezed,
     Object? memo = freezed,
+    Object? imageLocalPath = freezed,
+    Object? imageAltText = freezed,
+    Object? isFavorite = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -108,6 +125,18 @@ class _$OshiGroupCopyWithImpl<$Res, $Val extends OshiGroup>
           ? _value.memo
           : memo // ignore: cast_nullable_to_non_nullable
               as String?,
+      imageLocalPath: freezed == imageLocalPath
+          ? _value.imageLocalPath
+          : imageLocalPath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      imageAltText: freezed == imageAltText
+          ? _value.imageAltText
+          : imageAltText // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isFavorite: null == isFavorite
+          ? _value.isFavorite
+          : isFavorite // ignore: cast_nullable_to_non_nullable
+              as bool,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -135,6 +164,9 @@ abstract class _$$OshiGroupImplCopyWith<$Res>
       String? kind,
       String? color,
       String? memo,
+      String? imageLocalPath,
+      String? imageAltText,
+      bool isFavorite,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -158,6 +190,9 @@ class __$$OshiGroupImplCopyWithImpl<$Res>
     Object? kind = freezed,
     Object? color = freezed,
     Object? memo = freezed,
+    Object? imageLocalPath = freezed,
+    Object? imageAltText = freezed,
+    Object? isFavorite = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -186,6 +221,18 @@ class __$$OshiGroupImplCopyWithImpl<$Res>
           ? _value.memo
           : memo // ignore: cast_nullable_to_non_nullable
               as String?,
+      imageLocalPath: freezed == imageLocalPath
+          ? _value.imageLocalPath
+          : imageLocalPath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      imageAltText: freezed == imageAltText
+          ? _value.imageAltText
+          : imageAltText // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isFavorite: null == isFavorite
+          ? _value.isFavorite
+          : isFavorite // ignore: cast_nullable_to_non_nullable
+              as bool,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -209,6 +256,9 @@ class _$OshiGroupImpl implements _OshiGroup {
       this.kind,
       this.color,
       this.memo,
+      this.imageLocalPath,
+      this.imageAltText,
+      this.isFavorite = false,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt});
 
@@ -229,6 +279,21 @@ class _$OshiGroupImpl implements _OshiGroup {
   final String? color;
   @override
   final String? memo;
+
+  /// グループ画像の端末内参照（`images/<owner>/oshi/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。写真なしはイニシャル
+  /// フォールバック（design-spec §10/§12.1）。
+  @override
+  final String? imageLocalPath;
+
+  /// グループ画像の代替説明（読み上げ用, §14・同期対象）。
+  @override
+  final String? imageAltText;
+
+  /// グループ単位のお気に入り（design-spec §10/§12.1・同期対象）。
+  @override
+  @JsonKey()
+  final bool isFavorite;
   @override
   @UtcDateTimeConverter()
   final DateTime createdAt;
@@ -238,7 +303,7 @@ class _$OshiGroupImpl implements _OshiGroup {
 
   @override
   String toString() {
-    return 'OshiGroup(id: $id, ownerId: $ownerId, name: $name, kind: $kind, color: $color, memo: $memo, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'OshiGroup(id: $id, ownerId: $ownerId, name: $name, kind: $kind, color: $color, memo: $memo, imageLocalPath: $imageLocalPath, imageAltText: $imageAltText, isFavorite: $isFavorite, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -252,6 +317,12 @@ class _$OshiGroupImpl implements _OshiGroup {
             (identical(other.kind, kind) || other.kind == kind) &&
             (identical(other.color, color) || other.color == color) &&
             (identical(other.memo, memo) || other.memo == memo) &&
+            (identical(other.imageLocalPath, imageLocalPath) ||
+                other.imageLocalPath == imageLocalPath) &&
+            (identical(other.imageAltText, imageAltText) ||
+                other.imageAltText == imageAltText) &&
+            (identical(other.isFavorite, isFavorite) ||
+                other.isFavorite == isFavorite) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -260,8 +331,8 @@ class _$OshiGroupImpl implements _OshiGroup {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, ownerId, name, kind, color, memo, createdAt, updatedAt);
+  int get hashCode => Object.hash(runtimeType, id, ownerId, name, kind, color,
+      memo, imageLocalPath, imageAltText, isFavorite, createdAt, updatedAt);
 
   /// Create a copy of OshiGroup
   /// with the given fields replaced by the non-null parameter values.
@@ -287,6 +358,9 @@ abstract class _OshiGroup implements OshiGroup {
           final String? kind,
           final String? color,
           final String? memo,
+          final String? imageLocalPath,
+          final String? imageAltText,
+          final bool isFavorite,
           @UtcDateTimeConverter() required final DateTime createdAt,
           @UtcDateTimeConverter() required final DateTime updatedAt}) =
       _$OshiGroupImpl;
@@ -308,6 +382,20 @@ abstract class _OshiGroup implements OshiGroup {
   String? get color;
   @override
   String? get memo;
+
+  /// グループ画像の端末内参照（`images/<owner>/oshi/...`）。
+  /// 同期対象外（Outbox/Supabase へ送らない, H-04）。写真なしはイニシャル
+  /// フォールバック（design-spec §10/§12.1）。
+  @override
+  String? get imageLocalPath;
+
+  /// グループ画像の代替説明（読み上げ用, §14・同期対象）。
+  @override
+  String? get imageAltText;
+
+  /// グループ単位のお気に入り（design-spec §10/§12.1・同期対象）。
+  @override
+  bool get isFavorite;
   @override
   @UtcDateTimeConverter()
   DateTime get createdAt;
@@ -344,6 +432,9 @@ mixin _$OshiMember {
   /// 推し画像の端末内参照（`images/<owner>/oshi/...`）。
   /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
   String? get imageLocalPath => throw _privateConstructorUsedError;
+
+  /// 推し画像の代替説明（読み上げ用, §14・同期対象）。
+  String? get imageAltText => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
   DateTime get createdAt => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
@@ -376,6 +467,7 @@ abstract class $OshiMemberCopyWith<$Res> {
       @NullableDateOnlyConverter() DateTime? birthday,
       String? memo,
       String? imageLocalPath,
+      String? imageAltText,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -405,6 +497,7 @@ class _$OshiMemberCopyWithImpl<$Res, $Val extends OshiMember>
     Object? birthday = freezed,
     Object? memo = freezed,
     Object? imageLocalPath = freezed,
+    Object? imageAltText = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -449,6 +542,10 @@ class _$OshiMemberCopyWithImpl<$Res, $Val extends OshiMember>
           ? _value.imageLocalPath
           : imageLocalPath // ignore: cast_nullable_to_non_nullable
               as String?,
+      imageAltText: freezed == imageAltText
+          ? _value.imageAltText
+          : imageAltText // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -480,6 +577,7 @@ abstract class _$$OshiMemberImplCopyWith<$Res>
       @NullableDateOnlyConverter() DateTime? birthday,
       String? memo,
       String? imageLocalPath,
+      String? imageAltText,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -507,6 +605,7 @@ class __$$OshiMemberImplCopyWithImpl<$Res>
     Object? birthday = freezed,
     Object? memo = freezed,
     Object? imageLocalPath = freezed,
+    Object? imageAltText = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -551,6 +650,10 @@ class __$$OshiMemberImplCopyWithImpl<$Res>
           ? _value.imageLocalPath
           : imageLocalPath // ignore: cast_nullable_to_non_nullable
               as String?,
+      imageAltText: freezed == imageAltText
+          ? _value.imageAltText
+          : imageAltText // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -578,6 +681,7 @@ class _$OshiMemberImpl implements _OshiMember {
       @NullableDateOnlyConverter() this.birthday,
       this.memo,
       this.imageLocalPath,
+      this.imageAltText,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt});
 
@@ -610,6 +714,10 @@ class _$OshiMemberImpl implements _OshiMember {
   /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
   @override
   final String? imageLocalPath;
+
+  /// 推し画像の代替説明（読み上げ用, §14・同期対象）。
+  @override
+  final String? imageAltText;
   @override
   @UtcDateTimeConverter()
   final DateTime createdAt;
@@ -619,7 +727,7 @@ class _$OshiMemberImpl implements _OshiMember {
 
   @override
   String toString() {
-    return 'OshiMember(id: $id, groupId: $groupId, ownerId: $ownerId, name: $name, rank: $rank, color: $color, oshiSince: $oshiSince, birthday: $birthday, memo: $memo, imageLocalPath: $imageLocalPath, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'OshiMember(id: $id, groupId: $groupId, ownerId: $ownerId, name: $name, rank: $rank, color: $color, oshiSince: $oshiSince, birthday: $birthday, memo: $memo, imageLocalPath: $imageLocalPath, imageAltText: $imageAltText, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -640,6 +748,8 @@ class _$OshiMemberImpl implements _OshiMember {
             (identical(other.memo, memo) || other.memo == memo) &&
             (identical(other.imageLocalPath, imageLocalPath) ||
                 other.imageLocalPath == imageLocalPath) &&
+            (identical(other.imageAltText, imageAltText) ||
+                other.imageAltText == imageAltText) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -648,8 +758,21 @@ class _$OshiMemberImpl implements _OshiMember {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, groupId, ownerId, name, rank,
-      color, oshiSince, birthday, memo, imageLocalPath, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      groupId,
+      ownerId,
+      name,
+      rank,
+      color,
+      oshiSince,
+      birthday,
+      memo,
+      imageLocalPath,
+      imageAltText,
+      createdAt,
+      updatedAt);
 
   /// Create a copy of OshiMember
   /// with the given fields replaced by the non-null parameter values.
@@ -679,6 +802,7 @@ abstract class _OshiMember implements OshiMember {
           @NullableDateOnlyConverter() final DateTime? birthday,
           final String? memo,
           final String? imageLocalPath,
+          final String? imageAltText,
           @UtcDateTimeConverter() required final DateTime createdAt,
           @UtcDateTimeConverter() required final DateTime updatedAt}) =
       _$OshiMemberImpl;
@@ -711,6 +835,10 @@ abstract class _OshiMember implements OshiMember {
   /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
   @override
   String? get imageLocalPath;
+
+  /// 推し画像の代替説明（読み上げ用, §14・同期対象）。
+  @override
+  String? get imageAltText;
   @override
   @UtcDateTimeConverter()
   DateTime get createdAt;
@@ -723,6 +851,327 @@ abstract class _OshiMember implements OshiMember {
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$OshiMemberImplCopyWith<_$OshiMemberImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+OshiAnniversary _$OshiAnniversaryFromJson(Map<String, dynamic> json) {
+  return _OshiAnniversary.fromJson(json);
+}
+
+/// @nodoc
+mixin _$OshiAnniversary {
+  String get id => throw _privateConstructorUsedError;
+  String get ownerId => throw _privateConstructorUsedError;
+  String get groupId => throw _privateConstructorUsedError;
+
+  /// 任意でメンバーに紐づける（null = グループ全体の記念日）。
+  String? get memberId => throw _privateConstructorUsedError;
+  String get label => throw _privateConstructorUsedError;
+
+  /// 記念日の日付。毎年の記念日は月日で次回発生を導出する。
+  @DateOnlyConverter()
+  DateTime get date => throw _privateConstructorUsedError;
+  @UtcDateTimeConverter()
+  DateTime get createdAt => throw _privateConstructorUsedError;
+  @UtcDateTimeConverter()
+  DateTime get updatedAt => throw _privateConstructorUsedError;
+
+  /// Serializes this OshiAnniversary to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of OshiAnniversary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $OshiAnniversaryCopyWith<OshiAnniversary> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $OshiAnniversaryCopyWith<$Res> {
+  factory $OshiAnniversaryCopyWith(
+          OshiAnniversary value, $Res Function(OshiAnniversary) then) =
+      _$OshiAnniversaryCopyWithImpl<$Res, OshiAnniversary>;
+  @useResult
+  $Res call(
+      {String id,
+      String ownerId,
+      String groupId,
+      String? memberId,
+      String label,
+      @DateOnlyConverter() DateTime date,
+      @UtcDateTimeConverter() DateTime createdAt,
+      @UtcDateTimeConverter() DateTime updatedAt});
+}
+
+/// @nodoc
+class _$OshiAnniversaryCopyWithImpl<$Res, $Val extends OshiAnniversary>
+    implements $OshiAnniversaryCopyWith<$Res> {
+  _$OshiAnniversaryCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of OshiAnniversary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? ownerId = null,
+    Object? groupId = null,
+    Object? memberId = freezed,
+    Object? label = null,
+    Object? date = null,
+    Object? createdAt = null,
+    Object? updatedAt = null,
+  }) {
+    return _then(_value.copyWith(
+      id: null == id
+          ? _value.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      ownerId: null == ownerId
+          ? _value.ownerId
+          : ownerId // ignore: cast_nullable_to_non_nullable
+              as String,
+      groupId: null == groupId
+          ? _value.groupId
+          : groupId // ignore: cast_nullable_to_non_nullable
+              as String,
+      memberId: freezed == memberId
+          ? _value.memberId
+          : memberId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      label: null == label
+          ? _value.label
+          : label // ignore: cast_nullable_to_non_nullable
+              as String,
+      date: null == date
+          ? _value.date
+          : date // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      createdAt: null == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      updatedAt: null == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$OshiAnniversaryImplCopyWith<$Res>
+    implements $OshiAnniversaryCopyWith<$Res> {
+  factory _$$OshiAnniversaryImplCopyWith(_$OshiAnniversaryImpl value,
+          $Res Function(_$OshiAnniversaryImpl) then) =
+      __$$OshiAnniversaryImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String id,
+      String ownerId,
+      String groupId,
+      String? memberId,
+      String label,
+      @DateOnlyConverter() DateTime date,
+      @UtcDateTimeConverter() DateTime createdAt,
+      @UtcDateTimeConverter() DateTime updatedAt});
+}
+
+/// @nodoc
+class __$$OshiAnniversaryImplCopyWithImpl<$Res>
+    extends _$OshiAnniversaryCopyWithImpl<$Res, _$OshiAnniversaryImpl>
+    implements _$$OshiAnniversaryImplCopyWith<$Res> {
+  __$$OshiAnniversaryImplCopyWithImpl(
+      _$OshiAnniversaryImpl _value, $Res Function(_$OshiAnniversaryImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of OshiAnniversary
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? id = null,
+    Object? ownerId = null,
+    Object? groupId = null,
+    Object? memberId = freezed,
+    Object? label = null,
+    Object? date = null,
+    Object? createdAt = null,
+    Object? updatedAt = null,
+  }) {
+    return _then(_$OshiAnniversaryImpl(
+      id: null == id
+          ? _value.id
+          : id // ignore: cast_nullable_to_non_nullable
+              as String,
+      ownerId: null == ownerId
+          ? _value.ownerId
+          : ownerId // ignore: cast_nullable_to_non_nullable
+              as String,
+      groupId: null == groupId
+          ? _value.groupId
+          : groupId // ignore: cast_nullable_to_non_nullable
+              as String,
+      memberId: freezed == memberId
+          ? _value.memberId
+          : memberId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      label: null == label
+          ? _value.label
+          : label // ignore: cast_nullable_to_non_nullable
+              as String,
+      date: null == date
+          ? _value.date
+          : date // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      createdAt: null == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      updatedAt: null == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+    ));
+  }
+}
+
+/// @nodoc
+
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+class _$OshiAnniversaryImpl implements _OshiAnniversary {
+  const _$OshiAnniversaryImpl(
+      {required this.id,
+      required this.ownerId,
+      required this.groupId,
+      this.memberId,
+      required this.label,
+      @DateOnlyConverter() required this.date,
+      @UtcDateTimeConverter() required this.createdAt,
+      @UtcDateTimeConverter() required this.updatedAt});
+
+  factory _$OshiAnniversaryImpl.fromJson(Map<String, dynamic> json) =>
+      _$$OshiAnniversaryImplFromJson(json);
+
+  @override
+  final String id;
+  @override
+  final String ownerId;
+  @override
+  final String groupId;
+
+  /// 任意でメンバーに紐づける（null = グループ全体の記念日）。
+  @override
+  final String? memberId;
+  @override
+  final String label;
+
+  /// 記念日の日付。毎年の記念日は月日で次回発生を導出する。
+  @override
+  @DateOnlyConverter()
+  final DateTime date;
+  @override
+  @UtcDateTimeConverter()
+  final DateTime createdAt;
+  @override
+  @UtcDateTimeConverter()
+  final DateTime updatedAt;
+
+  @override
+  String toString() {
+    return 'OshiAnniversary(id: $id, ownerId: $ownerId, groupId: $groupId, memberId: $memberId, label: $label, date: $date, createdAt: $createdAt, updatedAt: $updatedAt)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$OshiAnniversaryImpl &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.ownerId, ownerId) || other.ownerId == ownerId) &&
+            (identical(other.groupId, groupId) || other.groupId == groupId) &&
+            (identical(other.memberId, memberId) ||
+                other.memberId == memberId) &&
+            (identical(other.label, label) || other.label == label) &&
+            (identical(other.date, date) || other.date == date) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode => Object.hash(runtimeType, id, ownerId, groupId, memberId,
+      label, date, createdAt, updatedAt);
+
+  /// Create a copy of OshiAnniversary
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$OshiAnniversaryImplCopyWith<_$OshiAnniversaryImpl> get copyWith =>
+      __$$OshiAnniversaryImplCopyWithImpl<_$OshiAnniversaryImpl>(
+          this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$OshiAnniversaryImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _OshiAnniversary implements OshiAnniversary {
+  const factory _OshiAnniversary(
+          {required final String id,
+          required final String ownerId,
+          required final String groupId,
+          final String? memberId,
+          required final String label,
+          @DateOnlyConverter() required final DateTime date,
+          @UtcDateTimeConverter() required final DateTime createdAt,
+          @UtcDateTimeConverter() required final DateTime updatedAt}) =
+      _$OshiAnniversaryImpl;
+
+  factory _OshiAnniversary.fromJson(Map<String, dynamic> json) =
+      _$OshiAnniversaryImpl.fromJson;
+
+  @override
+  String get id;
+  @override
+  String get ownerId;
+  @override
+  String get groupId;
+
+  /// 任意でメンバーに紐づける（null = グループ全体の記念日）。
+  @override
+  String? get memberId;
+  @override
+  String get label;
+
+  /// 記念日の日付。毎年の記念日は月日で次回発生を導出する。
+  @override
+  @DateOnlyConverter()
+  DateTime get date;
+  @override
+  @UtcDateTimeConverter()
+  DateTime get createdAt;
+  @override
+  @UtcDateTimeConverter()
+  DateTime get updatedAt;
+
+  /// Create a copy of OshiAnniversary
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$OshiAnniversaryImplCopyWith<_$OshiAnniversaryImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 

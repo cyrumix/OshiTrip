@@ -7,9 +7,24 @@ abstract interface class MemoryRepository {
 
   Future<Result<void>> upsertEntry(MemoryEntry entry);
 
+  /// 思い出単位のお気に入りを設定する（§8/§12.1）。entry が無ければ作成する。
+  /// 一覧・詳細のどちらからでも呼べる。
+  Future<Result<void>> setEntryFavorite({
+    required String genbaId,
+    required bool isFavorite,
+  });
+
   Future<Result<void>> addPhoto(MemoryPhoto photo);
   Future<Result<void>> updatePhoto(MemoryPhoto photo);
   Future<Result<void>> deletePhoto(String id);
+
+  /// [photoId] を表紙にする。同一現場の他の cover を必ず外し、cover は
+  /// 常に最大1件（design-spec §12.1）。DB の部分ユニーク索引と、旧 cover を
+  /// 先に外してから設定する順序の両方で一意性を担保する。
+  Future<Result<void>> setCoverPhoto({
+    required String genbaId,
+    required String photoId,
+  });
 
   Future<Result<void>> upsertSetlistItem(SetlistItem item);
   Future<Result<void>> deleteSetlistItem(String id);

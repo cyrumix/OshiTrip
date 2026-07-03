@@ -22,6 +22,7 @@ _$MemoryEntryImpl _$$MemoryEntryImplFromJson(Map<String, dynamic> json) =>
               ?.map((e) => e as String)
               .toList() ??
           const <String>[],
+      isFavorite: json['is_favorite'] as bool? ?? false,
       createdAt:
           const UtcDateTimeConverter().fromJson(json['created_at'] as String),
       updatedAt:
@@ -39,6 +40,7 @@ Map<String, dynamic> _$$MemoryEntryImplToJson(_$MemoryEntryImpl instance) =>
       'seat_view': instance.seatView,
       'tags': instance.tags,
       'declined_fields': instance.declinedFields,
+      'is_favorite': instance.isFavorite,
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
     };

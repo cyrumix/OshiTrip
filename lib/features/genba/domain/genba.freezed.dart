@@ -14,6 +14,225 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
+GenbaHeroImage _$GenbaHeroImageFromJson(Map<String, dynamic> json) {
+  return _GenbaHeroImage.fromJson(json);
+}
+
+/// @nodoc
+mixin _$GenbaHeroImage {
+  String? get localPath => throw _privateConstructorUsedError;
+  String? get storagePath => throw _privateConstructorUsedError;
+  ImageUploadStatus get uploadStatus => throw _privateConstructorUsedError;
+  String? get altText => throw _privateConstructorUsedError;
+
+  /// Serializes this GenbaHeroImage to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+
+  /// Create a copy of GenbaHeroImage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $GenbaHeroImageCopyWith<GenbaHeroImage> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $GenbaHeroImageCopyWith<$Res> {
+  factory $GenbaHeroImageCopyWith(
+          GenbaHeroImage value, $Res Function(GenbaHeroImage) then) =
+      _$GenbaHeroImageCopyWithImpl<$Res, GenbaHeroImage>;
+  @useResult
+  $Res call(
+      {String? localPath,
+      String? storagePath,
+      ImageUploadStatus uploadStatus,
+      String? altText});
+}
+
+/// @nodoc
+class _$GenbaHeroImageCopyWithImpl<$Res, $Val extends GenbaHeroImage>
+    implements $GenbaHeroImageCopyWith<$Res> {
+  _$GenbaHeroImageCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of GenbaHeroImage
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? localPath = freezed,
+    Object? storagePath = freezed,
+    Object? uploadStatus = null,
+    Object? altText = freezed,
+  }) {
+    return _then(_value.copyWith(
+      localPath: freezed == localPath
+          ? _value.localPath
+          : localPath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      storagePath: freezed == storagePath
+          ? _value.storagePath
+          : storagePath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      uploadStatus: null == uploadStatus
+          ? _value.uploadStatus
+          : uploadStatus // ignore: cast_nullable_to_non_nullable
+              as ImageUploadStatus,
+      altText: freezed == altText
+          ? _value.altText
+          : altText // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$GenbaHeroImageImplCopyWith<$Res>
+    implements $GenbaHeroImageCopyWith<$Res> {
+  factory _$$GenbaHeroImageImplCopyWith(_$GenbaHeroImageImpl value,
+          $Res Function(_$GenbaHeroImageImpl) then) =
+      __$$GenbaHeroImageImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String? localPath,
+      String? storagePath,
+      ImageUploadStatus uploadStatus,
+      String? altText});
+}
+
+/// @nodoc
+class __$$GenbaHeroImageImplCopyWithImpl<$Res>
+    extends _$GenbaHeroImageCopyWithImpl<$Res, _$GenbaHeroImageImpl>
+    implements _$$GenbaHeroImageImplCopyWith<$Res> {
+  __$$GenbaHeroImageImplCopyWithImpl(
+      _$GenbaHeroImageImpl _value, $Res Function(_$GenbaHeroImageImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of GenbaHeroImage
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? localPath = freezed,
+    Object? storagePath = freezed,
+    Object? uploadStatus = null,
+    Object? altText = freezed,
+  }) {
+    return _then(_$GenbaHeroImageImpl(
+      localPath: freezed == localPath
+          ? _value.localPath
+          : localPath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      storagePath: freezed == storagePath
+          ? _value.storagePath
+          : storagePath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      uploadStatus: null == uploadStatus
+          ? _value.uploadStatus
+          : uploadStatus // ignore: cast_nullable_to_non_nullable
+              as ImageUploadStatus,
+      altText: freezed == altText
+          ? _value.altText
+          : altText // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
+/// @nodoc
+@JsonSerializable()
+class _$GenbaHeroImageImpl implements _GenbaHeroImage {
+  const _$GenbaHeroImageImpl(
+      {this.localPath,
+      this.storagePath,
+      this.uploadStatus = ImageUploadStatus.localOnly,
+      this.altText});
+
+  factory _$GenbaHeroImageImpl.fromJson(Map<String, dynamic> json) =>
+      _$$GenbaHeroImageImplFromJson(json);
+
+  @override
+  final String? localPath;
+  @override
+  final String? storagePath;
+  @override
+  @JsonKey()
+  final ImageUploadStatus uploadStatus;
+  @override
+  final String? altText;
+
+  @override
+  String toString() {
+    return 'GenbaHeroImage(localPath: $localPath, storagePath: $storagePath, uploadStatus: $uploadStatus, altText: $altText)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$GenbaHeroImageImpl &&
+            (identical(other.localPath, localPath) ||
+                other.localPath == localPath) &&
+            (identical(other.storagePath, storagePath) ||
+                other.storagePath == storagePath) &&
+            (identical(other.uploadStatus, uploadStatus) ||
+                other.uploadStatus == uploadStatus) &&
+            (identical(other.altText, altText) || other.altText == altText));
+  }
+
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, localPath, storagePath, uploadStatus, altText);
+
+  /// Create a copy of GenbaHeroImage
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$GenbaHeroImageImplCopyWith<_$GenbaHeroImageImpl> get copyWith =>
+      __$$GenbaHeroImageImplCopyWithImpl<_$GenbaHeroImageImpl>(
+          this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$GenbaHeroImageImplToJson(
+      this,
+    );
+  }
+}
+
+abstract class _GenbaHeroImage implements GenbaHeroImage {
+  const factory _GenbaHeroImage(
+      {final String? localPath,
+      final String? storagePath,
+      final ImageUploadStatus uploadStatus,
+      final String? altText}) = _$GenbaHeroImageImpl;
+
+  factory _GenbaHeroImage.fromJson(Map<String, dynamic> json) =
+      _$GenbaHeroImageImpl.fromJson;
+
+  @override
+  String? get localPath;
+  @override
+  String? get storagePath;
+  @override
+  ImageUploadStatus get uploadStatus;
+  @override
+  String? get altText;
+
+  /// Create a copy of GenbaHeroImage
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$GenbaHeroImageImplCopyWith<_$GenbaHeroImageImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
 Genba _$GenbaFromJson(Map<String, dynamic> json) {
   return _Genba.fromJson(json);
 }
@@ -47,9 +266,23 @@ mixin _$Genba {
       throw _privateConstructorUsedError;
   bool get isCanceled => throw _privateConstructorUsedError;
 
+  /// 明示的な参加状態（§7.2 / design-spec §12.1）。日時から自動導出しない。
+  /// [isCanceled] とは [normalizeAttendance] で整合させる。
+  AttendanceStatus get attendanceStatus => throw _privateConstructorUsedError;
+
   /// 現場ヒーロー画像の端末内参照（`images/<owner>/hero/...`）。
   /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
   String? get heroImageLocalPath => throw _privateConstructorUsedError;
+
+  /// 現場ヒーロー画像の Storage パス（境界・同期対象）。
+  String? get heroImageStoragePath => throw _privateConstructorUsedError;
+
+  /// 現場ヒーロー画像のアップロード状態（同期対象）。
+  ImageUploadStatus get heroImageUploadStatus =>
+      throw _privateConstructorUsedError;
+
+  /// 現場ヒーロー画像の代替説明（読み上げ用, §14・同期対象）。
+  String? get heroImageAltText => throw _privateConstructorUsedError;
 
   /// ユーザーが明示的に「終演した」とした時刻（余韻中への手動遷移）。
   @NullableUtcDateTimeConverter()
@@ -91,7 +324,11 @@ abstract class $GenbaCopyWith<$Res> {
       RequirementStatus transportRequirement,
       RequirementStatus lodgingRequirement,
       bool isCanceled,
+      AttendanceStatus attendanceStatus,
       String? heroImageLocalPath,
+      String? heroImageStoragePath,
+      ImageUploadStatus heroImageUploadStatus,
+      String? heroImageAltText,
       @NullableUtcDateTimeConverter() DateTime? manualEndedAt,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
@@ -129,7 +366,11 @@ class _$GenbaCopyWithImpl<$Res, $Val extends Genba>
     Object? transportRequirement = null,
     Object? lodgingRequirement = null,
     Object? isCanceled = null,
+    Object? attendanceStatus = null,
     Object? heroImageLocalPath = freezed,
+    Object? heroImageStoragePath = freezed,
+    Object? heroImageUploadStatus = null,
+    Object? heroImageAltText = freezed,
     Object? manualEndedAt = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
@@ -203,9 +444,25 @@ class _$GenbaCopyWithImpl<$Res, $Val extends Genba>
           ? _value.isCanceled
           : isCanceled // ignore: cast_nullable_to_non_nullable
               as bool,
+      attendanceStatus: null == attendanceStatus
+          ? _value.attendanceStatus
+          : attendanceStatus // ignore: cast_nullable_to_non_nullable
+              as AttendanceStatus,
       heroImageLocalPath: freezed == heroImageLocalPath
           ? _value.heroImageLocalPath
           : heroImageLocalPath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      heroImageStoragePath: freezed == heroImageStoragePath
+          ? _value.heroImageStoragePath
+          : heroImageStoragePath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      heroImageUploadStatus: null == heroImageUploadStatus
+          ? _value.heroImageUploadStatus
+          : heroImageUploadStatus // ignore: cast_nullable_to_non_nullable
+              as ImageUploadStatus,
+      heroImageAltText: freezed == heroImageAltText
+          ? _value.heroImageAltText
+          : heroImageAltText // ignore: cast_nullable_to_non_nullable
               as String?,
       manualEndedAt: freezed == manualEndedAt
           ? _value.manualEndedAt
@@ -248,7 +505,11 @@ abstract class _$$GenbaImplCopyWith<$Res> implements $GenbaCopyWith<$Res> {
       RequirementStatus transportRequirement,
       RequirementStatus lodgingRequirement,
       bool isCanceled,
+      AttendanceStatus attendanceStatus,
       String? heroImageLocalPath,
+      String? heroImageStoragePath,
+      ImageUploadStatus heroImageUploadStatus,
+      String? heroImageAltText,
       @NullableUtcDateTimeConverter() DateTime? manualEndedAt,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
@@ -284,7 +545,11 @@ class __$$GenbaImplCopyWithImpl<$Res>
     Object? transportRequirement = null,
     Object? lodgingRequirement = null,
     Object? isCanceled = null,
+    Object? attendanceStatus = null,
     Object? heroImageLocalPath = freezed,
+    Object? heroImageStoragePath = freezed,
+    Object? heroImageUploadStatus = null,
+    Object? heroImageAltText = freezed,
     Object? manualEndedAt = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
@@ -358,9 +623,25 @@ class __$$GenbaImplCopyWithImpl<$Res>
           ? _value.isCanceled
           : isCanceled // ignore: cast_nullable_to_non_nullable
               as bool,
+      attendanceStatus: null == attendanceStatus
+          ? _value.attendanceStatus
+          : attendanceStatus // ignore: cast_nullable_to_non_nullable
+              as AttendanceStatus,
       heroImageLocalPath: freezed == heroImageLocalPath
           ? _value.heroImageLocalPath
           : heroImageLocalPath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      heroImageStoragePath: freezed == heroImageStoragePath
+          ? _value.heroImageStoragePath
+          : heroImageStoragePath // ignore: cast_nullable_to_non_nullable
+              as String?,
+      heroImageUploadStatus: null == heroImageUploadStatus
+          ? _value.heroImageUploadStatus
+          : heroImageUploadStatus // ignore: cast_nullable_to_non_nullable
+              as ImageUploadStatus,
+      heroImageAltText: freezed == heroImageAltText
+          ? _value.heroImageAltText
+          : heroImageAltText // ignore: cast_nullable_to_non_nullable
               as String?,
       manualEndedAt: freezed == manualEndedAt
           ? _value.manualEndedAt
@@ -381,7 +662,7 @@ class __$$GenbaImplCopyWithImpl<$Res>
 /// @nodoc
 
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
-class _$GenbaImpl implements _Genba {
+class _$GenbaImpl extends _Genba {
   const _$GenbaImpl(
       {required this.id,
       required this.ownerId,
@@ -400,11 +681,16 @@ class _$GenbaImpl implements _Genba {
       this.transportRequirement = RequirementStatus.unknown,
       this.lodgingRequirement = RequirementStatus.unknown,
       this.isCanceled = false,
+      this.attendanceStatus = AttendanceStatus.planned,
       this.heroImageLocalPath,
+      this.heroImageStoragePath,
+      this.heroImageUploadStatus = ImageUploadStatus.localOnly,
+      this.heroImageAltText,
       @NullableUtcDateTimeConverter() this.manualEndedAt,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt})
-      : _oshiMemberIds = oshiMemberIds;
+      : _oshiMemberIds = oshiMemberIds,
+        super._();
 
   factory _$GenbaImpl.fromJson(Map<String, dynamic> json) =>
       _$$GenbaImplFromJson(json);
@@ -461,10 +747,29 @@ class _$GenbaImpl implements _Genba {
   @JsonKey()
   final bool isCanceled;
 
+  /// 明示的な参加状態（§7.2 / design-spec §12.1）。日時から自動導出しない。
+  /// [isCanceled] とは [normalizeAttendance] で整合させる。
+  @override
+  @JsonKey()
+  final AttendanceStatus attendanceStatus;
+
   /// 現場ヒーロー画像の端末内参照（`images/<owner>/hero/...`）。
   /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
   @override
   final String? heroImageLocalPath;
+
+  /// 現場ヒーロー画像の Storage パス（境界・同期対象）。
+  @override
+  final String? heroImageStoragePath;
+
+  /// 現場ヒーロー画像のアップロード状態（同期対象）。
+  @override
+  @JsonKey()
+  final ImageUploadStatus heroImageUploadStatus;
+
+  /// 現場ヒーロー画像の代替説明（読み上げ用, §14・同期対象）。
+  @override
+  final String? heroImageAltText;
 
   /// ユーザーが明示的に「終演した」とした時刻（余韻中への手動遷移）。
   @override
@@ -479,7 +784,7 @@ class _$GenbaImpl implements _Genba {
 
   @override
   String toString() {
-    return 'Genba(id: $id, ownerId: $ownerId, artistName: $artistName, title: $title, eventDate: $eventDate, oshiGroupId: $oshiGroupId, oshiMemberIds: $oshiMemberIds, venue: $venue, doorTimeMinutes: $doorTimeMinutes, startTimeMinutes: $startTimeMinutes, endTimeMinutes: $endTimeMinutes, performanceType: $performanceType, performanceId: $performanceId, isExpedition: $isExpedition, transportRequirement: $transportRequirement, lodgingRequirement: $lodgingRequirement, isCanceled: $isCanceled, heroImageLocalPath: $heroImageLocalPath, manualEndedAt: $manualEndedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Genba(id: $id, ownerId: $ownerId, artistName: $artistName, title: $title, eventDate: $eventDate, oshiGroupId: $oshiGroupId, oshiMemberIds: $oshiMemberIds, venue: $venue, doorTimeMinutes: $doorTimeMinutes, startTimeMinutes: $startTimeMinutes, endTimeMinutes: $endTimeMinutes, performanceType: $performanceType, performanceId: $performanceId, isExpedition: $isExpedition, transportRequirement: $transportRequirement, lodgingRequirement: $lodgingRequirement, isCanceled: $isCanceled, attendanceStatus: $attendanceStatus, heroImageLocalPath: $heroImageLocalPath, heroImageStoragePath: $heroImageStoragePath, heroImageUploadStatus: $heroImageUploadStatus, heroImageAltText: $heroImageAltText, manualEndedAt: $manualEndedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -517,8 +822,16 @@ class _$GenbaImpl implements _Genba {
                 other.lodgingRequirement == lodgingRequirement) &&
             (identical(other.isCanceled, isCanceled) ||
                 other.isCanceled == isCanceled) &&
+            (identical(other.attendanceStatus, attendanceStatus) ||
+                other.attendanceStatus == attendanceStatus) &&
             (identical(other.heroImageLocalPath, heroImageLocalPath) ||
                 other.heroImageLocalPath == heroImageLocalPath) &&
+            (identical(other.heroImageStoragePath, heroImageStoragePath) ||
+                other.heroImageStoragePath == heroImageStoragePath) &&
+            (identical(other.heroImageUploadStatus, heroImageUploadStatus) ||
+                other.heroImageUploadStatus == heroImageUploadStatus) &&
+            (identical(other.heroImageAltText, heroImageAltText) ||
+                other.heroImageAltText == heroImageAltText) &&
             (identical(other.manualEndedAt, manualEndedAt) ||
                 other.manualEndedAt == manualEndedAt) &&
             (identical(other.createdAt, createdAt) ||
@@ -548,7 +861,11 @@ class _$GenbaImpl implements _Genba {
         transportRequirement,
         lodgingRequirement,
         isCanceled,
+        attendanceStatus,
         heroImageLocalPath,
+        heroImageStoragePath,
+        heroImageUploadStatus,
+        heroImageAltText,
         manualEndedAt,
         createdAt,
         updatedAt
@@ -570,7 +887,7 @@ class _$GenbaImpl implements _Genba {
   }
 }
 
-abstract class _Genba implements Genba {
+abstract class _Genba extends Genba {
   const factory _Genba(
       {required final String id,
       required final String ownerId,
@@ -589,10 +906,15 @@ abstract class _Genba implements Genba {
       final RequirementStatus transportRequirement,
       final RequirementStatus lodgingRequirement,
       final bool isCanceled,
+      final AttendanceStatus attendanceStatus,
       final String? heroImageLocalPath,
+      final String? heroImageStoragePath,
+      final ImageUploadStatus heroImageUploadStatus,
+      final String? heroImageAltText,
       @NullableUtcDateTimeConverter() final DateTime? manualEndedAt,
       @UtcDateTimeConverter() required final DateTime createdAt,
       @UtcDateTimeConverter() required final DateTime updatedAt}) = _$GenbaImpl;
+  const _Genba._() : super._();
 
   factory _Genba.fromJson(Map<String, dynamic> json) = _$GenbaImpl.fromJson;
 
@@ -638,10 +960,27 @@ abstract class _Genba implements Genba {
   @override
   bool get isCanceled;
 
+  /// 明示的な参加状態（§7.2 / design-spec §12.1）。日時から自動導出しない。
+  /// [isCanceled] とは [normalizeAttendance] で整合させる。
+  @override
+  AttendanceStatus get attendanceStatus;
+
   /// 現場ヒーロー画像の端末内参照（`images/<owner>/hero/...`）。
   /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
   @override
   String? get heroImageLocalPath;
+
+  /// 現場ヒーロー画像の Storage パス（境界・同期対象）。
+  @override
+  String? get heroImageStoragePath;
+
+  /// 現場ヒーロー画像のアップロード状態（同期対象）。
+  @override
+  ImageUploadStatus get heroImageUploadStatus;
+
+  /// 現場ヒーロー画像の代替説明（読み上げ用, §14・同期対象）。
+  @override
+  String? get heroImageAltText;
 
   /// ユーザーが明示的に「終演した」とした時刻（余韻中への手動遷移）。
   @override

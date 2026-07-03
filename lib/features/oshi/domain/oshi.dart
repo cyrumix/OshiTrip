@@ -44,6 +44,17 @@ abstract class OshiGroup with _$OshiGroup {
     /// 推しカラー（#RRGGBB）。アクセントのみに使用しコントラストを壊さない。
     String? color,
     String? memo,
+
+    /// グループ画像の端末内参照（`images/<owner>/oshi/...`）。
+    /// 同期対象外（Outbox/Supabase へ送らない, H-04）。写真なしはイニシャル
+    /// フォールバック（design-spec §10/§12.1）。
+    String? imageLocalPath,
+
+    /// グループ画像の代替説明（読み上げ用, §14・同期対象）。
+    String? imageAltText,
+
+    /// グループ単位のお気に入り（design-spec §10/§12.1・同期対象）。
+    @Default(false) bool isFavorite,
     @UtcDateTimeConverter() required DateTime createdAt,
     @UtcDateTimeConverter() required DateTime updatedAt,
   }) = _OshiGroup;
@@ -69,12 +80,42 @@ abstract class OshiMember with _$OshiMember {
     /// 推し画像の端末内参照（`images/<owner>/oshi/...`）。
     /// 同期対象外（Outbox/Supabase へ送らない, H-04）。他端末では表示されない。
     String? imageLocalPath,
+
+    /// 推し画像の代替説明（読み上げ用, §14・同期対象）。
+    String? imageAltText,
     @UtcDateTimeConverter() required DateTime createdAt,
     @UtcDateTimeConverter() required DateTime updatedAt,
   }) = _OshiMember;
 
   factory OshiMember.fromJson(Map<String, dynamic> json) =>
       _$OshiMemberFromJson(json);
+}
+
+/// ユーザー定義の記念日（design-spec §10/§12.1）。
+///
+/// グループに属し、任意でメンバーに紐づく。誕生日（[OshiMember.birthday]）や
+/// 推し始めた日（[OshiMember.oshiSince]）とは別に、ユーザーが自由に登録する
+/// 記念日を正規化して保持する。毎年の記念日として月日で次回発生を導出する。
+@freezed
+abstract class OshiAnniversary with _$OshiAnniversary {
+  @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+  const factory OshiAnniversary({
+    required String id,
+    required String ownerId,
+    required String groupId,
+
+    /// 任意でメンバーに紐づける（null = グループ全体の記念日）。
+    String? memberId,
+    required String label,
+
+    /// 記念日の日付。毎年の記念日は月日で次回発生を導出する。
+    @DateOnlyConverter() required DateTime date,
+    @UtcDateTimeConverter() required DateTime createdAt,
+    @UtcDateTimeConverter() required DateTime updatedAt,
+  }) = _OshiAnniversary;
+
+  factory OshiAnniversary.fromJson(Map<String, dynamic> json) =>
+      _$OshiAnniversaryFromJson(json);
 }
 
 /// グループとメンバーの集約ビュー。

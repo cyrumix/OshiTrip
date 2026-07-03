@@ -36,6 +36,9 @@ abstract class MemoryEntry with _$MemoryEntry {
 
     /// 「今回は入力しない」を選んだ項目名（通知抑制の境界データ、§8.3）。
     @Default(<String>[]) List<String> declinedFields,
+
+    /// 思い出単位のお気に入り（§8/design-spec §8/§12.1）。一覧・詳細から変更可能。
+    @Default(false) bool isFavorite,
     @UtcDateTimeConverter() required DateTime createdAt,
     @UtcDateTimeConverter() required DateTime updatedAt,
   }) = _MemoryEntry;

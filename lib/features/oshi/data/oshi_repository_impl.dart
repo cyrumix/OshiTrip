@@ -61,6 +61,35 @@ class OshiRepositoryImpl implements OshiRepository {
     }
   }
 
+  @override
+  Stream<List<OshiAnniversary>> watchAnniversaries() async* {
+    final owner = _ownerId();
+    if (owner == null) {
+      yield const [];
+      return;
+    }
+    yield await _queryAnniversaries(owner);
+    final updates = _db.tableUpdates(
+      TableUpdateQuery.onAllTables([_db.oshiAnniversaries]),
+    );
+    await for (final _ in updates) {
+      final current = _ownerId();
+      if (current == null) {
+        yield const [];
+        continue;
+      }
+      yield await _queryAnniversaries(current);
+    }
+  }
+
+  Future<List<OshiAnniversary>> _queryAnniversaries(String owner) async {
+    final rows = await (_db.select(_db.oshiAnniversaries)
+          ..where((t) => t.ownerId.equals(owner))
+          ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+        .get();
+    return rows.map(_anniversaryFromRow).toList();
+  }
+
   Future<List<OshiGroupWithMembers>> _queryAll(String owner) async {
     final groups = await (_db.select(_db.oshiGroups)
           ..where((t) => t.ownerId.equals(owner))
@@ -140,6 +169,8 @@ class OshiRepositoryImpl implements OshiRepository {
   @override
   Future<Result<void>> upsertGroup(OshiGroup group) {
     final stamped = group.copyWith(updatedAt: _now);
+    // 端末内のグループ画像参照は同期しない（サーバー列にも存在しない, H-04）。
+    final payload = stamped.toJson()..remove('image_local_path');
     return _localWrite(
       (owner) => _db
           .into(_db.oshiGroups)
@@ -147,13 +178,20 @@ class OshiRepositoryImpl implements OshiRepository {
       entityTable: SyncEntity.oshiGroups,
       entityId: stamped.id,
       opType: OutboxOpType.upsert,
-      payload: stamped.toJson(),
+      payload: payload,
     );
   }
 
   @override
   Future<Result<void>> deleteGroup(String id) => _localWrite(
         (owner) async {
+          // グループ削除でメンバー・記念日も端末から削除する
+          // （Supabase の ON DELETE CASCADE と同じ結果, R6独立レビュー#2）。
+          await (_db.delete(_db.oshiAnniversaries)
+                ..where(
+                  (t) => t.groupId.equals(id) & t.ownerId.equals(owner),
+                ))
+              .go();
           await (_db.delete(_db.oshiMembers)
                 ..where(
                   (t) => t.groupId.equals(id) & t.ownerId.equals(owner),
@@ -188,10 +226,57 @@ class OshiRepositoryImpl implements OshiRepository {
 
   @override
   Future<Result<void>> deleteMember(String id) => _localWrite(
-        (owner) => (_db.delete(_db.oshiMembers)
+        (owner) async {
+          // メンバー削除時、そのメンバーに紐づく記念日の member_id を null へ
+          // 更新する（Supabase の ON DELETE SET NULL と同じ結果, R6独立レビュー#2）。
+          // 記念日レコード自体は残す（グループ全体の記念日として維持）。
+          await (_db.update(_db.oshiAnniversaries)
+                ..where(
+                  (t) => t.memberId.equals(id) & t.ownerId.equals(owner),
+                ))
+              .write(const OshiAnniversariesCompanion(memberId: Value(null)));
+          await (_db.delete(_db.oshiMembers)
+                ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
+              .go();
+        },
+        entityTable: SyncEntity.oshiMembers,
+        entityId: id,
+        opType: OutboxOpType.delete,
+      );
+
+  @override
+  Future<Result<void>> upsertAnniversary(OshiAnniversary anniversary) {
+    final stamped = anniversary.copyWith(updatedAt: _now);
+    return _localWrite(
+      (owner) async {
+        // member_id を指定する場合、そのメンバーが現在owner・かつ groupId の
+        // グループに所属することを同一 transaction 内で検証する
+        // （R6独立レビュー#2。存在しない/別owner/別グループを型付き失敗で拒否）。
+        final memberId = stamped.memberId;
+        if (memberId != null &&
+            !await _db.memberInGroupOfOwner(memberId, stamped.groupId, owner)) {
+          throw ParentOwnershipException(SyncEntity.oshiMembers, memberId);
+        }
+        await _db
+            .into(_db.oshiAnniversaries)
+            .insertOnConflictUpdate(_anniversaryToCompanion(stamped));
+      },
+      entityTable: SyncEntity.oshiAnniversaries,
+      entityId: stamped.id,
+      opType: OutboxOpType.upsert,
+      payload: stamped.toJson(),
+      // 親グループが現在ownerに属することを検証する（C-01）。
+      parentTable: SyncEntity.oshiGroups,
+      parentId: stamped.groupId,
+    );
+  }
+
+  @override
+  Future<Result<void>> deleteAnniversary(String id) => _localWrite(
+        (owner) => (_db.delete(_db.oshiAnniversaries)
               ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
             .go(),
-        entityTable: SyncEntity.oshiMembers,
+        entityTable: SyncEntity.oshiAnniversaries,
         entityId: id,
         opType: OutboxOpType.delete,
       );
@@ -212,7 +297,11 @@ class OshiRepositoryImpl implements OshiRepository {
           owner: owner,
           tableName: SyncEntity.oshiGroups,
           rows: await client.from(SyncEntity.oshiGroups).select(),
-          toCompanion: (json) => _groupToCompanion(OshiGroup.fromJson(json)),
+          // 端末内のグループ画像参照はサーバーに無い。pull で null 上書きしない。
+          toCompanion: (json) => _groupToCompanion(
+            OshiGroup.fromJson(json),
+            preserveLocalImage: true,
+          ),
           table: _db.oshiGroups,
           idColumn: (t) => t.id,
           ownerColumn: (t) => t.ownerId,
@@ -236,6 +325,20 @@ class OshiRepositoryImpl implements OshiRepository {
           idOf: (r) => r.id,
           isStale: isStale,
         );
+        await applyPulledRowsInto(
+          db: _db,
+          outbox: _outbox,
+          owner: owner,
+          tableName: SyncEntity.oshiAnniversaries,
+          rows: await client.from(SyncEntity.oshiAnniversaries).select(),
+          toCompanion: (json) =>
+              _anniversaryToCompanion(OshiAnniversary.fromJson(json)),
+          table: _db.oshiAnniversaries,
+          idColumn: (t) => t.id,
+          ownerColumn: (t) => t.ownerId,
+          idOf: (r) => r.id,
+          isStale: isStale,
+        );
       },
       onError: (e, _) => NetworkFailure(cause: e),
     );
@@ -248,11 +351,20 @@ class OshiRepositoryImpl implements OshiRepository {
         kind: row.kind,
         color: row.color,
         memo: row.memo,
+        imageLocalPath: row.imageLocalPath,
+        imageAltText: row.imageAltText,
+        isFavorite: row.isFavorite,
         createdAt: DateTime.parse(row.createdAt),
         updatedAt: DateTime.parse(row.updatedAt),
       );
 
-  OshiGroupsCompanion _groupToCompanion(OshiGroup g) =>
+  /// [preserveLocalImage] が true のとき image_local_path を companion に
+  /// 含めない（`Value.absent`）。リモート pull はサーバーに存在しないこの端末内
+  /// 参照を null で上書きしてはならないため（H-04）。ローカル書き込みでは false。
+  OshiGroupsCompanion _groupToCompanion(
+    OshiGroup g, {
+    bool preserveLocalImage = false,
+  }) =>
       OshiGroupsCompanion.insert(
         id: g.id,
         ownerId: g.ownerId,
@@ -260,6 +372,10 @@ class OshiRepositoryImpl implements OshiRepository {
         kind: Value(g.kind),
         color: Value(g.color),
         memo: Value(g.memo),
+        imageLocalPath:
+            preserveLocalImage ? const Value.absent() : Value(g.imageLocalPath),
+        imageAltText: Value(g.imageAltText),
+        isFavorite: Value(g.isFavorite),
         createdAt: g.createdAt.toUtc().toIso8601String(),
         updatedAt: g.updatedAt.toUtc().toIso8601String(),
       );
@@ -282,6 +398,7 @@ class OshiRepositoryImpl implements OshiRepository {
         birthday: row.birthday == null ? null : DateTime.parse(row.birthday!),
         memo: row.memo,
         imageLocalPath: row.imageLocalPath,
+        imageAltText: row.imageAltText,
         createdAt: DateTime.parse(row.createdAt),
         updatedAt: DateTime.parse(row.updatedAt),
       );
@@ -307,8 +424,33 @@ class OshiRepositoryImpl implements OshiRepository {
         memo: Value(m.memo),
         imageLocalPath:
             preserveLocalImage ? const Value.absent() : Value(m.imageLocalPath),
+        imageAltText: Value(m.imageAltText),
         createdAt: m.createdAt.toUtc().toIso8601String(),
         updatedAt: m.updatedAt.toUtc().toIso8601String(),
+      );
+
+  OshiAnniversary _anniversaryFromRow(OshiAnniversaryRow row) =>
+      OshiAnniversary(
+        id: row.id,
+        ownerId: row.ownerId,
+        groupId: row.groupId,
+        memberId: row.memberId,
+        label: row.label,
+        date: DateTime.parse(row.date),
+        createdAt: DateTime.parse(row.createdAt),
+        updatedAt: DateTime.parse(row.updatedAt),
+      );
+
+  OshiAnniversariesCompanion _anniversaryToCompanion(OshiAnniversary a) =>
+      OshiAnniversariesCompanion.insert(
+        id: a.id,
+        ownerId: a.ownerId,
+        groupId: a.groupId,
+        memberId: Value(a.memberId),
+        label: a.label,
+        date: _dateText(a.date),
+        createdAt: a.createdAt.toUtc().toIso8601String(),
+        updatedAt: a.updatedAt.toUtc().toIso8601String(),
       );
 
   String _dateText(DateTime d) {

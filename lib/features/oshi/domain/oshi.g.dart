@@ -14,6 +14,9 @@ _$OshiGroupImpl _$$OshiGroupImplFromJson(Map<String, dynamic> json) =>
       kind: json['kind'] as String?,
       color: json['color'] as String?,
       memo: json['memo'] as String?,
+      imageLocalPath: json['image_local_path'] as String?,
+      imageAltText: json['image_alt_text'] as String?,
+      isFavorite: json['is_favorite'] as bool? ?? false,
       createdAt:
           const UtcDateTimeConverter().fromJson(json['created_at'] as String),
       updatedAt:
@@ -28,6 +31,9 @@ Map<String, dynamic> _$$OshiGroupImplToJson(_$OshiGroupImpl instance) =>
       'kind': instance.kind,
       'color': instance.color,
       'memo': instance.memo,
+      'image_local_path': instance.imageLocalPath,
+      'image_alt_text': instance.imageAltText,
+      'is_favorite': instance.isFavorite,
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
     };
@@ -47,6 +53,7 @@ _$OshiMemberImpl _$$OshiMemberImplFromJson(Map<String, dynamic> json) =>
           .fromJson(json['birthday'] as String?),
       memo: json['memo'] as String?,
       imageLocalPath: json['image_local_path'] as String?,
+      imageAltText: json['image_alt_text'] as String?,
       createdAt:
           const UtcDateTimeConverter().fromJson(json['created_at'] as String),
       updatedAt:
@@ -66,6 +73,7 @@ Map<String, dynamic> _$$OshiMemberImplToJson(_$OshiMemberImpl instance) =>
       'birthday': const NullableDateOnlyConverter().toJson(instance.birthday),
       'memo': instance.memo,
       'image_local_path': instance.imageLocalPath,
+      'image_alt_text': instance.imageAltText,
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
     };
@@ -77,3 +85,31 @@ const _$OshiRankEnumMap = {
   OshiRank.hakooshi: 'hakooshi',
   OshiRank.curious: 'curious',
 };
+
+_$OshiAnniversaryImpl _$$OshiAnniversaryImplFromJson(
+        Map<String, dynamic> json) =>
+    _$OshiAnniversaryImpl(
+      id: json['id'] as String,
+      ownerId: json['owner_id'] as String,
+      groupId: json['group_id'] as String,
+      memberId: json['member_id'] as String?,
+      label: json['label'] as String,
+      date: const DateOnlyConverter().fromJson(json['date'] as String),
+      createdAt:
+          const UtcDateTimeConverter().fromJson(json['created_at'] as String),
+      updatedAt:
+          const UtcDateTimeConverter().fromJson(json['updated_at'] as String),
+    );
+
+Map<String, dynamic> _$$OshiAnniversaryImplToJson(
+        _$OshiAnniversaryImpl instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'owner_id': instance.ownerId,
+      'group_id': instance.groupId,
+      'member_id': instance.memberId,
+      'label': instance.label,
+      'date': const DateOnlyConverter().toJson(instance.date),
+      'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
+      'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
+    };

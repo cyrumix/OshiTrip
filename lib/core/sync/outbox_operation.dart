@@ -21,6 +21,7 @@ class SyncEntity {
   static const visitedPlaces = 'visited_places';
   static const oshiGroups = 'oshi_groups';
   static const oshiMembers = 'oshi_members';
+  static const oshiAnniversaries = 'oshi_anniversaries';
 
   static const all = [
     genbas,
@@ -36,6 +37,7 @@ class SyncEntity {
     visitedPlaces,
     oshiGroups,
     oshiMembers,
+    oshiAnniversaries,
   ];
 }
 

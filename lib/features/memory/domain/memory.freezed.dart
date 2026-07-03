@@ -41,6 +41,9 @@ mixin _$MemoryEntry {
 
   /// 「今回は入力しない」を選んだ項目名（通知抑制の境界データ、§8.3）。
   List<String> get declinedFields => throw _privateConstructorUsedError;
+
+  /// 思い出単位のお気に入り（§8/design-spec §8/§12.1）。一覧・詳細から変更可能。
+  bool get isFavorite => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
   DateTime get createdAt => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
@@ -72,6 +75,7 @@ abstract class $MemoryEntryCopyWith<$Res> {
       String seatView,
       List<String> tags,
       List<String> declinedFields,
+      bool isFavorite,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -100,6 +104,7 @@ class _$MemoryEntryCopyWithImpl<$Res, $Val extends MemoryEntry>
     Object? seatView = null,
     Object? tags = null,
     Object? declinedFields = null,
+    Object? isFavorite = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -140,6 +145,10 @@ class _$MemoryEntryCopyWithImpl<$Res, $Val extends MemoryEntry>
           ? _value.declinedFields
           : declinedFields // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      isFavorite: null == isFavorite
+          ? _value.isFavorite
+          : isFavorite // ignore: cast_nullable_to_non_nullable
+              as bool,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -170,6 +179,7 @@ abstract class _$$MemoryEntryImplCopyWith<$Res>
       String seatView,
       List<String> tags,
       List<String> declinedFields,
+      bool isFavorite,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -196,6 +206,7 @@ class __$$MemoryEntryImplCopyWithImpl<$Res>
     Object? seatView = null,
     Object? tags = null,
     Object? declinedFields = null,
+    Object? isFavorite = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -236,6 +247,10 @@ class __$$MemoryEntryImplCopyWithImpl<$Res>
           ? _value._declinedFields
           : declinedFields // ignore: cast_nullable_to_non_nullable
               as List<String>,
+      isFavorite: null == isFavorite
+          ? _value.isFavorite
+          : isFavorite // ignore: cast_nullable_to_non_nullable
+              as bool,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -262,6 +277,7 @@ class _$MemoryEntryImpl implements _MemoryEntry {
       this.seatView = '',
       final List<String> tags = const <String>[],
       final List<String> declinedFields = const <String>[],
+      this.isFavorite = false,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt})
       : _tags = tags,
@@ -321,6 +337,10 @@ class _$MemoryEntryImpl implements _MemoryEntry {
     return EqualUnmodifiableListView(_declinedFields);
   }
 
+  /// 思い出単位のお気に入り（§8/design-spec §8/§12.1）。一覧・詳細から変更可能。
+  @override
+  @JsonKey()
+  final bool isFavorite;
   @override
   @UtcDateTimeConverter()
   final DateTime createdAt;
@@ -330,7 +350,7 @@ class _$MemoryEntryImpl implements _MemoryEntry {
 
   @override
   String toString() {
-    return 'MemoryEntry(id: $id, genbaId: $genbaId, ownerId: $ownerId, impression: $impression, bestMoment: $bestMoment, mcNotes: $mcNotes, seatView: $seatView, tags: $tags, declinedFields: $declinedFields, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'MemoryEntry(id: $id, genbaId: $genbaId, ownerId: $ownerId, impression: $impression, bestMoment: $bestMoment, mcNotes: $mcNotes, seatView: $seatView, tags: $tags, declinedFields: $declinedFields, isFavorite: $isFavorite, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -351,6 +371,8 @@ class _$MemoryEntryImpl implements _MemoryEntry {
             const DeepCollectionEquality().equals(other._tags, _tags) &&
             const DeepCollectionEquality()
                 .equals(other._declinedFields, _declinedFields) &&
+            (identical(other.isFavorite, isFavorite) ||
+                other.isFavorite == isFavorite) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -370,6 +392,7 @@ class _$MemoryEntryImpl implements _MemoryEntry {
       seatView,
       const DeepCollectionEquality().hash(_tags),
       const DeepCollectionEquality().hash(_declinedFields),
+      isFavorite,
       createdAt,
       updatedAt);
 
@@ -400,6 +423,7 @@ abstract class _MemoryEntry implements MemoryEntry {
           final String seatView,
           final List<String> tags,
           final List<String> declinedFields,
+          final bool isFavorite,
           @UtcDateTimeConverter() required final DateTime createdAt,
           @UtcDateTimeConverter() required final DateTime updatedAt}) =
       _$MemoryEntryImpl;
@@ -437,6 +461,10 @@ abstract class _MemoryEntry implements MemoryEntry {
   /// 「今回は入力しない」を選んだ項目名（通知抑制の境界データ、§8.3）。
   @override
   List<String> get declinedFields;
+
+  /// 思い出単位のお気に入り（§8/design-spec §8/§12.1）。一覧・詳細から変更可能。
+  @override
+  bool get isFavorite;
   @override
   @UtcDateTimeConverter()
   DateTime get createdAt;

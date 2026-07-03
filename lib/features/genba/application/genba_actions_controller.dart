@@ -59,12 +59,45 @@ class GenbaActionsController
 
   Future<Failure?> cancel(Genba genba) => _run(
         'cancel',
-        () => _mutate(genba.id, (c) => c.copyWith(isCanceled: true)),
+        () => _mutate(
+          genba.id,
+          (c) => c.copyWith(
+            isCanceled: true,
+            attendanceStatus: AttendanceStatus.canceled,
+          ),
+        ),
       );
 
   Future<Failure?> uncancel(Genba genba) => _run(
         'uncancel',
-        () => _mutate(genba.id, (c) => c.copyWith(isCanceled: false)),
+        // 中止取消は参加状態も canceled から planned へ戻す（stale を残さない）。
+        () => _mutate(
+          genba.id,
+          (c) => c.copyWith(
+            isCanceled: false,
+            attendanceStatus: c.attendanceStatus == AttendanceStatus.canceled
+                ? AttendanceStatus.planned
+                : c.attendanceStatus,
+          ),
+        ),
+      );
+
+  // ---- 参加状態（明示・design-spec §12.1）--------------------------------------
+
+  static const attendanceKey = 'attendance';
+
+  /// 参加状態を明示的に設定する。日時からは自動導出しない。canceled との
+  /// 整合のため isCanceled も合わせて設定する（attended 等は中止解除になる）。
+  Future<Failure?> setAttendanceStatus(Genba genba, AttendanceStatus status) =>
+      _run(
+        attendanceKey,
+        () => _mutate(
+          genba.id,
+          (c) => c.copyWith(
+            attendanceStatus: status,
+            isCanceled: status == AttendanceStatus.canceled,
+          ),
+        ),
       );
 
   // ---- 終演（手動）----------------------------------------------------------

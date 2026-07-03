@@ -16,6 +16,7 @@ MemoryEntry entryFromRow(MemoryEntryRow row) => MemoryEntry(
       tags: (jsonDecode(row.tags) as List<dynamic>).cast<String>(),
       declinedFields:
           (jsonDecode(row.declinedFields) as List<dynamic>).cast<String>(),
+      isFavorite: row.isFavorite,
       createdAt: DateTime.parse(row.createdAt),
       updatedAt: DateTime.parse(row.updatedAt),
     );
@@ -31,6 +32,7 @@ MemoryEntriesCompanion entryToCompanion(MemoryEntry e) =>
       seatView: Value(e.seatView),
       tags: Value(jsonEncode(e.tags)),
       declinedFields: Value(jsonEncode(e.declinedFields)),
+      isFavorite: Value(e.isFavorite),
       createdAt: _ts(e.createdAt),
       updatedAt: _ts(e.updatedAt),
     );
@@ -54,12 +56,18 @@ MemoryPhoto photoFromRow(MemoryPhotoRow row) => MemoryPhoto(
       updatedAt: DateTime.parse(row.updatedAt),
     );
 
-MemoryPhotosCompanion photoToCompanion(MemoryPhoto p) =>
+/// [preserveLocalImage] が true のとき local_path を companion に含めない
+/// （`Value.absent`）。リモート pull はサーバーに存在しないこの端末内参照を
+/// null で上書きしてはならないため（R6独立レビュー#3, H-04）。ローカル書き込みでは false。
+MemoryPhotosCompanion photoToCompanion(
+  MemoryPhoto p, {
+  bool preserveLocalImage = false,
+}) =>
     MemoryPhotosCompanion.insert(
       id: p.id,
       genbaId: p.genbaId,
       ownerId: p.ownerId,
-      localPath: Value(p.localPath),
+      localPath: preserveLocalImage ? const Value.absent() : Value(p.localPath),
       storagePath: Value(p.storagePath),
       uploadStatus: Value(
         switch (p.uploadStatus) {

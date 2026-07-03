@@ -120,6 +120,14 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_canceled" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _attendanceStatusMeta =
+      const VerificationMeta('attendanceStatus');
+  @override
+  late final GeneratedColumn<String> attendanceStatus = GeneratedColumn<String>(
+      'attendance_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('planned'));
   static const VerificationMeta _manualEndedAtMeta =
       const VerificationMeta('manualEndedAt');
   @override
@@ -132,6 +140,26 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
   late final GeneratedColumn<String> heroImageLocalPath =
       GeneratedColumn<String>('hero_image_local_path', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _heroImageStoragePathMeta =
+      const VerificationMeta('heroImageStoragePath');
+  @override
+  late final GeneratedColumn<String> heroImageStoragePath =
+      GeneratedColumn<String>('hero_image_storage_path', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _heroImageUploadStatusMeta =
+      const VerificationMeta('heroImageUploadStatus');
+  @override
+  late final GeneratedColumn<String> heroImageUploadStatus =
+      GeneratedColumn<String>('hero_image_upload_status', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('local_only'));
+  static const VerificationMeta _heroImageAltTextMeta =
+      const VerificationMeta('heroImageAltText');
+  @override
+  late final GeneratedColumn<String> heroImageAltText = GeneratedColumn<String>(
+      'hero_image_alt_text', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -163,8 +191,12 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
         transportRequirement,
         lodgingRequirement,
         isCanceled,
+        attendanceStatus,
         manualEndedAt,
         heroImageLocalPath,
+        heroImageStoragePath,
+        heroImageUploadStatus,
+        heroImageAltText,
         createdAt,
         updatedAt
       ];
@@ -279,6 +311,12 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
           isCanceled.isAcceptableOrUnknown(
               data['is_canceled']!, _isCanceledMeta));
     }
+    if (data.containsKey('attendance_status')) {
+      context.handle(
+          _attendanceStatusMeta,
+          attendanceStatus.isAcceptableOrUnknown(
+              data['attendance_status']!, _attendanceStatusMeta));
+    }
     if (data.containsKey('manual_ended_at')) {
       context.handle(
           _manualEndedAtMeta,
@@ -290,6 +328,24 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
           _heroImageLocalPathMeta,
           heroImageLocalPath.isAcceptableOrUnknown(
               data['hero_image_local_path']!, _heroImageLocalPathMeta));
+    }
+    if (data.containsKey('hero_image_storage_path')) {
+      context.handle(
+          _heroImageStoragePathMeta,
+          heroImageStoragePath.isAcceptableOrUnknown(
+              data['hero_image_storage_path']!, _heroImageStoragePathMeta));
+    }
+    if (data.containsKey('hero_image_upload_status')) {
+      context.handle(
+          _heroImageUploadStatusMeta,
+          heroImageUploadStatus.isAcceptableOrUnknown(
+              data['hero_image_upload_status']!, _heroImageUploadStatusMeta));
+    }
+    if (data.containsKey('hero_image_alt_text')) {
+      context.handle(
+          _heroImageAltTextMeta,
+          heroImageAltText.isAcceptableOrUnknown(
+              data['hero_image_alt_text']!, _heroImageAltTextMeta));
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -347,10 +403,20 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
           DriftSqlType.string, data['${effectivePrefix}lodging_requirement'])!,
       isCanceled: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_canceled'])!,
+      attendanceStatus: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}attendance_status'])!,
       manualEndedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}manual_ended_at']),
       heroImageLocalPath: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}hero_image_local_path']),
+      heroImageStoragePath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}hero_image_storage_path']),
+      heroImageUploadStatus: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}hero_image_upload_status'])!,
+      heroImageAltText: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}hero_image_alt_text']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -382,10 +448,19 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
   final String transportRequirement;
   final String lodgingRequirement;
   final bool isCanceled;
+
+  /// 明示参加状態（planned/attended/not_attended/canceled, schema v5）。
+  /// 日時から自動導出しない。is_canceled と整合させる（normalizeAttendance）。
+  final String attendanceStatus;
   final String? manualEndedAt;
 
   /// ヒーロー画像の端末内相対参照（同期対象外, H-04, schema v4）。
   final String? heroImageLocalPath;
+
+  /// ヒーロー画像の Storage パス・アップロード状態・代替説明（同期対象, v5）。
+  final String? heroImageStoragePath;
+  final String heroImageUploadStatus;
+  final String? heroImageAltText;
   final String createdAt;
   final String updatedAt;
   const GenbaRow(
@@ -406,8 +481,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       required this.transportRequirement,
       required this.lodgingRequirement,
       required this.isCanceled,
+      required this.attendanceStatus,
       this.manualEndedAt,
       this.heroImageLocalPath,
+      this.heroImageStoragePath,
+      required this.heroImageUploadStatus,
+      this.heroImageAltText,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -446,11 +525,19 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
     map['transport_requirement'] = Variable<String>(transportRequirement);
     map['lodging_requirement'] = Variable<String>(lodgingRequirement);
     map['is_canceled'] = Variable<bool>(isCanceled);
+    map['attendance_status'] = Variable<String>(attendanceStatus);
     if (!nullToAbsent || manualEndedAt != null) {
       map['manual_ended_at'] = Variable<String>(manualEndedAt);
     }
     if (!nullToAbsent || heroImageLocalPath != null) {
       map['hero_image_local_path'] = Variable<String>(heroImageLocalPath);
+    }
+    if (!nullToAbsent || heroImageStoragePath != null) {
+      map['hero_image_storage_path'] = Variable<String>(heroImageStoragePath);
+    }
+    map['hero_image_upload_status'] = Variable<String>(heroImageUploadStatus);
+    if (!nullToAbsent || heroImageAltText != null) {
+      map['hero_image_alt_text'] = Variable<String>(heroImageAltText);
     }
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
@@ -491,12 +578,20 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       transportRequirement: Value(transportRequirement),
       lodgingRequirement: Value(lodgingRequirement),
       isCanceled: Value(isCanceled),
+      attendanceStatus: Value(attendanceStatus),
       manualEndedAt: manualEndedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(manualEndedAt),
       heroImageLocalPath: heroImageLocalPath == null && nullToAbsent
           ? const Value.absent()
           : Value(heroImageLocalPath),
+      heroImageStoragePath: heroImageStoragePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(heroImageStoragePath),
+      heroImageUploadStatus: Value(heroImageUploadStatus),
+      heroImageAltText: heroImageAltText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(heroImageAltText),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -525,9 +620,15 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       lodgingRequirement:
           serializer.fromJson<String>(json['lodgingRequirement']),
       isCanceled: serializer.fromJson<bool>(json['isCanceled']),
+      attendanceStatus: serializer.fromJson<String>(json['attendanceStatus']),
       manualEndedAt: serializer.fromJson<String?>(json['manualEndedAt']),
       heroImageLocalPath:
           serializer.fromJson<String?>(json['heroImageLocalPath']),
+      heroImageStoragePath:
+          serializer.fromJson<String?>(json['heroImageStoragePath']),
+      heroImageUploadStatus:
+          serializer.fromJson<String>(json['heroImageUploadStatus']),
+      heroImageAltText: serializer.fromJson<String?>(json['heroImageAltText']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
     );
@@ -553,8 +654,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       'transportRequirement': serializer.toJson<String>(transportRequirement),
       'lodgingRequirement': serializer.toJson<String>(lodgingRequirement),
       'isCanceled': serializer.toJson<bool>(isCanceled),
+      'attendanceStatus': serializer.toJson<String>(attendanceStatus),
       'manualEndedAt': serializer.toJson<String?>(manualEndedAt),
       'heroImageLocalPath': serializer.toJson<String?>(heroImageLocalPath),
+      'heroImageStoragePath': serializer.toJson<String?>(heroImageStoragePath),
+      'heroImageUploadStatus': serializer.toJson<String>(heroImageUploadStatus),
+      'heroImageAltText': serializer.toJson<String?>(heroImageAltText),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
     };
@@ -578,8 +683,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           String? transportRequirement,
           String? lodgingRequirement,
           bool? isCanceled,
+          String? attendanceStatus,
           Value<String?> manualEndedAt = const Value.absent(),
           Value<String?> heroImageLocalPath = const Value.absent(),
+          Value<String?> heroImageStoragePath = const Value.absent(),
+          String? heroImageUploadStatus,
+          Value<String?> heroImageAltText = const Value.absent(),
           String? createdAt,
           String? updatedAt}) =>
       GenbaRow(
@@ -609,11 +718,20 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
         transportRequirement: transportRequirement ?? this.transportRequirement,
         lodgingRequirement: lodgingRequirement ?? this.lodgingRequirement,
         isCanceled: isCanceled ?? this.isCanceled,
+        attendanceStatus: attendanceStatus ?? this.attendanceStatus,
         manualEndedAt:
             manualEndedAt.present ? manualEndedAt.value : this.manualEndedAt,
         heroImageLocalPath: heroImageLocalPath.present
             ? heroImageLocalPath.value
             : this.heroImageLocalPath,
+        heroImageStoragePath: heroImageStoragePath.present
+            ? heroImageStoragePath.value
+            : this.heroImageStoragePath,
+        heroImageUploadStatus:
+            heroImageUploadStatus ?? this.heroImageUploadStatus,
+        heroImageAltText: heroImageAltText.present
+            ? heroImageAltText.value
+            : this.heroImageAltText,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -657,12 +775,24 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           : this.lodgingRequirement,
       isCanceled:
           data.isCanceled.present ? data.isCanceled.value : this.isCanceled,
+      attendanceStatus: data.attendanceStatus.present
+          ? data.attendanceStatus.value
+          : this.attendanceStatus,
       manualEndedAt: data.manualEndedAt.present
           ? data.manualEndedAt.value
           : this.manualEndedAt,
       heroImageLocalPath: data.heroImageLocalPath.present
           ? data.heroImageLocalPath.value
           : this.heroImageLocalPath,
+      heroImageStoragePath: data.heroImageStoragePath.present
+          ? data.heroImageStoragePath.value
+          : this.heroImageStoragePath,
+      heroImageUploadStatus: data.heroImageUploadStatus.present
+          ? data.heroImageUploadStatus.value
+          : this.heroImageUploadStatus,
+      heroImageAltText: data.heroImageAltText.present
+          ? data.heroImageAltText.value
+          : this.heroImageAltText,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -688,8 +818,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           ..write('transportRequirement: $transportRequirement, ')
           ..write('lodgingRequirement: $lodgingRequirement, ')
           ..write('isCanceled: $isCanceled, ')
+          ..write('attendanceStatus: $attendanceStatus, ')
           ..write('manualEndedAt: $manualEndedAt, ')
           ..write('heroImageLocalPath: $heroImageLocalPath, ')
+          ..write('heroImageStoragePath: $heroImageStoragePath, ')
+          ..write('heroImageUploadStatus: $heroImageUploadStatus, ')
+          ..write('heroImageAltText: $heroImageAltText, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -715,8 +849,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
         transportRequirement,
         lodgingRequirement,
         isCanceled,
+        attendanceStatus,
         manualEndedAt,
         heroImageLocalPath,
+        heroImageStoragePath,
+        heroImageUploadStatus,
+        heroImageAltText,
         createdAt,
         updatedAt
       ]);
@@ -741,8 +879,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           other.transportRequirement == this.transportRequirement &&
           other.lodgingRequirement == this.lodgingRequirement &&
           other.isCanceled == this.isCanceled &&
+          other.attendanceStatus == this.attendanceStatus &&
           other.manualEndedAt == this.manualEndedAt &&
           other.heroImageLocalPath == this.heroImageLocalPath &&
+          other.heroImageStoragePath == this.heroImageStoragePath &&
+          other.heroImageUploadStatus == this.heroImageUploadStatus &&
+          other.heroImageAltText == this.heroImageAltText &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -765,8 +907,12 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
   final Value<String> transportRequirement;
   final Value<String> lodgingRequirement;
   final Value<bool> isCanceled;
+  final Value<String> attendanceStatus;
   final Value<String?> manualEndedAt;
   final Value<String?> heroImageLocalPath;
+  final Value<String?> heroImageStoragePath;
+  final Value<String> heroImageUploadStatus;
+  final Value<String?> heroImageAltText;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<int> rowid;
@@ -788,8 +934,12 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     this.transportRequirement = const Value.absent(),
     this.lodgingRequirement = const Value.absent(),
     this.isCanceled = const Value.absent(),
+    this.attendanceStatus = const Value.absent(),
     this.manualEndedAt = const Value.absent(),
     this.heroImageLocalPath = const Value.absent(),
+    this.heroImageStoragePath = const Value.absent(),
+    this.heroImageUploadStatus = const Value.absent(),
+    this.heroImageAltText = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -812,8 +962,12 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     this.transportRequirement = const Value.absent(),
     this.lodgingRequirement = const Value.absent(),
     this.isCanceled = const Value.absent(),
+    this.attendanceStatus = const Value.absent(),
     this.manualEndedAt = const Value.absent(),
     this.heroImageLocalPath = const Value.absent(),
+    this.heroImageStoragePath = const Value.absent(),
+    this.heroImageUploadStatus = const Value.absent(),
+    this.heroImageAltText = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.rowid = const Value.absent(),
@@ -842,8 +996,12 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     Expression<String>? transportRequirement,
     Expression<String>? lodgingRequirement,
     Expression<bool>? isCanceled,
+    Expression<String>? attendanceStatus,
     Expression<String>? manualEndedAt,
     Expression<String>? heroImageLocalPath,
+    Expression<String>? heroImageStoragePath,
+    Expression<String>? heroImageUploadStatus,
+    Expression<String>? heroImageAltText,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<int>? rowid,
@@ -867,9 +1025,15 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
         'transport_requirement': transportRequirement,
       if (lodgingRequirement != null) 'lodging_requirement': lodgingRequirement,
       if (isCanceled != null) 'is_canceled': isCanceled,
+      if (attendanceStatus != null) 'attendance_status': attendanceStatus,
       if (manualEndedAt != null) 'manual_ended_at': manualEndedAt,
       if (heroImageLocalPath != null)
         'hero_image_local_path': heroImageLocalPath,
+      if (heroImageStoragePath != null)
+        'hero_image_storage_path': heroImageStoragePath,
+      if (heroImageUploadStatus != null)
+        'hero_image_upload_status': heroImageUploadStatus,
+      if (heroImageAltText != null) 'hero_image_alt_text': heroImageAltText,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -894,8 +1058,12 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
       Value<String>? transportRequirement,
       Value<String>? lodgingRequirement,
       Value<bool>? isCanceled,
+      Value<String>? attendanceStatus,
       Value<String?>? manualEndedAt,
       Value<String?>? heroImageLocalPath,
+      Value<String?>? heroImageStoragePath,
+      Value<String>? heroImageUploadStatus,
+      Value<String?>? heroImageAltText,
       Value<String>? createdAt,
       Value<String>? updatedAt,
       Value<int>? rowid}) {
@@ -917,8 +1085,13 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
       transportRequirement: transportRequirement ?? this.transportRequirement,
       lodgingRequirement: lodgingRequirement ?? this.lodgingRequirement,
       isCanceled: isCanceled ?? this.isCanceled,
+      attendanceStatus: attendanceStatus ?? this.attendanceStatus,
       manualEndedAt: manualEndedAt ?? this.manualEndedAt,
       heroImageLocalPath: heroImageLocalPath ?? this.heroImageLocalPath,
+      heroImageStoragePath: heroImageStoragePath ?? this.heroImageStoragePath,
+      heroImageUploadStatus:
+          heroImageUploadStatus ?? this.heroImageUploadStatus,
+      heroImageAltText: heroImageAltText ?? this.heroImageAltText,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -980,11 +1153,25 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     if (isCanceled.present) {
       map['is_canceled'] = Variable<bool>(isCanceled.value);
     }
+    if (attendanceStatus.present) {
+      map['attendance_status'] = Variable<String>(attendanceStatus.value);
+    }
     if (manualEndedAt.present) {
       map['manual_ended_at'] = Variable<String>(manualEndedAt.value);
     }
     if (heroImageLocalPath.present) {
       map['hero_image_local_path'] = Variable<String>(heroImageLocalPath.value);
+    }
+    if (heroImageStoragePath.present) {
+      map['hero_image_storage_path'] =
+          Variable<String>(heroImageStoragePath.value);
+    }
+    if (heroImageUploadStatus.present) {
+      map['hero_image_upload_status'] =
+          Variable<String>(heroImageUploadStatus.value);
+    }
+    if (heroImageAltText.present) {
+      map['hero_image_alt_text'] = Variable<String>(heroImageAltText.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
@@ -1018,8 +1205,12 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
           ..write('transportRequirement: $transportRequirement, ')
           ..write('lodgingRequirement: $lodgingRequirement, ')
           ..write('isCanceled: $isCanceled, ')
+          ..write('attendanceStatus: $attendanceStatus, ')
           ..write('manualEndedAt: $manualEndedAt, ')
           ..write('heroImageLocalPath: $heroImageLocalPath, ')
+          ..write('heroImageStoragePath: $heroImageStoragePath, ')
+          ..write('heroImageUploadStatus: $heroImageUploadStatus, ')
+          ..write('heroImageAltText: $heroImageAltText, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -4064,6 +4255,16 @@ class $MemoryEntriesTable extends MemoryEntries
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('[]'));
+  static const VerificationMeta _isFavoriteMeta =
+      const VerificationMeta('isFavorite');
+  @override
+  late final GeneratedColumn<bool> isFavorite = GeneratedColumn<bool>(
+      'is_favorite', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_favorite" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -4087,6 +4288,7 @@ class $MemoryEntriesTable extends MemoryEntries
         seatView,
         tags,
         declinedFields,
+        isFavorite,
         createdAt,
         updatedAt
       ];
@@ -4147,6 +4349,12 @@ class $MemoryEntriesTable extends MemoryEntries
           declinedFields.isAcceptableOrUnknown(
               data['declined_fields']!, _declinedFieldsMeta));
     }
+    if (data.containsKey('is_favorite')) {
+      context.handle(
+          _isFavoriteMeta,
+          isFavorite.isAcceptableOrUnknown(
+              data['is_favorite']!, _isFavoriteMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -4186,6 +4394,8 @@ class $MemoryEntriesTable extends MemoryEntries
           .read(DriftSqlType.string, data['${effectivePrefix}tags'])!,
       declinedFields: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}declined_fields'])!,
+      isFavorite: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_favorite'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -4209,6 +4419,9 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
   final String seatView;
   final String tags;
   final String declinedFields;
+
+  /// 思い出単位のお気に入り（同期対象, schema v5）。
+  final bool isFavorite;
   final String createdAt;
   final String updatedAt;
   const MemoryEntryRow(
@@ -4221,6 +4434,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
       required this.seatView,
       required this.tags,
       required this.declinedFields,
+      required this.isFavorite,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -4235,6 +4449,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
     map['seat_view'] = Variable<String>(seatView);
     map['tags'] = Variable<String>(tags);
     map['declined_fields'] = Variable<String>(declinedFields);
+    map['is_favorite'] = Variable<bool>(isFavorite);
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
     return map;
@@ -4251,6 +4466,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
       seatView: Value(seatView),
       tags: Value(tags),
       declinedFields: Value(declinedFields),
+      isFavorite: Value(isFavorite),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4269,6 +4485,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
       seatView: serializer.fromJson<String>(json['seatView']),
       tags: serializer.fromJson<String>(json['tags']),
       declinedFields: serializer.fromJson<String>(json['declinedFields']),
+      isFavorite: serializer.fromJson<bool>(json['isFavorite']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
     );
@@ -4286,6 +4503,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
       'seatView': serializer.toJson<String>(seatView),
       'tags': serializer.toJson<String>(tags),
       'declinedFields': serializer.toJson<String>(declinedFields),
+      'isFavorite': serializer.toJson<bool>(isFavorite),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
     };
@@ -4301,6 +4519,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
           String? seatView,
           String? tags,
           String? declinedFields,
+          bool? isFavorite,
           String? createdAt,
           String? updatedAt}) =>
       MemoryEntryRow(
@@ -4313,6 +4532,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
         seatView: seatView ?? this.seatView,
         tags: tags ?? this.tags,
         declinedFields: declinedFields ?? this.declinedFields,
+        isFavorite: isFavorite ?? this.isFavorite,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -4331,6 +4551,8 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
       declinedFields: data.declinedFields.present
           ? data.declinedFields.value
           : this.declinedFields,
+      isFavorite:
+          data.isFavorite.present ? data.isFavorite.value : this.isFavorite,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4348,6 +4570,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
           ..write('seatView: $seatView, ')
           ..write('tags: $tags, ')
           ..write('declinedFields: $declinedFields, ')
+          ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4355,8 +4578,19 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
   }
 
   @override
-  int get hashCode => Object.hash(id, genbaId, ownerId, impression, bestMoment,
-      mcNotes, seatView, tags, declinedFields, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      genbaId,
+      ownerId,
+      impression,
+      bestMoment,
+      mcNotes,
+      seatView,
+      tags,
+      declinedFields,
+      isFavorite,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4370,6 +4604,7 @@ class MemoryEntryRow extends DataClass implements Insertable<MemoryEntryRow> {
           other.seatView == this.seatView &&
           other.tags == this.tags &&
           other.declinedFields == this.declinedFields &&
+          other.isFavorite == this.isFavorite &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4384,6 +4619,7 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
   final Value<String> seatView;
   final Value<String> tags;
   final Value<String> declinedFields;
+  final Value<bool> isFavorite;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<int> rowid;
@@ -4397,6 +4633,7 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
     this.seatView = const Value.absent(),
     this.tags = const Value.absent(),
     this.declinedFields = const Value.absent(),
+    this.isFavorite = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -4411,6 +4648,7 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
     this.seatView = const Value.absent(),
     this.tags = const Value.absent(),
     this.declinedFields = const Value.absent(),
+    this.isFavorite = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.rowid = const Value.absent(),
@@ -4429,6 +4667,7 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
     Expression<String>? seatView,
     Expression<String>? tags,
     Expression<String>? declinedFields,
+    Expression<bool>? isFavorite,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<int>? rowid,
@@ -4443,6 +4682,7 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
       if (seatView != null) 'seat_view': seatView,
       if (tags != null) 'tags': tags,
       if (declinedFields != null) 'declined_fields': declinedFields,
+      if (isFavorite != null) 'is_favorite': isFavorite,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4459,6 +4699,7 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
       Value<String>? seatView,
       Value<String>? tags,
       Value<String>? declinedFields,
+      Value<bool>? isFavorite,
       Value<String>? createdAt,
       Value<String>? updatedAt,
       Value<int>? rowid}) {
@@ -4472,6 +4713,7 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
       seatView: seatView ?? this.seatView,
       tags: tags ?? this.tags,
       declinedFields: declinedFields ?? this.declinedFields,
+      isFavorite: isFavorite ?? this.isFavorite,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4508,6 +4750,9 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
     if (declinedFields.present) {
       map['declined_fields'] = Variable<String>(declinedFields.value);
     }
+    if (isFavorite.present) {
+      map['is_favorite'] = Variable<bool>(isFavorite.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
     }
@@ -4532,6 +4777,7 @@ class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntryRow> {
           ..write('seatView: $seatView, ')
           ..write('tags: $tags, ')
           ..write('declinedFields: $declinedFields, ')
+          ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -6418,6 +6664,28 @@ class $OshiGroupsTable extends OshiGroups
   late final GeneratedColumn<String> memo = GeneratedColumn<String>(
       'memo', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _imageLocalPathMeta =
+      const VerificationMeta('imageLocalPath');
+  @override
+  late final GeneratedColumn<String> imageLocalPath = GeneratedColumn<String>(
+      'image_local_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _imageAltTextMeta =
+      const VerificationMeta('imageAltText');
+  @override
+  late final GeneratedColumn<String> imageAltText = GeneratedColumn<String>(
+      'image_alt_text', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isFavoriteMeta =
+      const VerificationMeta('isFavorite');
+  @override
+  late final GeneratedColumn<bool> isFavorite = GeneratedColumn<bool>(
+      'is_favorite', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_favorite" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -6431,8 +6699,19 @@ class $OshiGroupsTable extends OshiGroups
       'updated_at', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, ownerId, name, kind, color, memo, createdAt, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        ownerId,
+        name,
+        kind,
+        color,
+        memo,
+        imageLocalPath,
+        imageAltText,
+        isFavorite,
+        createdAt,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -6472,6 +6751,24 @@ class $OshiGroupsTable extends OshiGroups
       context.handle(
           _memoMeta, memo.isAcceptableOrUnknown(data['memo']!, _memoMeta));
     }
+    if (data.containsKey('image_local_path')) {
+      context.handle(
+          _imageLocalPathMeta,
+          imageLocalPath.isAcceptableOrUnknown(
+              data['image_local_path']!, _imageLocalPathMeta));
+    }
+    if (data.containsKey('image_alt_text')) {
+      context.handle(
+          _imageAltTextMeta,
+          imageAltText.isAcceptableOrUnknown(
+              data['image_alt_text']!, _imageAltTextMeta));
+    }
+    if (data.containsKey('is_favorite')) {
+      context.handle(
+          _isFavoriteMeta,
+          isFavorite.isAcceptableOrUnknown(
+              data['is_favorite']!, _isFavoriteMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -6505,6 +6802,12 @@ class $OshiGroupsTable extends OshiGroups
           .read(DriftSqlType.string, data['${effectivePrefix}color']),
       memo: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}memo']),
+      imageLocalPath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}image_local_path']),
+      imageAltText: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}image_alt_text']),
+      isFavorite: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_favorite'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -6525,6 +6828,15 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
   final String? kind;
   final String? color;
   final String? memo;
+
+  /// グループ画像の端末内相対参照（同期対象外, H-04, schema v5）。
+  final String? imageLocalPath;
+
+  /// グループ画像の代替説明（同期対象, v5）。
+  final String? imageAltText;
+
+  /// グループ単位のお気に入り（同期対象, v5）。
+  final bool isFavorite;
   final String createdAt;
   final String updatedAt;
   const OshiGroupRow(
@@ -6534,6 +6846,9 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
       this.kind,
       this.color,
       this.memo,
+      this.imageLocalPath,
+      this.imageAltText,
+      required this.isFavorite,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -6551,6 +6866,13 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
     if (!nullToAbsent || memo != null) {
       map['memo'] = Variable<String>(memo);
     }
+    if (!nullToAbsent || imageLocalPath != null) {
+      map['image_local_path'] = Variable<String>(imageLocalPath);
+    }
+    if (!nullToAbsent || imageAltText != null) {
+      map['image_alt_text'] = Variable<String>(imageAltText);
+    }
+    map['is_favorite'] = Variable<bool>(isFavorite);
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
     return map;
@@ -6565,6 +6887,13 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
       color:
           color == null && nullToAbsent ? const Value.absent() : Value(color),
       memo: memo == null && nullToAbsent ? const Value.absent() : Value(memo),
+      imageLocalPath: imageLocalPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageLocalPath),
+      imageAltText: imageAltText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageAltText),
+      isFavorite: Value(isFavorite),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -6580,6 +6909,9 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
       kind: serializer.fromJson<String?>(json['kind']),
       color: serializer.fromJson<String?>(json['color']),
       memo: serializer.fromJson<String?>(json['memo']),
+      imageLocalPath: serializer.fromJson<String?>(json['imageLocalPath']),
+      imageAltText: serializer.fromJson<String?>(json['imageAltText']),
+      isFavorite: serializer.fromJson<bool>(json['isFavorite']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
     );
@@ -6594,6 +6926,9 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
       'kind': serializer.toJson<String?>(kind),
       'color': serializer.toJson<String?>(color),
       'memo': serializer.toJson<String?>(memo),
+      'imageLocalPath': serializer.toJson<String?>(imageLocalPath),
+      'imageAltText': serializer.toJson<String?>(imageAltText),
+      'isFavorite': serializer.toJson<bool>(isFavorite),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
     };
@@ -6606,6 +6941,9 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
           Value<String?> kind = const Value.absent(),
           Value<String?> color = const Value.absent(),
           Value<String?> memo = const Value.absent(),
+          Value<String?> imageLocalPath = const Value.absent(),
+          Value<String?> imageAltText = const Value.absent(),
+          bool? isFavorite,
           String? createdAt,
           String? updatedAt}) =>
       OshiGroupRow(
@@ -6615,6 +6953,11 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
         kind: kind.present ? kind.value : this.kind,
         color: color.present ? color.value : this.color,
         memo: memo.present ? memo.value : this.memo,
+        imageLocalPath:
+            imageLocalPath.present ? imageLocalPath.value : this.imageLocalPath,
+        imageAltText:
+            imageAltText.present ? imageAltText.value : this.imageAltText,
+        isFavorite: isFavorite ?? this.isFavorite,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -6626,6 +6969,14 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
       kind: data.kind.present ? data.kind.value : this.kind,
       color: data.color.present ? data.color.value : this.color,
       memo: data.memo.present ? data.memo.value : this.memo,
+      imageLocalPath: data.imageLocalPath.present
+          ? data.imageLocalPath.value
+          : this.imageLocalPath,
+      imageAltText: data.imageAltText.present
+          ? data.imageAltText.value
+          : this.imageAltText,
+      isFavorite:
+          data.isFavorite.present ? data.isFavorite.value : this.isFavorite,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -6640,6 +6991,9 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
           ..write('kind: $kind, ')
           ..write('color: $color, ')
           ..write('memo: $memo, ')
+          ..write('imageLocalPath: $imageLocalPath, ')
+          ..write('imageAltText: $imageAltText, ')
+          ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -6647,8 +7001,8 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, ownerId, name, kind, color, memo, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, ownerId, name, kind, color, memo,
+      imageLocalPath, imageAltText, isFavorite, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -6659,6 +7013,9 @@ class OshiGroupRow extends DataClass implements Insertable<OshiGroupRow> {
           other.kind == this.kind &&
           other.color == this.color &&
           other.memo == this.memo &&
+          other.imageLocalPath == this.imageLocalPath &&
+          other.imageAltText == this.imageAltText &&
+          other.isFavorite == this.isFavorite &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -6670,6 +7027,9 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
   final Value<String?> kind;
   final Value<String?> color;
   final Value<String?> memo;
+  final Value<String?> imageLocalPath;
+  final Value<String?> imageAltText;
+  final Value<bool> isFavorite;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<int> rowid;
@@ -6680,6 +7040,9 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
     this.kind = const Value.absent(),
     this.color = const Value.absent(),
     this.memo = const Value.absent(),
+    this.imageLocalPath = const Value.absent(),
+    this.imageAltText = const Value.absent(),
+    this.isFavorite = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6691,6 +7054,9 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
     this.kind = const Value.absent(),
     this.color = const Value.absent(),
     this.memo = const Value.absent(),
+    this.imageLocalPath = const Value.absent(),
+    this.imageAltText = const Value.absent(),
+    this.isFavorite = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.rowid = const Value.absent(),
@@ -6706,6 +7072,9 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
     Expression<String>? kind,
     Expression<String>? color,
     Expression<String>? memo,
+    Expression<String>? imageLocalPath,
+    Expression<String>? imageAltText,
+    Expression<bool>? isFavorite,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<int>? rowid,
@@ -6717,6 +7086,9 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
       if (kind != null) 'kind': kind,
       if (color != null) 'color': color,
       if (memo != null) 'memo': memo,
+      if (imageLocalPath != null) 'image_local_path': imageLocalPath,
+      if (imageAltText != null) 'image_alt_text': imageAltText,
+      if (isFavorite != null) 'is_favorite': isFavorite,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -6730,6 +7102,9 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
       Value<String?>? kind,
       Value<String?>? color,
       Value<String?>? memo,
+      Value<String?>? imageLocalPath,
+      Value<String?>? imageAltText,
+      Value<bool>? isFavorite,
       Value<String>? createdAt,
       Value<String>? updatedAt,
       Value<int>? rowid}) {
@@ -6740,6 +7115,9 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
       kind: kind ?? this.kind,
       color: color ?? this.color,
       memo: memo ?? this.memo,
+      imageLocalPath: imageLocalPath ?? this.imageLocalPath,
+      imageAltText: imageAltText ?? this.imageAltText,
+      isFavorite: isFavorite ?? this.isFavorite,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -6767,6 +7145,15 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
     if (memo.present) {
       map['memo'] = Variable<String>(memo.value);
     }
+    if (imageLocalPath.present) {
+      map['image_local_path'] = Variable<String>(imageLocalPath.value);
+    }
+    if (imageAltText.present) {
+      map['image_alt_text'] = Variable<String>(imageAltText.value);
+    }
+    if (isFavorite.present) {
+      map['is_favorite'] = Variable<bool>(isFavorite.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
     }
@@ -6788,6 +7175,9 @@ class OshiGroupsCompanion extends UpdateCompanion<OshiGroupRow> {
           ..write('kind: $kind, ')
           ..write('color: $color, ')
           ..write('memo: $memo, ')
+          ..write('imageLocalPath: $imageLocalPath, ')
+          ..write('imageAltText: $imageAltText, ')
+          ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -6859,6 +7249,12 @@ class $OshiMembersTable extends OshiMembers
   late final GeneratedColumn<String> imageLocalPath = GeneratedColumn<String>(
       'image_local_path', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _imageAltTextMeta =
+      const VerificationMeta('imageAltText');
+  @override
+  late final GeneratedColumn<String> imageAltText = GeneratedColumn<String>(
+      'image_alt_text', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -6883,6 +7279,7 @@ class $OshiMembersTable extends OshiMembers
         birthday,
         memo,
         imageLocalPath,
+        imageAltText,
         createdAt,
         updatedAt
       ];
@@ -6945,6 +7342,12 @@ class $OshiMembersTable extends OshiMembers
           imageLocalPath.isAcceptableOrUnknown(
               data['image_local_path']!, _imageLocalPathMeta));
     }
+    if (data.containsKey('image_alt_text')) {
+      context.handle(
+          _imageAltTextMeta,
+          imageAltText.isAcceptableOrUnknown(
+              data['image_alt_text']!, _imageAltTextMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -6986,6 +7389,8 @@ class $OshiMembersTable extends OshiMembers
           .read(DriftSqlType.string, data['${effectivePrefix}memo']),
       imageLocalPath: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}image_local_path']),
+      imageAltText: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}image_alt_text']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -7012,6 +7417,9 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
 
   /// 推し画像の端末内相対参照（同期対象外, H-04, schema v4）。
   final String? imageLocalPath;
+
+  /// 推し画像の代替説明（同期対象, v5）。
+  final String? imageAltText;
   final String createdAt;
   final String updatedAt;
   const OshiMemberRow(
@@ -7025,6 +7433,7 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
       this.birthday,
       this.memo,
       this.imageLocalPath,
+      this.imageAltText,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -7050,6 +7459,9 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
     if (!nullToAbsent || imageLocalPath != null) {
       map['image_local_path'] = Variable<String>(imageLocalPath);
     }
+    if (!nullToAbsent || imageAltText != null) {
+      map['image_alt_text'] = Variable<String>(imageAltText);
+    }
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
     return map;
@@ -7074,6 +7486,9 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
       imageLocalPath: imageLocalPath == null && nullToAbsent
           ? const Value.absent()
           : Value(imageLocalPath),
+      imageAltText: imageAltText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageAltText),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -7093,6 +7508,7 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
       birthday: serializer.fromJson<String?>(json['birthday']),
       memo: serializer.fromJson<String?>(json['memo']),
       imageLocalPath: serializer.fromJson<String?>(json['imageLocalPath']),
+      imageAltText: serializer.fromJson<String?>(json['imageAltText']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
     );
@@ -7111,6 +7527,7 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
       'birthday': serializer.toJson<String?>(birthday),
       'memo': serializer.toJson<String?>(memo),
       'imageLocalPath': serializer.toJson<String?>(imageLocalPath),
+      'imageAltText': serializer.toJson<String?>(imageAltText),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
     };
@@ -7127,6 +7544,7 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
           Value<String?> birthday = const Value.absent(),
           Value<String?> memo = const Value.absent(),
           Value<String?> imageLocalPath = const Value.absent(),
+          Value<String?> imageAltText = const Value.absent(),
           String? createdAt,
           String? updatedAt}) =>
       OshiMemberRow(
@@ -7141,6 +7559,8 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
         memo: memo.present ? memo.value : this.memo,
         imageLocalPath:
             imageLocalPath.present ? imageLocalPath.value : this.imageLocalPath,
+        imageAltText:
+            imageAltText.present ? imageAltText.value : this.imageAltText,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -7158,6 +7578,9 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
       imageLocalPath: data.imageLocalPath.present
           ? data.imageLocalPath.value
           : this.imageLocalPath,
+      imageAltText: data.imageAltText.present
+          ? data.imageAltText.value
+          : this.imageAltText,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -7176,6 +7599,7 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
           ..write('birthday: $birthday, ')
           ..write('memo: $memo, ')
           ..write('imageLocalPath: $imageLocalPath, ')
+          ..write('imageAltText: $imageAltText, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -7183,8 +7607,20 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
   }
 
   @override
-  int get hashCode => Object.hash(id, groupId, ownerId, name, rank, color,
-      oshiSince, birthday, memo, imageLocalPath, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      groupId,
+      ownerId,
+      name,
+      rank,
+      color,
+      oshiSince,
+      birthday,
+      memo,
+      imageLocalPath,
+      imageAltText,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -7199,6 +7635,7 @@ class OshiMemberRow extends DataClass implements Insertable<OshiMemberRow> {
           other.birthday == this.birthday &&
           other.memo == this.memo &&
           other.imageLocalPath == this.imageLocalPath &&
+          other.imageAltText == this.imageAltText &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -7214,6 +7651,7 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
   final Value<String?> birthday;
   final Value<String?> memo;
   final Value<String?> imageLocalPath;
+  final Value<String?> imageAltText;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<int> rowid;
@@ -7228,6 +7666,7 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
     this.birthday = const Value.absent(),
     this.memo = const Value.absent(),
     this.imageLocalPath = const Value.absent(),
+    this.imageAltText = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -7243,6 +7682,7 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
     this.birthday = const Value.absent(),
     this.memo = const Value.absent(),
     this.imageLocalPath = const Value.absent(),
+    this.imageAltText = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.rowid = const Value.absent(),
@@ -7263,6 +7703,7 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
     Expression<String>? birthday,
     Expression<String>? memo,
     Expression<String>? imageLocalPath,
+    Expression<String>? imageAltText,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<int>? rowid,
@@ -7278,6 +7719,7 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
       if (birthday != null) 'birthday': birthday,
       if (memo != null) 'memo': memo,
       if (imageLocalPath != null) 'image_local_path': imageLocalPath,
+      if (imageAltText != null) 'image_alt_text': imageAltText,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -7295,6 +7737,7 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
       Value<String?>? birthday,
       Value<String?>? memo,
       Value<String?>? imageLocalPath,
+      Value<String?>? imageAltText,
       Value<String>? createdAt,
       Value<String>? updatedAt,
       Value<int>? rowid}) {
@@ -7309,6 +7752,7 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
       birthday: birthday ?? this.birthday,
       memo: memo ?? this.memo,
       imageLocalPath: imageLocalPath ?? this.imageLocalPath,
+      imageAltText: imageAltText ?? this.imageAltText,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -7348,6 +7792,9 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
     if (imageLocalPath.present) {
       map['image_local_path'] = Variable<String>(imageLocalPath.value);
     }
+    if (imageAltText.present) {
+      map['image_alt_text'] = Variable<String>(imageAltText.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
     }
@@ -7373,6 +7820,428 @@ class OshiMembersCompanion extends UpdateCompanion<OshiMemberRow> {
           ..write('birthday: $birthday, ')
           ..write('memo: $memo, ')
           ..write('imageLocalPath: $imageLocalPath, ')
+          ..write('imageAltText: $imageAltText, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $OshiAnniversariesTable extends OshiAnniversaries
+    with TableInfo<$OshiAnniversariesTable, OshiAnniversaryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OshiAnniversariesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _groupIdMeta =
+      const VerificationMeta('groupId');
+  @override
+  late final GeneratedColumn<String> groupId = GeneratedColumn<String>(
+      'group_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _memberIdMeta =
+      const VerificationMeta('memberId');
+  @override
+  late final GeneratedColumn<String> memberId = GeneratedColumn<String>(
+      'member_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+      'label', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+      'date', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, ownerId, groupId, memberId, label, date, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'oshi_anniversaries';
+  @override
+  VerificationContext validateIntegrity(Insertable<OshiAnniversaryRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('group_id')) {
+      context.handle(_groupIdMeta,
+          groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta));
+    } else if (isInserting) {
+      context.missing(_groupIdMeta);
+    }
+    if (data.containsKey('member_id')) {
+      context.handle(_memberIdMeta,
+          memberId.isAcceptableOrUnknown(data['member_id']!, _memberIdMeta));
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+          _labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  OshiAnniversaryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OshiAnniversaryRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      groupId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}group_id'])!,
+      memberId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}member_id']),
+      label: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}label'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}date'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $OshiAnniversariesTable createAlias(String alias) {
+    return $OshiAnniversariesTable(attachedDatabase, alias);
+  }
+}
+
+class OshiAnniversaryRow extends DataClass
+    implements Insertable<OshiAnniversaryRow> {
+  final String id;
+  final String ownerId;
+  final String groupId;
+  final String? memberId;
+  final String label;
+  final String date;
+  final String createdAt;
+  final String updatedAt;
+  const OshiAnniversaryRow(
+      {required this.id,
+      required this.ownerId,
+      required this.groupId,
+      this.memberId,
+      required this.label,
+      required this.date,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['group_id'] = Variable<String>(groupId);
+    if (!nullToAbsent || memberId != null) {
+      map['member_id'] = Variable<String>(memberId);
+    }
+    map['label'] = Variable<String>(label);
+    map['date'] = Variable<String>(date);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  OshiAnniversariesCompanion toCompanion(bool nullToAbsent) {
+    return OshiAnniversariesCompanion(
+      id: Value(id),
+      ownerId: Value(ownerId),
+      groupId: Value(groupId),
+      memberId: memberId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(memberId),
+      label: Value(label),
+      date: Value(date),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory OshiAnniversaryRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OshiAnniversaryRow(
+      id: serializer.fromJson<String>(json['id']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      groupId: serializer.fromJson<String>(json['groupId']),
+      memberId: serializer.fromJson<String?>(json['memberId']),
+      label: serializer.fromJson<String>(json['label']),
+      date: serializer.fromJson<String>(json['date']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'groupId': serializer.toJson<String>(groupId),
+      'memberId': serializer.toJson<String?>(memberId),
+      'label': serializer.toJson<String>(label),
+      'date': serializer.toJson<String>(date),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  OshiAnniversaryRow copyWith(
+          {String? id,
+          String? ownerId,
+          String? groupId,
+          Value<String?> memberId = const Value.absent(),
+          String? label,
+          String? date,
+          String? createdAt,
+          String? updatedAt}) =>
+      OshiAnniversaryRow(
+        id: id ?? this.id,
+        ownerId: ownerId ?? this.ownerId,
+        groupId: groupId ?? this.groupId,
+        memberId: memberId.present ? memberId.value : this.memberId,
+        label: label ?? this.label,
+        date: date ?? this.date,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  OshiAnniversaryRow copyWithCompanion(OshiAnniversariesCompanion data) {
+    return OshiAnniversaryRow(
+      id: data.id.present ? data.id.value : this.id,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
+      memberId: data.memberId.present ? data.memberId.value : this.memberId,
+      label: data.label.present ? data.label.value : this.label,
+      date: data.date.present ? data.date.value : this.date,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OshiAnniversaryRow(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('groupId: $groupId, ')
+          ..write('memberId: $memberId, ')
+          ..write('label: $label, ')
+          ..write('date: $date, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, ownerId, groupId, memberId, label, date, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OshiAnniversaryRow &&
+          other.id == this.id &&
+          other.ownerId == this.ownerId &&
+          other.groupId == this.groupId &&
+          other.memberId == this.memberId &&
+          other.label == this.label &&
+          other.date == this.date &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class OshiAnniversariesCompanion extends UpdateCompanion<OshiAnniversaryRow> {
+  final Value<String> id;
+  final Value<String> ownerId;
+  final Value<String> groupId;
+  final Value<String?> memberId;
+  final Value<String> label;
+  final Value<String> date;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const OshiAnniversariesCompanion({
+    this.id = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.groupId = const Value.absent(),
+    this.memberId = const Value.absent(),
+    this.label = const Value.absent(),
+    this.date = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  OshiAnniversariesCompanion.insert({
+    required String id,
+    required String ownerId,
+    required String groupId,
+    this.memberId = const Value.absent(),
+    required String label,
+    required String date,
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        ownerId = Value(ownerId),
+        groupId = Value(groupId),
+        label = Value(label),
+        date = Value(date),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<OshiAnniversaryRow> custom({
+    Expression<String>? id,
+    Expression<String>? ownerId,
+    Expression<String>? groupId,
+    Expression<String>? memberId,
+    Expression<String>? label,
+    Expression<String>? date,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (groupId != null) 'group_id': groupId,
+      if (memberId != null) 'member_id': memberId,
+      if (label != null) 'label': label,
+      if (date != null) 'date': date,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  OshiAnniversariesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? ownerId,
+      Value<String>? groupId,
+      Value<String?>? memberId,
+      Value<String>? label,
+      Value<String>? date,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return OshiAnniversariesCompanion(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      groupId: groupId ?? this.groupId,
+      memberId: memberId ?? this.memberId,
+      label: label ?? this.label,
+      date: date ?? this.date,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (groupId.present) {
+      map['group_id'] = Variable<String>(groupId.value);
+    }
+    if (memberId.present) {
+      map['member_id'] = Variable<String>(memberId.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OshiAnniversariesCompanion(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('groupId: $groupId, ')
+          ..write('memberId: $memberId, ')
+          ..write('label: $label, ')
+          ..write('date: $date, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -8734,6 +9603,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $VisitedPlacesTable visitedPlaces = $VisitedPlacesTable(this);
   late final $OshiGroupsTable oshiGroups = $OshiGroupsTable(this);
   late final $OshiMembersTable oshiMembers = $OshiMembersTable(this);
+  late final $OshiAnniversariesTable oshiAnniversaries =
+      $OshiAnniversariesTable(this);
   late final $OutboxOpsTable outboxOps = $OutboxOpsTable(this);
   late final $AppKvsTable appKvs = $AppKvsTable(this);
   late final $FormDraftsTable formDrafts = $FormDraftsTable(this);
@@ -8756,6 +9627,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         visitedPlaces,
         oshiGroups,
         oshiMembers,
+        oshiAnniversaries,
         outboxOps,
         appKvs,
         formDrafts,
@@ -8781,8 +9653,12 @@ typedef $$GenbasTableCreateCompanionBuilder = GenbasCompanion Function({
   Value<String> transportRequirement,
   Value<String> lodgingRequirement,
   Value<bool> isCanceled,
+  Value<String> attendanceStatus,
   Value<String?> manualEndedAt,
   Value<String?> heroImageLocalPath,
+  Value<String?> heroImageStoragePath,
+  Value<String> heroImageUploadStatus,
+  Value<String?> heroImageAltText,
   required String createdAt,
   required String updatedAt,
   Value<int> rowid,
@@ -8805,8 +9681,12 @@ typedef $$GenbasTableUpdateCompanionBuilder = GenbasCompanion Function({
   Value<String> transportRequirement,
   Value<String> lodgingRequirement,
   Value<bool> isCanceled,
+  Value<String> attendanceStatus,
   Value<String?> manualEndedAt,
   Value<String?> heroImageLocalPath,
+  Value<String?> heroImageStoragePath,
+  Value<String> heroImageUploadStatus,
+  Value<String?> heroImageAltText,
   Value<String> createdAt,
   Value<String> updatedAt,
   Value<int> rowid,
@@ -8878,11 +9758,27 @@ class $$GenbasTableFilterComposer
   ColumnFilters<bool> get isCanceled => $composableBuilder(
       column: $table.isCanceled, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get attendanceStatus => $composableBuilder(
+      column: $table.attendanceStatus,
+      builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get manualEndedAt => $composableBuilder(
       column: $table.manualEndedAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get heroImageLocalPath => $composableBuilder(
       column: $table.heroImageLocalPath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get heroImageStoragePath => $composableBuilder(
+      column: $table.heroImageStoragePath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get heroImageUploadStatus => $composableBuilder(
+      column: $table.heroImageUploadStatus,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get heroImageAltText => $composableBuilder(
+      column: $table.heroImageAltText,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get createdAt => $composableBuilder(
@@ -8961,12 +9857,28 @@ class $$GenbasTableOrderingComposer
   ColumnOrderings<bool> get isCanceled => $composableBuilder(
       column: $table.isCanceled, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get attendanceStatus => $composableBuilder(
+      column: $table.attendanceStatus,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get manualEndedAt => $composableBuilder(
       column: $table.manualEndedAt,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get heroImageLocalPath => $composableBuilder(
       column: $table.heroImageLocalPath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get heroImageStoragePath => $composableBuilder(
+      column: $table.heroImageStoragePath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get heroImageUploadStatus => $composableBuilder(
+      column: $table.heroImageUploadStatus,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get heroImageAltText => $composableBuilder(
+      column: $table.heroImageAltText,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get createdAt => $composableBuilder(
@@ -9036,11 +9948,23 @@ class $$GenbasTableAnnotationComposer
   GeneratedColumn<bool> get isCanceled => $composableBuilder(
       column: $table.isCanceled, builder: (column) => column);
 
+  GeneratedColumn<String> get attendanceStatus => $composableBuilder(
+      column: $table.attendanceStatus, builder: (column) => column);
+
   GeneratedColumn<String> get manualEndedAt => $composableBuilder(
       column: $table.manualEndedAt, builder: (column) => column);
 
   GeneratedColumn<String> get heroImageLocalPath => $composableBuilder(
       column: $table.heroImageLocalPath, builder: (column) => column);
+
+  GeneratedColumn<String> get heroImageStoragePath => $composableBuilder(
+      column: $table.heroImageStoragePath, builder: (column) => column);
+
+  GeneratedColumn<String> get heroImageUploadStatus => $composableBuilder(
+      column: $table.heroImageUploadStatus, builder: (column) => column);
+
+  GeneratedColumn<String> get heroImageAltText => $composableBuilder(
+      column: $table.heroImageAltText, builder: (column) => column);
 
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -9089,8 +10013,12 @@ class $$GenbasTableTableManager extends RootTableManager<
             Value<String> transportRequirement = const Value.absent(),
             Value<String> lodgingRequirement = const Value.absent(),
             Value<bool> isCanceled = const Value.absent(),
+            Value<String> attendanceStatus = const Value.absent(),
             Value<String?> manualEndedAt = const Value.absent(),
             Value<String?> heroImageLocalPath = const Value.absent(),
+            Value<String?> heroImageStoragePath = const Value.absent(),
+            Value<String> heroImageUploadStatus = const Value.absent(),
+            Value<String?> heroImageAltText = const Value.absent(),
             Value<String> createdAt = const Value.absent(),
             Value<String> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -9113,8 +10041,12 @@ class $$GenbasTableTableManager extends RootTableManager<
             transportRequirement: transportRequirement,
             lodgingRequirement: lodgingRequirement,
             isCanceled: isCanceled,
+            attendanceStatus: attendanceStatus,
             manualEndedAt: manualEndedAt,
             heroImageLocalPath: heroImageLocalPath,
+            heroImageStoragePath: heroImageStoragePath,
+            heroImageUploadStatus: heroImageUploadStatus,
+            heroImageAltText: heroImageAltText,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -9137,8 +10069,12 @@ class $$GenbasTableTableManager extends RootTableManager<
             Value<String> transportRequirement = const Value.absent(),
             Value<String> lodgingRequirement = const Value.absent(),
             Value<bool> isCanceled = const Value.absent(),
+            Value<String> attendanceStatus = const Value.absent(),
             Value<String?> manualEndedAt = const Value.absent(),
             Value<String?> heroImageLocalPath = const Value.absent(),
+            Value<String?> heroImageStoragePath = const Value.absent(),
+            Value<String> heroImageUploadStatus = const Value.absent(),
+            Value<String?> heroImageAltText = const Value.absent(),
             required String createdAt,
             required String updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -9161,8 +10097,12 @@ class $$GenbasTableTableManager extends RootTableManager<
             transportRequirement: transportRequirement,
             lodgingRequirement: lodgingRequirement,
             isCanceled: isCanceled,
+            attendanceStatus: attendanceStatus,
             manualEndedAt: manualEndedAt,
             heroImageLocalPath: heroImageLocalPath,
+            heroImageStoragePath: heroImageStoragePath,
+            heroImageUploadStatus: heroImageUploadStatus,
+            heroImageAltText: heroImageAltText,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -10570,6 +11510,7 @@ typedef $$MemoryEntriesTableCreateCompanionBuilder = MemoryEntriesCompanion
   Value<String> seatView,
   Value<String> tags,
   Value<String> declinedFields,
+  Value<bool> isFavorite,
   required String createdAt,
   required String updatedAt,
   Value<int> rowid,
@@ -10585,6 +11526,7 @@ typedef $$MemoryEntriesTableUpdateCompanionBuilder = MemoryEntriesCompanion
   Value<String> seatView,
   Value<String> tags,
   Value<String> declinedFields,
+  Value<bool> isFavorite,
   Value<String> createdAt,
   Value<String> updatedAt,
   Value<int> rowid,
@@ -10626,6 +11568,9 @@ class $$MemoryEntriesTableFilterComposer
   ColumnFilters<String> get declinedFields => $composableBuilder(
       column: $table.declinedFields,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isFavorite => $composableBuilder(
+      column: $table.isFavorite, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -10671,6 +11616,9 @@ class $$MemoryEntriesTableOrderingComposer
       column: $table.declinedFields,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isFavorite => $composableBuilder(
+      column: $table.isFavorite, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -10714,6 +11662,9 @@ class $$MemoryEntriesTableAnnotationComposer
   GeneratedColumn<String> get declinedFields => $composableBuilder(
       column: $table.declinedFields, builder: (column) => column);
 
+  GeneratedColumn<bool> get isFavorite => $composableBuilder(
+      column: $table.isFavorite, builder: (column) => column);
+
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -10756,6 +11707,7 @@ class $$MemoryEntriesTableTableManager extends RootTableManager<
             Value<String> seatView = const Value.absent(),
             Value<String> tags = const Value.absent(),
             Value<String> declinedFields = const Value.absent(),
+            Value<bool> isFavorite = const Value.absent(),
             Value<String> createdAt = const Value.absent(),
             Value<String> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -10770,6 +11722,7 @@ class $$MemoryEntriesTableTableManager extends RootTableManager<
             seatView: seatView,
             tags: tags,
             declinedFields: declinedFields,
+            isFavorite: isFavorite,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -10784,6 +11737,7 @@ class $$MemoryEntriesTableTableManager extends RootTableManager<
             Value<String> seatView = const Value.absent(),
             Value<String> tags = const Value.absent(),
             Value<String> declinedFields = const Value.absent(),
+            Value<bool> isFavorite = const Value.absent(),
             required String createdAt,
             required String updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -10798,6 +11752,7 @@ class $$MemoryEntriesTableTableManager extends RootTableManager<
             seatView: seatView,
             tags: tags,
             declinedFields: declinedFields,
+            isFavorite: isFavorite,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -11762,6 +12717,9 @@ typedef $$OshiGroupsTableCreateCompanionBuilder = OshiGroupsCompanion Function({
   Value<String?> kind,
   Value<String?> color,
   Value<String?> memo,
+  Value<String?> imageLocalPath,
+  Value<String?> imageAltText,
+  Value<bool> isFavorite,
   required String createdAt,
   required String updatedAt,
   Value<int> rowid,
@@ -11773,6 +12731,9 @@ typedef $$OshiGroupsTableUpdateCompanionBuilder = OshiGroupsCompanion Function({
   Value<String?> kind,
   Value<String?> color,
   Value<String?> memo,
+  Value<String?> imageLocalPath,
+  Value<String?> imageAltText,
+  Value<bool> isFavorite,
   Value<String> createdAt,
   Value<String> updatedAt,
   Value<int> rowid,
@@ -11804,6 +12765,16 @@ class $$OshiGroupsTableFilterComposer
 
   ColumnFilters<String> get memo => $composableBuilder(
       column: $table.memo, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get imageLocalPath => $composableBuilder(
+      column: $table.imageLocalPath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get imageAltText => $composableBuilder(
+      column: $table.imageAltText, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isFavorite => $composableBuilder(
+      column: $table.isFavorite, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -11839,6 +12810,17 @@ class $$OshiGroupsTableOrderingComposer
   ColumnOrderings<String> get memo => $composableBuilder(
       column: $table.memo, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get imageLocalPath => $composableBuilder(
+      column: $table.imageLocalPath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get imageAltText => $composableBuilder(
+      column: $table.imageAltText,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isFavorite => $composableBuilder(
+      column: $table.isFavorite, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -11872,6 +12854,15 @@ class $$OshiGroupsTableAnnotationComposer
 
   GeneratedColumn<String> get memo =>
       $composableBuilder(column: $table.memo, builder: (column) => column);
+
+  GeneratedColumn<String> get imageLocalPath => $composableBuilder(
+      column: $table.imageLocalPath, builder: (column) => column);
+
+  GeneratedColumn<String> get imageAltText => $composableBuilder(
+      column: $table.imageAltText, builder: (column) => column);
+
+  GeneratedColumn<bool> get isFavorite => $composableBuilder(
+      column: $table.isFavorite, builder: (column) => column);
 
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -11912,6 +12903,9 @@ class $$OshiGroupsTableTableManager extends RootTableManager<
             Value<String?> kind = const Value.absent(),
             Value<String?> color = const Value.absent(),
             Value<String?> memo = const Value.absent(),
+            Value<String?> imageLocalPath = const Value.absent(),
+            Value<String?> imageAltText = const Value.absent(),
+            Value<bool> isFavorite = const Value.absent(),
             Value<String> createdAt = const Value.absent(),
             Value<String> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -11923,6 +12917,9 @@ class $$OshiGroupsTableTableManager extends RootTableManager<
             kind: kind,
             color: color,
             memo: memo,
+            imageLocalPath: imageLocalPath,
+            imageAltText: imageAltText,
+            isFavorite: isFavorite,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -11934,6 +12931,9 @@ class $$OshiGroupsTableTableManager extends RootTableManager<
             Value<String?> kind = const Value.absent(),
             Value<String?> color = const Value.absent(),
             Value<String?> memo = const Value.absent(),
+            Value<String?> imageLocalPath = const Value.absent(),
+            Value<String?> imageAltText = const Value.absent(),
+            Value<bool> isFavorite = const Value.absent(),
             required String createdAt,
             required String updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -11945,6 +12945,9 @@ class $$OshiGroupsTableTableManager extends RootTableManager<
             kind: kind,
             color: color,
             memo: memo,
+            imageLocalPath: imageLocalPath,
+            imageAltText: imageAltText,
+            isFavorite: isFavorite,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -11983,6 +12986,7 @@ typedef $$OshiMembersTableCreateCompanionBuilder = OshiMembersCompanion
   Value<String?> birthday,
   Value<String?> memo,
   Value<String?> imageLocalPath,
+  Value<String?> imageAltText,
   required String createdAt,
   required String updatedAt,
   Value<int> rowid,
@@ -11999,6 +13003,7 @@ typedef $$OshiMembersTableUpdateCompanionBuilder = OshiMembersCompanion
   Value<String?> birthday,
   Value<String?> memo,
   Value<String?> imageLocalPath,
+  Value<String?> imageAltText,
   Value<String> createdAt,
   Value<String> updatedAt,
   Value<int> rowid,
@@ -12043,6 +13048,9 @@ class $$OshiMembersTableFilterComposer
   ColumnFilters<String> get imageLocalPath => $composableBuilder(
       column: $table.imageLocalPath,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get imageAltText => $composableBuilder(
+      column: $table.imageAltText, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -12091,6 +13099,10 @@ class $$OshiMembersTableOrderingComposer
       column: $table.imageLocalPath,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get imageAltText => $composableBuilder(
+      column: $table.imageAltText,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -12137,6 +13149,9 @@ class $$OshiMembersTableAnnotationComposer
   GeneratedColumn<String> get imageLocalPath => $composableBuilder(
       column: $table.imageLocalPath, builder: (column) => column);
 
+  GeneratedColumn<String> get imageAltText => $composableBuilder(
+      column: $table.imageAltText, builder: (column) => column);
+
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -12180,6 +13195,7 @@ class $$OshiMembersTableTableManager extends RootTableManager<
             Value<String?> birthday = const Value.absent(),
             Value<String?> memo = const Value.absent(),
             Value<String?> imageLocalPath = const Value.absent(),
+            Value<String?> imageAltText = const Value.absent(),
             Value<String> createdAt = const Value.absent(),
             Value<String> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -12195,6 +13211,7 @@ class $$OshiMembersTableTableManager extends RootTableManager<
             birthday: birthday,
             memo: memo,
             imageLocalPath: imageLocalPath,
+            imageAltText: imageAltText,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -12210,6 +13227,7 @@ class $$OshiMembersTableTableManager extends RootTableManager<
             Value<String?> birthday = const Value.absent(),
             Value<String?> memo = const Value.absent(),
             Value<String?> imageLocalPath = const Value.absent(),
+            Value<String?> imageAltText = const Value.absent(),
             required String createdAt,
             required String updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -12225,6 +13243,7 @@ class $$OshiMembersTableTableManager extends RootTableManager<
             birthday: birthday,
             memo: memo,
             imageLocalPath: imageLocalPath,
+            imageAltText: imageAltText,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -12250,6 +13269,226 @@ typedef $$OshiMembersTableProcessedTableManager = ProcessedTableManager<
       BaseReferences<_$AppDatabase, $OshiMembersTable, OshiMemberRow>
     ),
     OshiMemberRow,
+    PrefetchHooks Function()>;
+typedef $$OshiAnniversariesTableCreateCompanionBuilder
+    = OshiAnniversariesCompanion Function({
+  required String id,
+  required String ownerId,
+  required String groupId,
+  Value<String?> memberId,
+  required String label,
+  required String date,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$OshiAnniversariesTableUpdateCompanionBuilder
+    = OshiAnniversariesCompanion Function({
+  Value<String> id,
+  Value<String> ownerId,
+  Value<String> groupId,
+  Value<String?> memberId,
+  Value<String> label,
+  Value<String> date,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$OshiAnniversariesTableFilterComposer
+    extends Composer<_$AppDatabase, $OshiAnniversariesTable> {
+  $$OshiAnniversariesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get groupId => $composableBuilder(
+      column: $table.groupId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get memberId => $composableBuilder(
+      column: $table.memberId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$OshiAnniversariesTableOrderingComposer
+    extends Composer<_$AppDatabase, $OshiAnniversariesTable> {
+  $$OshiAnniversariesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get groupId => $composableBuilder(
+      column: $table.groupId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get memberId => $composableBuilder(
+      column: $table.memberId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$OshiAnniversariesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $OshiAnniversariesTable> {
+  $$OshiAnniversariesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get groupId =>
+      $composableBuilder(column: $table.groupId, builder: (column) => column);
+
+  GeneratedColumn<String> get memberId =>
+      $composableBuilder(column: $table.memberId, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$OshiAnniversariesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $OshiAnniversariesTable,
+    OshiAnniversaryRow,
+    $$OshiAnniversariesTableFilterComposer,
+    $$OshiAnniversariesTableOrderingComposer,
+    $$OshiAnniversariesTableAnnotationComposer,
+    $$OshiAnniversariesTableCreateCompanionBuilder,
+    $$OshiAnniversariesTableUpdateCompanionBuilder,
+    (
+      OshiAnniversaryRow,
+      BaseReferences<_$AppDatabase, $OshiAnniversariesTable, OshiAnniversaryRow>
+    ),
+    OshiAnniversaryRow,
+    PrefetchHooks Function()> {
+  $$OshiAnniversariesTableTableManager(
+      _$AppDatabase db, $OshiAnniversariesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OshiAnniversariesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$OshiAnniversariesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$OshiAnniversariesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> groupId = const Value.absent(),
+            Value<String?> memberId = const Value.absent(),
+            Value<String> label = const Value.absent(),
+            Value<String> date = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              OshiAnniversariesCompanion(
+            id: id,
+            ownerId: ownerId,
+            groupId: groupId,
+            memberId: memberId,
+            label: label,
+            date: date,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String ownerId,
+            required String groupId,
+            Value<String?> memberId = const Value.absent(),
+            required String label,
+            required String date,
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              OshiAnniversariesCompanion.insert(
+            id: id,
+            ownerId: ownerId,
+            groupId: groupId,
+            memberId: memberId,
+            label: label,
+            date: date,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$OshiAnniversariesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $OshiAnniversariesTable,
+    OshiAnniversaryRow,
+    $$OshiAnniversariesTableFilterComposer,
+    $$OshiAnniversariesTableOrderingComposer,
+    $$OshiAnniversariesTableAnnotationComposer,
+    $$OshiAnniversariesTableCreateCompanionBuilder,
+    $$OshiAnniversariesTableUpdateCompanionBuilder,
+    (
+      OshiAnniversaryRow,
+      BaseReferences<_$AppDatabase, $OshiAnniversariesTable, OshiAnniversaryRow>
+    ),
+    OshiAnniversaryRow,
     PrefetchHooks Function()>;
 typedef $$OutboxOpsTableCreateCompanionBuilder = OutboxOpsCompanion Function({
   required String mutationId,
@@ -12986,6 +14225,8 @@ class $AppDatabaseManager {
       $$OshiGroupsTableTableManager(_db, _db.oshiGroups);
   $$OshiMembersTableTableManager get oshiMembers =>
       $$OshiMembersTableTableManager(_db, _db.oshiMembers);
+  $$OshiAnniversariesTableTableManager get oshiAnniversaries =>
+      $$OshiAnniversariesTableTableManager(_db, _db.oshiAnniversaries);
   $$OutboxOpsTableTableManager get outboxOps =>
       $$OutboxOpsTableTableManager(_db, _db.outboxOps);
   $$AppKvsTableTableManager get appKvs =>

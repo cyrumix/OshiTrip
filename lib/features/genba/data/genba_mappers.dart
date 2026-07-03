@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../../core/db/app_database.dart';
+import '../../../core/images/image_upload_status.dart';
 import '../domain/genba.dart';
 
 /// Drift 行 ⇄ ドメインエンティティのマッピング。
@@ -28,9 +29,14 @@ Genba genbaFromRow(GenbaRow row) => Genba(
       transportRequirement: _requirement(row.transportRequirement),
       lodgingRequirement: _requirement(row.lodgingRequirement),
       isCanceled: row.isCanceled,
+      attendanceStatus: _attendance(row.attendanceStatus),
       manualEndedAt:
           row.manualEndedAt == null ? null : DateTime.parse(row.manualEndedAt!),
       heroImageLocalPath: row.heroImageLocalPath,
+      heroImageStoragePath: row.heroImageStoragePath,
+      heroImageUploadStatus:
+          ImageUploadStatusJson.fromWire(row.heroImageUploadStatus),
+      heroImageAltText: row.heroImageAltText,
       createdAt: DateTime.parse(row.createdAt),
       updatedAt: DateTime.parse(row.updatedAt),
     );
@@ -57,10 +63,14 @@ GenbasCompanion genbaToCompanion(Genba g, {bool preserveLocalImage = false}) =>
       transportRequirement: Value(_requirementName(g.transportRequirement)),
       lodgingRequirement: Value(_requirementName(g.lodgingRequirement)),
       isCanceled: Value(g.isCanceled),
+      attendanceStatus: Value(_attendanceName(g.attendanceStatus)),
       manualEndedAt: Value(g.manualEndedAt?.toUtc().toIso8601String()),
       heroImageLocalPath: preserveLocalImage
           ? const Value.absent()
           : Value(g.heroImageLocalPath),
+      heroImageStoragePath: Value(g.heroImageStoragePath),
+      heroImageUploadStatus: Value(g.heroImageUploadStatus.wire),
+      heroImageAltText: Value(g.heroImageAltText),
       createdAt: _ts(g.createdAt),
       updatedAt: _ts(g.updatedAt),
     );
@@ -259,6 +269,20 @@ String _requirementName(RequirementStatus s) => switch (s) {
       RequirementStatus.required => 'required',
       RequirementStatus.notRequired => 'not_required',
       RequirementStatus.unknown => 'unknown',
+    };
+
+AttendanceStatus _attendance(String value) => switch (value) {
+      'attended' => AttendanceStatus.attended,
+      'not_attended' => AttendanceStatus.notAttended,
+      'canceled' => AttendanceStatus.canceled,
+      _ => AttendanceStatus.planned,
+    };
+
+String _attendanceName(AttendanceStatus s) => switch (s) {
+      AttendanceStatus.planned => 'planned',
+      AttendanceStatus.attended => 'attended',
+      AttendanceStatus.notAttended => 'not_attended',
+      AttendanceStatus.canceled => 'canceled',
     };
 
 /// snake_case 文字列から enum を復元（不明値は既定値でフォールバック）。

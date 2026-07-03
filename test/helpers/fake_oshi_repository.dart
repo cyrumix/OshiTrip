@@ -18,13 +18,22 @@ class FakeOshiRepository implements OshiRepository {
   /// エラーを発するケースを模す）。
   Object? watchAllError;
 
+  /// 設定すると `watchAll()` は委譲せずこのStreamを返す（loading/データ差替え用）。
+  Stream<List<OshiGroupWithMembers>>? watchAllOverride;
+
+  /// 非nullの間、`watchAnniversaries()` はこのエラーで即座に終了するStreamを返す。
+  Object? watchAnniversariesError;
+
+  /// 設定すると `watchAnniversaries()` は委譲せずこのStreamを返す（loading用等）。
+  Stream<List<OshiAnniversary>>? watchAnniversariesOverride;
+
   @override
   Stream<List<OshiGroupWithMembers>> watchAll() {
     final err = watchAllError;
     if (err != null) {
       return Stream<List<OshiGroupWithMembers>>.error(err);
     }
-    return _inner.watchAll();
+    return watchAllOverride ?? _inner.watchAll();
   }
 
   @override
@@ -40,6 +49,23 @@ class FakeOshiRepository implements OshiRepository {
 
   @override
   Future<Result<void>> deleteMember(String id) => _inner.deleteMember(id);
+
+  @override
+  Stream<List<OshiAnniversary>> watchAnniversaries() {
+    final err = watchAnniversariesError;
+    if (err != null) {
+      return Stream<List<OshiAnniversary>>.error(err);
+    }
+    return watchAnniversariesOverride ?? _inner.watchAnniversaries();
+  }
+
+  @override
+  Future<Result<void>> upsertAnniversary(OshiAnniversary anniversary) =>
+      _inner.upsertAnniversary(anniversary);
+
+  @override
+  Future<Result<void>> deleteAnniversary(String id) =>
+      _inner.deleteAnniversary(id);
 
   @override
   Future<Result<void>> refreshFromRemote({bool Function()? isStale}) =>
