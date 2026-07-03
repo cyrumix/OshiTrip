@@ -13,6 +13,21 @@ abstract interface class GenbaRepository {
 
   Future<Result<void>> upsertGenba(Genba genba);
 
+  /// 現場の一部フィールドだけを、DB内の最新値へ適用して更新する。
+  ///
+  /// [update] は「同一transaction内で読み直した最新の [Genba]」を受け取り、
+  /// 変更後の [Genba] を返す。画面が保持していた古いスナップショット全体を
+  /// 上書きしないため、同一現場への別フィールド更新（交通要否・宿泊要否・
+  /// 中止・終演・ヒーロー画像など）が並行・連続しても互いの変更を失わない。
+  /// Outbox へ送る payload も merge 後の最終状態から生成する。
+  ///
+  /// 成功時は「更新前」の [Genba]（画像の後始末等で旧参照が必要な呼び出し向け）
+  /// を返す。対象が存在しない（別owner含む）場合は [NotFoundFailure]。
+  Future<Result<Genba>> mutateGenba(
+    String genbaId,
+    Genba Function(Genba current) update,
+  );
+
   /// 現場と子データを削除する（確認ダイアログ必須の危険操作）。
   Future<Result<void>> deleteGenba(String id);
 

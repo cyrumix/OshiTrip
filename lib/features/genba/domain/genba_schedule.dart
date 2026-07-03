@@ -27,17 +27,19 @@ class GenbaSchedule {
   }
 
   /// 状態判定に使う「終演見込み」時刻。
+  ///
+  /// ユーザーが明示的に「終演した」とした [Genba.manualEndedAt] があれば、
+  /// それを実際の終演時刻として無条件に優先する。予定より早い終演も、
+  /// 予定より遅い終演（例: 押して延びた・アンコールが長引いた）への訂正も
+  /// そのまま反映する。手動終演が無い場合のみ、予定終演または保守的な
+  /// 見込み（開演+4時間／時刻未入力なら公演日の終わり）を用いる。
   DateTime get effectiveEndAt {
     final manual = genba.manualEndedAt;
-    final scheduled = scheduledEndAt ??
+    if (manual != null) return manual.toLocal();
+    return scheduledEndAt ??
         (startAt != null
             ? startAt!.add(_defaultShowLength)
             : startOfNextDay(eventDayStart));
-    if (manual != null) {
-      final localManual = manual.toLocal();
-      return localManual.isBefore(scheduled) ? localManual : scheduled;
-    }
-    return scheduled;
   }
 
   /// 思い出への移行時刻（終演見込み日の翌日 0:00）。

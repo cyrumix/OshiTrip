@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/error/result.dart';
 import '../../../core/providers.dart';
 import '../domain/genba.dart';
 
@@ -15,6 +16,10 @@ import '../domain/genba.dart';
 ///   返し、呼び出し側（presentation）が必ず結果を見てユーザーへ伝える。
 /// - 画像を伴う削除（チケット/ヒーロー）は、レコード削除成功後にのみ
 ///   owner スコープでファイルを掃除する（他ユーザーのファイルには触れない, H-04）。
+/// - 現場フィールドの更新（中止/終演/要否/ヒーロー画像）は [Genba] 全体を
+///   上書きする `upsertGenba` ではなく [GenbaRepository.mutateGenba] を使う。
+///   画面が保持していた古いスナップショットで他フィールドを巻き戻さないよう、
+///   DB内の最新値へ差分適用する（同一現場の並行・連続更新でも変更を失わない）。
 class GenbaActionsController
     extends AutoDisposeFamilyNotifier<Set<String>, String> {
   @override
@@ -39,51 +44,53 @@ class GenbaActionsController
     }
   }
 
+  /// 現場フィールドの差分更新（read-latest-merge）。[genbaId] の最新行へ
+  /// [update] を適用する。戻り値は Failure（null=成功）。
+  Future<Failure?> _mutate(
+    String genbaId,
+    Genba Function(Genba current) update,
+  ) async {
+    final result =
+        await ref.read(genbaRepositoryProvider).mutateGenba(genbaId, update);
+    return result.failureOrNull;
+  }
+
   // ---- 中止 ---------------------------------------------------------------
 
-  Future<Failure?> cancel(Genba genba) => _run('cancel', () async {
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(isCanceled: true));
-        return result.failureOrNull;
-      });
+  Future<Failure?> cancel(Genba genba) => _run(
+        'cancel',
+        () => _mutate(genba.id, (c) => c.copyWith(isCanceled: true)),
+      );
 
-  Future<Failure?> uncancel(Genba genba) => _run('uncancel', () async {
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(isCanceled: false));
-        return result.failureOrNull;
-      });
+  Future<Failure?> uncancel(Genba genba) => _run(
+        'uncancel',
+        () => _mutate(genba.id, (c) => c.copyWith(isCanceled: false)),
+      );
 
   // ---- 終演（手動）----------------------------------------------------------
 
   static const endedKey = 'ended';
 
   /// 「終演した」。呼び出し前に presentation 側で確認ダイアログを表示すること。
-  Future<Failure?> markEnded(Genba genba) => _run(endedKey, () async {
+  Future<Failure?> markEnded(Genba genba) => _run(endedKey, () {
         final now = ref.read(clockProvider).now().toUtc();
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(manualEndedAt: now));
-        return result.failureOrNull;
+        return _mutate(genba.id, (c) => c.copyWith(manualEndedAt: now));
       });
 
   /// 誤操作からの復旧: 手動終演を取り消し、日時からの自動導出に戻す。
-  Future<Failure?> undoMarkEnded(Genba genba) => _run(endedKey, () async {
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(manualEndedAt: null));
-        return result.failureOrNull;
-      });
+  Future<Failure?> undoMarkEnded(Genba genba) => _run(
+        endedKey,
+        () => _mutate(genba.id, (c) => c.copyWith(manualEndedAt: null)),
+      );
 
   /// 終演時刻の訂正（取り消さず、正しい時刻へ直接修正する）。
-  Future<Failure?> correctEndedAt(Genba genba, DateTime endedAt) =>
-      _run(endedKey, () async {
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(manualEndedAt: endedAt.toUtc()));
-        return result.failureOrNull;
-      });
+  Future<Failure?> correctEndedAt(Genba genba, DateTime endedAt) => _run(
+        endedKey,
+        () => _mutate(
+          genba.id,
+          (c) => c.copyWith(manualEndedAt: endedAt.toUtc()),
+        ),
+      );
 
   // ---- 交通・宿泊の要否 -------------------------------------------------------
 
@@ -91,23 +98,19 @@ class GenbaActionsController
     Genba genba,
     RequirementStatus value,
   ) =>
-      _run('transportRequirement', () async {
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(transportRequirement: value));
-        return result.failureOrNull;
-      });
+      _run(
+        'transportRequirement',
+        () => _mutate(genba.id, (c) => c.copyWith(transportRequirement: value)),
+      );
 
   Future<Failure?> setLodgingRequirement(
     Genba genba,
     RequirementStatus value,
   ) =>
-      _run('lodgingRequirement', () async {
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(lodgingRequirement: value));
-        return result.failureOrNull;
-      });
+      _run(
+        'lodgingRequirement',
+        () => _mutate(genba.id, (c) => c.copyWith(lodgingRequirement: value)),
+      );
 
   // ---- Todo -----------------------------------------------------------------
 
@@ -162,33 +165,43 @@ class GenbaActionsController
   Future<Failure?> setHeroImage(Genba genba, String storedRef) =>
       _run(heroImageKey, () async {
         final owner = genba.ownerId;
-        final old = genba.heroImageLocalPath;
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(heroImageLocalPath: storedRef));
+        final result = await ref.read(genbaRepositoryProvider).mutateGenba(
+              genba.id,
+              (c) => c.copyWith(heroImageLocalPath: storedRef),
+            );
         final store = ref.read(imageStoreProvider);
-        if (result.isOk) {
-          // 差替え成功: 旧画像を掃除。新規保存で使う画像は残す。
-          if (old != null && old != storedRef) {
-            await store.deleteRef(owner, old);
-          }
-        } else {
-          // 保存失敗: 取り込んだファイルは孤立するので削除する。
-          await store.deleteRef(owner, storedRef);
+        switch (result) {
+          case Ok(value: final previous):
+            // 差替え成功: DB内の実際の旧画像を掃除する（画面が保持していた
+            // 古い参照ではなく最新値の旧参照を使う）。新規保存で使う画像は残す。
+            final old = previous.heroImageLocalPath;
+            if (old != null && old != storedRef && owner.isNotEmpty) {
+              await store.deleteRef(owner, old);
+            }
+            return null;
+          case Err(failure: final f):
+            // 保存失敗: 取り込んだファイルは孤立するので削除する。
+            if (owner.isNotEmpty) await store.deleteRef(owner, storedRef);
+            return f;
         }
-        return result.failureOrNull;
       });
 
   Future<Failure?> removeHeroImage(Genba genba) => _run(heroImageKey, () async {
         final owner = genba.ownerId;
-        final old = genba.heroImageLocalPath;
-        final result = await ref
-            .read(genbaRepositoryProvider)
-            .upsertGenba(genba.copyWith(heroImageLocalPath: null));
-        if (result.isOk && old != null && owner.isNotEmpty) {
-          await ref.read(imageStoreProvider).deleteRef(owner, old);
+        final result = await ref.read(genbaRepositoryProvider).mutateGenba(
+              genba.id,
+              (c) => c.copyWith(heroImageLocalPath: null),
+            );
+        switch (result) {
+          case Ok(value: final previous):
+            final old = previous.heroImageLocalPath;
+            if (old != null && owner.isNotEmpty) {
+              await ref.read(imageStoreProvider).deleteRef(owner, old);
+            }
+            return null;
+          case Err(failure: final f):
+            return f;
         }
-        return result.failureOrNull;
       });
 
   // ---- 現場削除（子データ・画像の孤立を残さない） -------------------------------------

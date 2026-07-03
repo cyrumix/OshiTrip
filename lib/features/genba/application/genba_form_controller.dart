@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -8,6 +9,7 @@ import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
 import '../../../core/providers.dart';
 import '../../../core/time/date_only.dart';
+import '../../oshi/domain/oshi.dart';
 import '../domain/genba.dart';
 
 /// 現場作成/編集フォームの状態。下書きとして自動保存され再開できる（§2.1）。
@@ -214,6 +216,38 @@ class GenbaFormController
         .save(owner, _draftKey, jsonEncode(next.toDraftJson()));
   }
 
+  /// 推しグループを選択/解除する。グループを変更・解除したら、以前のグループに
+  /// 属する推しメンバー ID は不正になるため必ずクリアする（同じグループを選び
+  /// 直した場合は保持する）。アーティスト名の反映は presentation 側で行う。
+  void selectOshiGroup(String? groupId, {String? artistName}) {
+    mutate((s) {
+      if (groupId == null) {
+        return s.copyWith(clearOshiGroupId: true, oshiMemberIds: const []);
+      }
+      final groupChanged = s.oshiGroupId != groupId;
+      return s.copyWith(
+        oshiGroupId: groupId,
+        artistName: artistName ?? s.artistName,
+        oshiMemberIds: groupChanged ? const [] : s.oshiMemberIds,
+      );
+    });
+  }
+
+  /// 推しメンバーの選択トグル（複数選択）。選択中のグループに属する ID のみを
+  /// 想定するが、ここでは単純に集合として増減させる（グループ変更時は
+  /// [selectOshiGroup] がまとめてクリアする）。
+  void toggleOshiMember(String memberId, bool selected) {
+    mutate((s) {
+      final ids = [...s.oshiMemberIds];
+      if (selected) {
+        if (!ids.contains(memberId)) ids.add(memberId);
+      } else {
+        ids.remove(memberId);
+      }
+      return s.copyWith(oshiMemberIds: ids);
+    });
+  }
+
   /// 遠征の有無の回答から交通・宿泊の要否既定値も設定する。
   void setExpedition(bool? value) {
     mutate((s) {
@@ -234,8 +268,75 @@ class GenbaFormController
     });
   }
 
-  /// 保存。成功時は保存した現場IDを返す。
-  Future<Result<String>> submit() async {
+  /// 保存直前に、選択中の推しグループ・推しメンを実データ（現在ownerの
+  /// [OshiRepository.watchAll]）と照合する。
+  ///
+  /// - グループが削除済み・別owner（owner分離により watchAll に現れない）なら
+  ///   グループ・メンバー選択の両方を解除する。
+  /// - メンバーは「選択中のグループに実在して初めて有効」とし、削除済み・
+  ///   別グループ・別ownerのIDは黙って保存せず除外する。
+  /// - 除外が発生した場合のみ利用者へ知らせるメッセージを返す（保存自体は
+  ///   ブロックしない — オプショナルな関連付けのために現場登録全体を失敗
+  ///   させるのは要件§9「事前のマイ推し登録を必須にしない」の意図に反する。
+  ///   方針は docs/decisions.md に記録）。
+  /// - **推しデータ自体の取得（[OshiRepository.watchAll]）が失敗した場合は
+  ///   例外を外へ漏らさず [Err] を返す**。この場合は除外による安全な保存を
+  ///   継続できない（実在確認そのものができないため）ため [submit] 側で
+  ///   保存全体を中断する（R5再々レビュー）。
+  Future<
+      Result<
+          ({
+            String? groupId,
+            List<String> memberIds,
+            String? correctionMessage,
+          })>> _validateOshiSelection(GenbaFormState form) async {
+    if (form.oshiGroupId == null) {
+      return Ok(
+        (
+          groupId: null,
+          memberIds: const <String>[],
+          correctionMessage: form.oshiMemberIds.isEmpty
+              ? null
+              : '推しグループが未選択のため、推しメンの選択もクリアしました',
+        ),
+      );
+    }
+    final List<OshiGroupWithMembers> groups;
+    try {
+      groups = await ref.read(oshiRepositoryProvider).watchAll().first;
+    } catch (e) {
+      return Err(StorageFailure(message: '推しデータの読み込みに失敗しました', cause: e));
+    }
+    final matchedGroup =
+        groups.firstWhereOrNull((g) => g.group.id == form.oshiGroupId);
+    if (matchedGroup == null) {
+      // 削除済み、または別owner（owner分離により watchAll に現れない）。
+      return const Ok(
+        (
+          groupId: null,
+          memberIds: <String>[],
+          correctionMessage: '選択していた推しグループが見つからないため、推しの選択を解除しました',
+        ),
+      );
+    }
+    final validMemberIds = matchedGroup.members.map((m) => m.id).toSet();
+    final keptMemberIds =
+        form.oshiMemberIds.where(validMemberIds.contains).toList();
+    final droppedCount = form.oshiMemberIds.length - keptMemberIds.length;
+    return Ok(
+      (
+        groupId: matchedGroup.group.id,
+        memberIds: keptMemberIds,
+        correctionMessage: droppedCount == 0
+            ? null
+            : '削除済みまたは別グループの推しメン$droppedCount件を選択から除外しました',
+      ),
+    );
+  }
+
+  /// 保存。成功時は保存した現場IDと、推し選択を安全側へ補正した場合の
+  /// 案内メッセージ（無ければ null）を返す。
+  Future<Result<({String id, String? oshiCorrectionMessage})>> submit() async {
     final form = state.valueOrNull;
     if (form == null || !form.isValid) {
       return const Err(
@@ -246,6 +347,13 @@ class GenbaFormController
     if (owner == null) {
       return const Err(AuthFailure(message: 'ログインが必要です'));
     }
+    final oshiResult = await _validateOshiSelection(form);
+    final oshiFailure = oshiResult.failureOrNull;
+    // 推しデータの取得自体に失敗した場合、実在確認ができないため安全な
+    // 除外もできない。現場を不完全な状態で保存せず、ここで中断する
+    // （R5再々レビュー）。
+    if (oshiFailure != null) return Err(oshiFailure);
+    final oshiValidation = oshiResult.valueOrNull!;
     final now = ref.read(clockProvider).now().toUtc();
     final base = _editing;
     final newEventDate = dateOnly(form.eventDate!);
@@ -261,8 +369,8 @@ class GenbaFormController
       artistName: form.artistName.trim(),
       title: form.title.trim(),
       eventDate: newEventDate,
-      oshiGroupId: form.oshiGroupId,
-      oshiMemberIds: form.oshiMemberIds,
+      oshiGroupId: oshiValidation.groupId,
+      oshiMemberIds: oshiValidation.memberIds,
       venue: form.venue.trim().isEmpty ? null : form.venue.trim(),
       doorTimeMinutes: form.doorTimeMinutes,
       startTimeMinutes: form.startTimeMinutes,
@@ -283,7 +391,9 @@ class GenbaFormController
     final failure = result.failureOrNull;
     if (failure != null) return Err(failure);
     await ref.read(draftStoreProvider).clear(owner, _draftKey);
-    return Ok(genba.id);
+    return Ok(
+      (id: genba.id, oshiCorrectionMessage: oshiValidation.correctionMessage),
+    );
   }
 }
 

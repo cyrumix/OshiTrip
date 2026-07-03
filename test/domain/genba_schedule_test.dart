@@ -195,6 +195,115 @@ void main() {
       );
     });
 
+    group('手動終演は予定に関わらず無条件で優先される（訂正できる, R5独立レビュー）', () {
+      test('予定より早い手動終演をそのまま採用する', () {
+        final genba = makeGenba(
+          eventDate: eventDate,
+          startTimeMinutes: 18 * 60,
+          endTimeMinutes: 21 * 60,
+          manualEndedAt: DateTime(2026, 7, 10, 20, 15).toUtc(),
+        );
+        expect(
+          GenbaSchedule(genba).effectiveEndAt,
+          DateTime(2026, 7, 10, 20, 15),
+        );
+        // 20:15 直後は余韻中、予定の21:00前でも思い出移行は翌日から。
+        expect(
+          deriveGenbaStatus(genba, DateTime(2026, 7, 10, 20, 20)),
+          GenbaStatus.afterglow,
+        );
+      });
+
+      test('予定より遅い手動終演へ訂正でき、予定へ丸められない', () {
+        // 予定は21:00終演だが、押して22:30に実際終演した、と訂正した。
+        final genba = makeGenba(
+          eventDate: eventDate,
+          startTimeMinutes: 18 * 60,
+          endTimeMinutes: 21 * 60,
+          manualEndedAt: DateTime(2026, 7, 10, 22, 30).toUtc(),
+        );
+        expect(
+          GenbaSchedule(genba).effectiveEndAt,
+          DateTime(2026, 7, 10, 22, 30),
+        );
+        // 予定終演(21:00)を過ぎても、手動終演(22:30)前はまだ「本日」。
+        expect(
+          deriveGenbaStatus(genba, DateTime(2026, 7, 10, 21, 30)),
+          GenbaStatus.today,
+        );
+        expect(
+          deriveGenbaStatus(genba, DateTime(2026, 7, 10, 22, 45)),
+          GenbaStatus.afterglow,
+        );
+      });
+
+      test('深夜・日跨ぎの手動終演（翌1:30）は翌日から思い出になる', () {
+        final genba = makeGenba(
+          eventDate: eventDate,
+          startTimeMinutes: 23 * 60,
+          endTimeMinutes: 25 * 60, // 予定 翌0:00
+          manualEndedAt: DateTime(2026, 7, 11, 1, 30).toUtc(),
+        );
+        expect(
+          GenbaSchedule(genba).effectiveEndAt,
+          DateTime(2026, 7, 11, 1, 30),
+        );
+        // 翌1:30直後は余韻中、翌々日0:00から思い出。
+        expect(
+          deriveGenbaStatus(genba, DateTime(2026, 7, 11, 2, 0)),
+          GenbaStatus.afterglow,
+        );
+        expect(
+          deriveGenbaStatus(genba, DateTime(2026, 7, 12, 0, 0)),
+          GenbaStatus.memory,
+        );
+      });
+
+      test('手動終演の取消（null）で予定からの自動導出に戻る', () {
+        final ended = makeGenba(
+          eventDate: eventDate,
+          startTimeMinutes: 18 * 60,
+          endTimeMinutes: 21 * 60,
+          manualEndedAt: DateTime(2026, 7, 10, 20, 0).toUtc(),
+        );
+        // 取消 = manualEndedAt を null に戻す。
+        final undone = ended.copyWith(manualEndedAt: null);
+        expect(
+          GenbaSchedule(undone).effectiveEndAt,
+          DateTime(2026, 7, 10, 21, 0), // 予定終演へ戻る
+        );
+        // 20:30 時点: 手動終演ありなら余韻中、取消後は予定前なので本日。
+        expect(
+          deriveGenbaStatus(ended, DateTime(2026, 7, 10, 20, 30)),
+          GenbaStatus.afterglow,
+        );
+        expect(
+          deriveGenbaStatus(undone, DateTime(2026, 7, 10, 20, 30)),
+          GenbaStatus.today,
+        );
+      });
+
+      test('公演日変更後は手動終演を解除して新日程から再導出する（複製しない）', () {
+        // 手動終演済みの過去現場。
+        final past = makeGenba(
+          eventDate: DateTime(2026, 6, 1),
+          startTimeMinutes: 18 * 60,
+          endTimeMinutes: 21 * 60,
+          manualEndedAt: DateTime(2026, 6, 1, 20, 30).toUtc(),
+        );
+        // 日程を未来へ変更するときは manualEndedAt を解除する
+        // （GenbaFormController.submit の責務。ここでは解除後の再導出を検証）。
+        final rescheduled = past.copyWith(
+          eventDate: DateTime(2026, 8, 1),
+          manualEndedAt: null,
+        );
+        final now = DateTime(2026, 7, 2);
+        expect(isMemory(rescheduled, now), isFalse);
+        expect(isUpcoming(rescheduled, now), isTrue);
+        expect(deriveGenbaStatus(rescheduled, now), GenbaStatus.scheduled);
+      });
+    });
+
     test('日程変更（過去→未来）で思い出から現場へ戻る', () {
       final past = makeGenba(eventDate: DateTime(2026, 6, 1));
       final now = DateTime(2026, 7, 2);

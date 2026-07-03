@@ -32,6 +32,15 @@ void main() {
     AppDatabase db,
     FixedClock clock,
   ) async {
+    // 現場登録フォームは推しグループ・推しメン選択セクションを含み縦に長い。
+    // 既定のテストビューポートだと「登録する」等が画面外(offstage)になり
+    // tap がヒットテストで失敗するため、十分縦長のビューポートにする
+    // （genba_status_actions_test.dart 等と同じ対処）。
+    tester.view.physicalSize = const Size(1080, 4000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final container = ProviderContainer(
       overrides: [
         envProvider.overrideWithValue(demoEnv),

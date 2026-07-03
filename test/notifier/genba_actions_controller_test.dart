@@ -210,4 +210,79 @@ void main() {
     final reloaded = (await fakeRepo.watchById('g7').first)!.genba;
     expect(reloaded.manualEndedAt, corrected.toUtc());
   });
+
+  test('markEnded 後、予定より遅い時刻へ correctEndedAt でき、予定へ丸められない', () async {
+    final genba = await seedGenba(
+      makeGenba(
+        id: 'g8',
+        ownerId: ownerId,
+        eventDate: DateTime(2026, 7, 10),
+        startTimeMinutes: 18 * 60,
+        endTimeMinutes: 21 * 60, // 予定終演 21:00
+      ),
+    );
+    final c = controller('g8');
+    expect(await c.markEnded(genba), isNull);
+    final ended = (await fakeRepo.watchById('g8').first)!.genba;
+    expect(ended.manualEndedAt, isNotNull);
+
+    // 予定(21:00)より遅い 22:30 へ訂正。
+    final later = DateTime(2026, 7, 10, 22, 30);
+    expect(await c.correctEndedAt(ended, later), isNull);
+    final corrected = (await fakeRepo.watchById('g8').first)!.genba;
+    expect(corrected.manualEndedAt, later.toUtc());
+  });
+
+  group('同一現場の異なるフィールドを並行・連続更新しても変更が失われない（read-latest-merge）', () {
+    test('並行: 交通要否と宿泊要否を同一スナップショットから同時更新しても両方保持', () async {
+      // 交通・宿泊とも unknown で seed。UI は同じ aggregate.genba スナップショット
+      // を両操作へ渡すため、古い値でのフル上書きだと後勝ちで片方が消える。
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'g-merge-1',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      expect(genba.transportRequirement, RequirementStatus.unknown);
+      expect(genba.lodgingRequirement, RequirementStatus.unknown);
+
+      // 1回目がまだ進行中の window を作って確実に重ねる。
+      fakeRepo.upsertGenbaDelay = const Duration(milliseconds: 50);
+      final c = controller('g-merge-1');
+      final f1 = c.setTransportRequirement(genba, RequirementStatus.required);
+      final f2 = c.setLodgingRequirement(genba, RequirementStatus.notRequired);
+      final results = await Future.wait([f1, f2]);
+      expect(results, [null, null]);
+
+      final reloaded = (await fakeRepo.watchById('g-merge-1').first)!.genba;
+      // 旧実装（フル上書き）なら後勝ちでどちらかが unknown へ戻る。merge なら両方保持。
+      expect(reloaded.transportRequirement, RequirementStatus.required);
+      expect(reloaded.lodgingRequirement, RequirementStatus.notRequired);
+    });
+
+    test('連続: 古いスナップショットで続けて別フィールドを更新しても直前の変更を消さない', () async {
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'g-merge-2',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      final c = controller('g-merge-2');
+
+      // 交通要否を先に更新。
+      expect(
+        await c.setTransportRequirement(genba, RequirementStatus.required),
+        isNull,
+      );
+      // ここで UI が持っている `genba` はまだ古い（transport=unknown のまま）。
+      // その古いスナップショットで中止操作を行っても、交通要否を巻き戻さない。
+      expect(await c.cancel(genba), isNull);
+
+      final reloaded = (await fakeRepo.watchById('g-merge-2').first)!.genba;
+      expect(reloaded.isCanceled, isTrue);
+      expect(reloaded.transportRequirement, RequirementStatus.required);
+    });
+  });
 }

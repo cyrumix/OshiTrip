@@ -1,11 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:oshi_trip/core/auth/local_data_scope.dart';
+import 'package:oshi_trip/core/db/app_database.dart';
 import 'package:oshi_trip/core/providers.dart';
 import 'package:oshi_trip/core/time/clock.dart';
 import 'package:oshi_trip/features/genba/application/genba_form_controller.dart';
 import 'package:oshi_trip/features/genba/domain/genba.dart';
+import 'package:oshi_trip/features/oshi/data/oshi_repository_impl.dart';
+import 'package:oshi_trip/features/oshi/domain/oshi.dart';
 
+import '../helpers/fake_oshi_repository.dart';
 import '../helpers/fixtures.dart';
 import '../helpers/test_db.dart';
 
@@ -205,5 +210,513 @@ void main() {
     );
     final result = await notifier.submit();
     expect(result.failureOrNull?.message, contains('ログイン'));
+  });
+
+  group('推しグループ・推しメンの選択（R5独立レビュー #3）', () {
+    Future<
+        ({
+          ProviderContainer container,
+          String ownerId,
+          OshiGroup group1,
+          OshiMember m1,
+          OshiMember m2,
+          OshiGroup group2,
+          OshiMember m3,
+        })> setUpWithOshi() async {
+      final container = createContainer();
+      await signInDemo(container);
+      final user = await container.read(currentUserProvider.future);
+      final ownerId = user!.id;
+      final now = clock.now().toUtc();
+
+      final group1 = OshiGroup(
+        id: 'grp-1',
+        ownerId: ownerId,
+        name: 'グループ1',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final group2 = OshiGroup(
+        id: 'grp-2',
+        ownerId: ownerId,
+        name: 'グループ2',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final m1 = OshiMember(
+        id: 'mem-1',
+        groupId: 'grp-1',
+        ownerId: ownerId,
+        name: 'メンバーA',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final m2 = OshiMember(
+        id: 'mem-2',
+        groupId: 'grp-1',
+        ownerId: ownerId,
+        name: 'メンバーB',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final m3 = OshiMember(
+        id: 'mem-3',
+        groupId: 'grp-2',
+        ownerId: ownerId,
+        name: 'メンバーC',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final oshi = container.read(oshiRepositoryProvider);
+      for (final g in [group1, group2]) {
+        expect((await oshi.upsertGroup(g)).isOk, isTrue);
+      }
+      for (final m in [m1, m2, m3]) {
+        expect((await oshi.upsertMember(m)).isOk, isTrue);
+      }
+      return (
+        container: container,
+        ownerId: ownerId,
+        group1: group1,
+        m1: m1,
+        m2: m2,
+        group2: group2,
+        m3: m3,
+      );
+    }
+
+    test('グループとメンバーを選択して submit すると Genba に保存される', () async {
+      final s = await setUpWithOshi();
+      final notifier =
+          s.container.read(genbaFormControllerProvider(null).notifier);
+      await s.container.read(genbaFormControllerProvider(null).future);
+
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      notifier.toggleOshiMember(s.m2.id, true);
+      notifier.mutate(
+        (st) => st.copyWith(title: '夏ライブ', eventDate: DateTime(2026, 8, 1)),
+      );
+
+      final result = await notifier.submit();
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull!.oshiCorrectionMessage, isNull);
+
+      final saved = await s.container
+          .read(genbaRepositoryProvider)
+          .watchById(result.valueOrNull!.id)
+          .first;
+      expect(saved!.genba.oshiGroupId, s.group1.id);
+      expect(saved.genba.artistName, s.group1.name);
+      expect(saved.genba.oshiMemberIds, containsAll([s.m1.id, s.m2.id]));
+    });
+
+    test('下書き経由で再オープンしてもグループ・メンバー選択が復元される', () async {
+      final s = await setUpWithOshi();
+      final notifier =
+          s.container.read(genbaFormControllerProvider(null).notifier);
+      await s.container.read(genbaFormControllerProvider(null).future);
+
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      // 自動保存（下書き）の書き込みを待つ。
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      s.container.invalidate(genbaFormControllerProvider(null));
+      final restored =
+          await s.container.read(genbaFormControllerProvider(null).future);
+      expect(restored.oshiGroupId, s.group1.id);
+      expect(restored.oshiMemberIds, [s.m1.id]);
+    });
+
+    test('グループを別グループへ変更すると前グループのメンバー選択はクリアされる', () async {
+      final s = await setUpWithOshi();
+      final notifier =
+          s.container.read(genbaFormControllerProvider(null).notifier);
+      await s.container.read(genbaFormControllerProvider(null).future);
+
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      notifier.toggleOshiMember(s.m2.id, true);
+      var state = s.container.read(genbaFormControllerProvider(null)).value!;
+      expect(state.oshiMemberIds, containsAll([s.m1.id, s.m2.id]));
+
+      // 別グループへ切替 → 前グループのメンバーIDは不正になるので消える。
+      notifier.selectOshiGroup(s.group2.id, artistName: s.group2.name);
+      state = s.container.read(genbaFormControllerProvider(null)).value!;
+      expect(state.oshiGroupId, s.group2.id);
+      expect(state.oshiMemberIds, isEmpty);
+    });
+
+    test('グループを解除するとメンバー選択もクリアされる', () async {
+      final s = await setUpWithOshi();
+      final notifier =
+          s.container.read(genbaFormControllerProvider(null).notifier);
+      await s.container.read(genbaFormControllerProvider(null).future);
+
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      notifier.selectOshiGroup(null);
+
+      final state = s.container.read(genbaFormControllerProvider(null)).value!;
+      expect(state.oshiGroupId, isNull);
+      expect(state.oshiMemberIds, isEmpty);
+    });
+
+    test('同じグループを選び直してもメンバー選択は保持される', () async {
+      final s = await setUpWithOshi();
+      final notifier =
+          s.container.read(genbaFormControllerProvider(null).notifier);
+      await s.container.read(genbaFormControllerProvider(null).future);
+
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      // 同じグループを再選択（idが変わらない）→ クリアしない。
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+
+      final state = s.container.read(genbaFormControllerProvider(null)).value!;
+      expect(state.oshiMemberIds, [s.m1.id]);
+    });
+  });
+
+  group('保存時の推しグループ・推しメン整合性検証（R5再レビュー #1）', () {
+    Future<
+        ({
+          ProviderContainer container,
+          String ownerId,
+          OshiGroup group1,
+          OshiMember m1,
+          OshiMember m2,
+          OshiGroup group2,
+          OshiMember m3,
+        })> setUpWithOshi() async {
+      final container = createContainer();
+      await signInDemo(container);
+      final user = await container.read(currentUserProvider.future);
+      final ownerId = user!.id;
+      final now = clock.now().toUtc();
+
+      final group1 = OshiGroup(
+        id: 'grp-1',
+        ownerId: ownerId,
+        name: 'グループ1',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final group2 = OshiGroup(
+        id: 'grp-2',
+        ownerId: ownerId,
+        name: 'グループ2',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final m1 = OshiMember(
+        id: 'mem-1',
+        groupId: 'grp-1',
+        ownerId: ownerId,
+        name: 'メンバーA',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final m2 = OshiMember(
+        id: 'mem-2',
+        groupId: 'grp-1',
+        ownerId: ownerId,
+        name: 'メンバーB',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final m3 = OshiMember(
+        id: 'mem-3',
+        groupId: 'grp-2',
+        ownerId: ownerId,
+        name: 'メンバーC',
+        createdAt: now,
+        updatedAt: now,
+      );
+      final oshi = container.read(oshiRepositoryProvider);
+      for (final g in [group1, group2]) {
+        expect((await oshi.upsertGroup(g)).isOk, isTrue);
+      }
+      for (final m in [m1, m2, m3]) {
+        expect((await oshi.upsertMember(m)).isOk, isTrue);
+      }
+      return (
+        container: container,
+        ownerId: ownerId,
+        group1: group1,
+        m1: m1,
+        m2: m2,
+        group2: group2,
+        m3: m3,
+      );
+    }
+
+    Future<GenbaFormController> openNewForm(ProviderContainer container) async {
+      final notifier =
+          container.read(genbaFormControllerProvider(null).notifier);
+      await container.read(genbaFormControllerProvider(null).future);
+      return notifier;
+    }
+
+    test('正常系: 選択中グループに実在するメンバーはそのまま保存され、補正メッセージは無い', () async {
+      final s = await setUpWithOshi();
+      final notifier = await openNewForm(s.container);
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      notifier.mutate(
+        (st) => st.copyWith(title: '夏ライブ', eventDate: DateTime(2026, 8, 1)),
+      );
+
+      final result = await notifier.submit();
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull!.oshiCorrectionMessage, isNull);
+
+      final saved = await s.container
+          .read(genbaRepositoryProvider)
+          .watchById(result.valueOrNull!.id)
+          .first;
+      expect(saved!.genba.oshiGroupId, s.group1.id);
+      expect(saved.genba.oshiMemberIds, [s.m1.id]);
+    });
+
+    test('削除済み: 選択後に外部でメンバーが削除されていたら黙って保存せず除外し、補正を知らせる', () async {
+      final s = await setUpWithOshi();
+      final notifier = await openNewForm(s.container);
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      notifier.toggleOshiMember(s.m2.id, true);
+      notifier.mutate(
+        (st) => st.copyWith(title: '夏ライブ', eventDate: DateTime(2026, 8, 1)),
+      );
+
+      // フォームが選択を保持したまま、外部（別画面・別端末の同期など）で
+      // m1 が削除されたことを模す。フォーム状態は自動では追随しない。
+      final delResult =
+          await s.container.read(oshiRepositoryProvider).deleteMember(s.m1.id);
+      expect(delResult.isOk, isTrue);
+
+      final result = await notifier.submit();
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull!.oshiCorrectionMessage, isNotNull);
+
+      final saved = await s.container
+          .read(genbaRepositoryProvider)
+          .watchById(result.valueOrNull!.id)
+          .first;
+      // 削除済みの m1 は保存されず、実在する m2 のみ残る。
+      expect(saved!.genba.oshiMemberIds, [s.m2.id]);
+    });
+
+    test('別グループ: 選択中グループに属さないメンバーIDは黙って保存せず除外する', () async {
+      final s = await setUpWithOshi();
+      final notifier = await openNewForm(s.container);
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      // 通常のUI操作では起こらないが、下書き破損等でグループ2のメンバーIDが
+      // 紛れ込んだ状態を模す（selectOshiGroup を経由しない直接注入）。
+      notifier.mutate(
+        (st) => st.copyWith(oshiMemberIds: [...st.oshiMemberIds, s.m3.id]),
+      );
+      notifier.mutate(
+        (st) => st.copyWith(title: '夏ライブ', eventDate: DateTime(2026, 8, 1)),
+      );
+
+      final result = await notifier.submit();
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull!.oshiCorrectionMessage, isNotNull);
+
+      final saved = await s.container
+          .read(genbaRepositoryProvider)
+          .watchById(result.valueOrNull!.id)
+          .first;
+      // group2 所属の m3 は除外され、group1 所属の m1 のみ残る。
+      expect(saved!.genba.oshiMemberIds, [s.m1.id]);
+    });
+
+    test('別owner: 他ユーザーのグループIDが紛れ込んでも黙って保存せず解除する（owner分離）', () async {
+      final s = await setUpWithOshi();
+      final db = s.container.read(databaseProvider);
+      const otherOwnerGroupId = 'grp-other-owner';
+      // 別ownerのグループを直接DBへ投入する（watchAll は owner 分離により
+      // このグループを絶対に返さない, C-01）。
+      await db.into(db.oshiGroups).insert(
+            OshiGroupsCompanion.insert(
+              id: otherOwnerGroupId,
+              ownerId: 'other-owner-999',
+              name: '別ユーザーのグループ',
+              createdAt: clock.now().toUtc().toIso8601String(),
+              updatedAt: clock.now().toUtc().toIso8601String(),
+            ),
+          );
+
+      final notifier = await openNewForm(s.container);
+      // 通常のUIでは他ownerのIDを選択できないが、破損した下書き等で
+      // 紛れ込んだ状態を模して直接注入する。
+      notifier.mutate(
+        (st) => st.copyWith(
+          artistName: '推しグループ',
+          title: '夏ライブ',
+          eventDate: DateTime(2026, 8, 1),
+          oshiGroupId: otherOwnerGroupId,
+        ),
+      );
+
+      final result = await notifier.submit();
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull!.oshiCorrectionMessage, isNotNull);
+
+      final saved = await s.container
+          .read(genbaRepositoryProvider)
+          .watchById(result.valueOrNull!.id)
+          .first;
+      // 他ownerのグループIDは保存されず、選択は解除される。
+      expect(saved!.genba.oshiGroupId, isNull);
+      expect(saved.genba.oshiMemberIds, isEmpty);
+    });
+
+    test('グループ解除: グループ未選択なのにメンバーIDが残っていても保存前にクリアされる', () async {
+      final s = await setUpWithOshi();
+      final notifier = await openNewForm(s.container);
+      notifier.selectOshiGroup(s.group1.id, artistName: s.group1.name);
+      notifier.toggleOshiMember(s.m1.id, true);
+      // selectOshiGroup(null) を経由せず、グループだけを直接クリアして
+      // メンバーIDが不整合に残った状態を模す。
+      notifier.mutate((st) => st.copyWith(clearOshiGroupId: true));
+      notifier.mutate(
+        (st) => st.copyWith(title: '夏ライブ', eventDate: DateTime(2026, 8, 1)),
+      );
+      // 直接注入直後の状態はまだ不整合（グループ無しなのにメンバーIDが残る）。
+      final beforeSubmit =
+          s.container.read(genbaFormControllerProvider(null)).value!;
+      expect(beforeSubmit.oshiGroupId, isNull);
+      expect(beforeSubmit.oshiMemberIds, [s.m1.id]);
+
+      final result = await notifier.submit();
+      expect(result.isOk, isTrue);
+      expect(result.valueOrNull!.oshiCorrectionMessage, isNotNull);
+
+      final saved = await s.container
+          .read(genbaRepositoryProvider)
+          .watchById(result.valueOrNull!.id)
+          .first;
+      expect(saved!.genba.oshiGroupId, isNull);
+      expect(saved.genba.oshiMemberIds, isEmpty);
+    });
+  });
+
+  group('推しデータ取得失敗時のsubmit()（R5再々レビュー）', () {
+    Future<
+        ({
+          ProviderContainer container,
+          String ownerId,
+          FakeOshiRepository fakeOshi,
+        })> setUpWithFakeOshi() async {
+      final db = createTestDb();
+      late FakeOshiRepository fakeOshi;
+      final container = ProviderContainer(
+        overrides: [
+          envProvider.overrideWithValue(demoEnv),
+          databaseProvider.overrideWithValue(db),
+          clockProvider.overrideWithValue(clock),
+          oshiRepositoryProvider.overrideWith((ref) {
+            final scope = ref.watch(localDataScopeProvider);
+            final real = OshiRepositoryImpl(
+              db: ref.watch(databaseProvider),
+              outbox: ref.watch(outboxStoreProvider),
+              syncEngine: ref.watch(syncEngineProvider),
+              clock: ref.watch(clockProvider),
+              ownerIdResolver: () => scope.ownerIdOrNull,
+            );
+            fakeOshi = FakeOshiRepository(real);
+            return fakeOshi;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(db.close);
+      // oshiRepositoryProvider は localDataScopeProvider を watch しており、
+      // ログイン前に読むと未認証scope向けのインスタンスが作られてしまう。
+      // ログイン完了（scope確定）を待ってから読み、submit() が実際に使う
+      // インスタンスと同じ fakeOshi をキャプチャする。
+      await signInDemo(container);
+      await container.read(currentUserProvider.future);
+      container.read(oshiRepositoryProvider);
+      return (
+        container: container,
+        ownerId: container.read(currentUserProvider).value!.id,
+        fakeOshi: fakeOshi,
+      );
+    }
+
+    test('推しグループ選択時にOshiRepository.watchAll()が失敗してもsubmit()はthrowせずErrを返す',
+        () async {
+      final s = await setUpWithFakeOshi();
+      final notifier =
+          s.container.read(genbaFormControllerProvider(null).notifier);
+      await s.container.read(genbaFormControllerProvider(null).future);
+
+      notifier.mutate(
+        (st) => st.copyWith(
+          artistName: '推しグループ',
+          title: '夏ライブ',
+          eventDate: DateTime(2026, 8, 1),
+          oshiGroupId: 'some-group',
+        ),
+      );
+      s.fakeOshi.watchAllError = Exception('DB読み込みエラー（テスト注入）');
+
+      // submit() が例外を投げず、正常にResultを返すこと自体がここでの検証。
+      // （投げていれば await が例外で終了しテストがそのまま失敗する）
+      final result = await notifier.submit();
+
+      expect(result.isOk, isFalse);
+      expect(result.failureOrNull, isNotNull);
+      expect(result.failureOrNull!.message, contains('推しデータの読み込みに失敗しました'));
+    });
+
+    test('推しデータ取得失敗時は現場が不完全な状態で保存されない', () async {
+      final s = await setUpWithFakeOshi();
+      final notifier =
+          s.container.read(genbaFormControllerProvider(null).notifier);
+      await s.container.read(genbaFormControllerProvider(null).future);
+
+      notifier.mutate(
+        (st) => st.copyWith(
+          artistName: '推しグループ',
+          title: '夏ライブ',
+          eventDate: DateTime(2026, 8, 1),
+          oshiGroupId: 'some-group',
+        ),
+      );
+      s.fakeOshi.watchAllError = Exception('DB読み込みエラー（テスト注入）');
+
+      final result = await notifier.submit();
+      expect(result.isOk, isFalse);
+
+      final all =
+          await s.container.read(genbaRepositoryProvider).watchAll().first;
+      expect(all, isEmpty);
+    });
+
+    test('推しグループ未選択の場合はOshiRepositoryを呼ばないため取得失敗の影響を受けない', () async {
+      final s = await setUpWithFakeOshi();
+      final notifier =
+          s.container.read(genbaFormControllerProvider(null).notifier);
+      await s.container.read(genbaFormControllerProvider(null).future);
+
+      // グループ未選択（既定値）のまま、日付等だけ入力する。
+      notifier.mutate(
+        (st) => st.copyWith(
+          artistName: '推しグループ',
+          title: '夏ライブ',
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      s.fakeOshi.watchAllError = Exception('DB読み込みエラー（テスト注入）');
+
+      final result = await notifier.submit();
+      expect(result.isOk, isTrue);
+    });
   });
 }

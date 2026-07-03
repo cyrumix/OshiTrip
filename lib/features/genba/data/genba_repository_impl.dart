@@ -213,6 +213,60 @@ class GenbaRepositoryImpl implements GenbaRepository {
   }
 
   @override
+  Future<Result<Genba>> mutateGenba(
+    String genbaId,
+    Genba Function(Genba current) update,
+  ) async {
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    Genba? previous;
+    try {
+      final applied = await _db.transaction(() async {
+        // 同一transaction内で最新行を読み直してから merge する。Drift は
+        // 単一コネクション上で transaction を直列化するため、同一現場への
+        // 並行 mutate は互いに最新値を観測でき、変更を取りこぼさない。
+        final row = await (_db.select(_db.genbas)
+              ..where(
+                (t) => t.id.equals(genbaId) & t.ownerId.equals(owner),
+              ))
+            .getSingleOrNull();
+        if (row == null) return false;
+        final current = genbaFromRow(row);
+        previous = current;
+        final next = update(current).copyWith(updatedAt: _now);
+        await _db
+            .into(_db.genbas)
+            .insertOnConflictUpdate(genbaToCompanion(next));
+        // 端末内のヒーロー画像参照は同期しない（サーバー列にも無い, H-04）。
+        final payload = next.toJson()..remove('hero_image_local_path');
+        final now = _clock.now().toUtc();
+        await _outbox.enqueue(
+          OutboxOperation(
+            mutationId: _uuid.v4(),
+            ownerId: owner,
+            entityTable: SyncEntity.genbas,
+            entityId: next.id,
+            opType: OutboxOpType.upsert,
+            payload: payload,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        return true;
+      });
+      if (!applied) {
+        return const Err(NotFoundFailure(message: '現場が見つかりません'));
+      }
+    } catch (e) {
+      return Err(StorageFailure(cause: e));
+    }
+    _syncEngine.poke();
+    return Ok(previous!);
+  }
+
+  @override
   Future<Result<void>> deleteGenba(String id) {
     return _localWrite(
       (owner) async {

@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,24 +52,35 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
 
   Future<void> _submit() async {
     setState(() => _submitting = true);
-    final result = await ref
-        .read(genbaFormControllerProvider(widget.genbaId).notifier)
-        .submit();
-    if (!mounted) return;
-    setState(() => _submitting = false);
-    result.when(
-      ok: (id) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('端末に保存しました')));
-        if (widget.genbaId == null) {
-          context.pushReplacement('/genba/$id');
-        } else {
-          context.pop();
-        }
-      },
-      err: (failure) => ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(failure.message))),
-    );
+    try {
+      final result = await ref
+          .read(genbaFormControllerProvider(widget.genbaId).notifier)
+          .submit();
+      if (!mounted) return;
+      result.when(
+        ok: (outcome) {
+          // 推し選択が安全側へ補正された場合は、その旨を優先して案内する
+          // （黙って保存しない, R5独立レビュー #1）。
+          final message = outcome.oshiCorrectionMessage != null
+              ? '端末に保存しました（${outcome.oshiCorrectionMessage}）'
+              : '端末に保存しました';
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(message)));
+          if (widget.genbaId == null) {
+            context.pushReplacement('/genba/${outcome.id}');
+          } else {
+            context.pop();
+          }
+        },
+        err: (failure) => ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(failure.message))),
+      );
+    } finally {
+      // 保存中表示は成功・失敗いずれの経路でも必ず解除する（万一 submit() が
+      // 想定外に例外を投げても、保存ボタンが無効なまま固まらないようにする
+      // 多層防御, R5再々レビュー）。
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -98,19 +110,17 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _OshiGroupSelector(
+              _OshiSection(
                 selectedGroupId: form.oshiGroupId,
-                onSelected: (group) {
-                  controller.mutate(
-                    (s) => group == null
-                        ? s.copyWith(clearOshiGroupId: true)
-                        : s.copyWith(
-                            oshiGroupId: group.id,
-                            artistName: group.name,
-                          ),
+                selectedMemberIds: form.oshiMemberIds,
+                onGroupSelected: (group) {
+                  controller.selectOshiGroup(
+                    group?.id,
+                    artistName: group?.name,
                   );
                   if (group != null) _artist!.text = group.name;
                 },
+                onMemberToggled: controller.toggleOshiMember,
               ),
               const SizedBox(height: 12),
               TextField(
@@ -262,44 +272,26 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
   }
 }
 
-/// マイ推しから選択。事前登録が無くても、その場で新しい推しを作成できる
-/// 導線を常に用意する（§9「事前のマイ推し登録を必須にしない」）。
-class _OshiGroupSelector extends ConsumerWidget {
-  const _OshiGroupSelector({
+/// マイ推し（グループ＋メンバー）から選択する。事前登録が無くても、その場で
+/// 新しい推し・メンバーを作成できる導線を常に用意する（§9「事前のマイ推し登録を
+/// 必須にしない」）。推しデータの取得は StreamProvider の AsyncValue を
+/// loading / error / data で明示的に出し分け、固定ダミーは使わない（§2.5/§19）。
+class _OshiSection extends ConsumerWidget {
+  const _OshiSection({
     required this.selectedGroupId,
-    required this.onSelected,
+    required this.selectedMemberIds,
+    required this.onGroupSelected,
+    required this.onMemberToggled,
   });
 
   final String? selectedGroupId;
-  final void Function(OshiGroup? group) onSelected;
+  final List<String> selectedMemberIds;
+  final void Function(OshiGroup? group) onGroupSelected;
+  final void Function(String memberId, bool selected) onMemberToggled;
 
   Future<void> _quickAddGroup(BuildContext context, WidgetRef ref) async {
-    final nameController = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('推しを登録'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'グループ／アーティスト名 *'),
-          onSubmitted: (v) => Navigator.pop(context, v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, nameController.text.trim()),
-            child: const Text('登録'),
-          ),
-        ],
-      ),
-    );
-    nameController.dispose();
+    final name = await _promptName(context, title: '推しを登録');
     if (name == null || name.isEmpty || !context.mounted) return;
-
     final now = ref.read(clockProvider).now().toUtc();
     final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
     if (owner.isEmpty) return;
@@ -319,26 +311,194 @@ class _OshiGroupSelector extends ConsumerWidget {
       return;
     }
     // 作成した推しをそのまま現場に紐づける（登録の手間を1往復にする）。
-    onSelected(group);
+    onGroupSelected(group);
+  }
+
+  Future<void> _quickAddMember(
+    BuildContext context,
+    WidgetRef ref,
+    String groupId,
+  ) async {
+    final name = await _promptName(context, title: 'メンバーを登録');
+    if (name == null || name.isEmpty || !context.mounted) return;
+    final now = ref.read(clockProvider).now().toUtc();
+    final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
+    if (owner.isEmpty) return;
+    final member = OshiMember(
+      id: const Uuid().v4(),
+      groupId: groupId,
+      ownerId: owner,
+      name: name,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final result = await ref.read(oshiRepositoryProvider).upsertMember(member);
+    if (!context.mounted) return;
+    final failure = result.failureOrNull;
+    if (failure != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(failure.message)));
+      return;
+    }
+    // 作成したメンバーをそのまま推しメンとして選択する。
+    onMemberToggled(member.id, true);
+  }
+
+  Future<String?> _promptName(
+    BuildContext context, {
+    required String title,
+  }) async {
+    final nameController = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: '名前 *'),
+          onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, nameController.text.trim()),
+            child: const Text('登録'),
+          ),
+        ],
+      ),
+    );
+    nameController.dispose();
+    return name;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final groupsAsync = ref.watch(oshiGroupsProvider);
-    final groups = groupsAsync.valueOrNull ?? const [];
-    return Wrap(
-      spacing: 8,
+    return groupsAsync.when(
+      loading: () => const _OshiLoading(),
+      error: (_, __) => const _OshiError(),
+      data: (groups) {
+        final selected = groups
+            .where((g) => g.group.id == selectedGroupId)
+            .map((g) => g.members)
+            .firstOrNull;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('マイ推し', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final g in groups)
+                  ChoiceChip(
+                    label: Text(g.group.name),
+                    selected: selectedGroupId == g.group.id,
+                    onSelected: (isSelected) =>
+                        onGroupSelected(isSelected ? g.group : null),
+                  ),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 16),
+                  label: Text(groups.isEmpty ? '推しを登録' : '新しい推しを登録'),
+                  onPressed: () => _quickAddGroup(context, ref),
+                ),
+              ],
+            ),
+            if (selectedGroupId != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                '推しメン（複数選択できます）',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              const SizedBox(height: 8),
+              if (selected == null || selected.isEmpty)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'このグループのメンバーはまだ登録されていません。',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.person_add_alt, size: 18),
+                      label: const Text('メンバーを登録'),
+                      onPressed: () =>
+                          _quickAddMember(context, ref, selectedGroupId!),
+                    ),
+                  ],
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final m in selected)
+                      FilterChip(
+                        label: Text(m.name),
+                        selected: selectedMemberIds.contains(m.id),
+                        onSelected: (isSelected) =>
+                            onMemberToggled(m.id, isSelected),
+                      ),
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 16),
+                      label: const Text('メンバーを登録'),
+                      onPressed: () =>
+                          _quickAddMember(context, ref, selectedGroupId!),
+                    ),
+                  ],
+                ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _OshiLoading extends StatelessWidget {
+  const _OshiLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       children: [
-        for (final g in groups)
-          ChoiceChip(
-            label: Text(g.group.name),
-            selected: selectedGroupId == g.group.id,
-            onSelected: (selected) => onSelected(selected ? g.group : null),
+        const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          'マイ推しを読み込み中…',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
+class _OshiError extends StatelessWidget {
+  const _OshiError();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          Icons.error_outline,
+          size: 18,
+          color: Theme.of(context).colorScheme.error,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'マイ推しの読み込みに失敗しました。時間をおいて再度お試しください。',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-        ActionChip(
-          avatar: const Icon(Icons.add, size: 16),
-          label: Text(groups.isEmpty ? '推しを登録' : '新しい推しを登録'),
-          onPressed: () => _quickAddGroup(context, ref),
         ),
       ],
     );
