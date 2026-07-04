@@ -86,7 +86,11 @@ class HomeScreen extends ConsumerWidget {
                         horizontal: AppSpace.lg,
                         vertical: 6,
                       ),
-                      child: GenbaEventListCard(aggregate: aggregate, now: now),
+                      child: GenbaEventListCard(
+                        aggregate: aggregate,
+                        now: now,
+                        minimal: true,
+                      ),
                     ),
                 ],
                 // FAB が最終カードを覆わない余白（§5）。
@@ -96,11 +100,11 @@ class HomeScreen extends ConsumerWidget {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         heroTag: 'home_fab',
         onPressed: () => context.push('/genba/new'),
-        icon: const Icon(Icons.add),
-        label: const Text('現場を登録'),
+        tooltip: '現場を登録',
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -139,7 +143,7 @@ class _NextGenbaHero extends ConsumerWidget {
     return HeroEventCard(
       title: genba.title,
       artistName: genba.artistName,
-      dateLabel: _formatDate(genba.eventDate),
+      dateLabel: formatEventDate(genba.eventDate),
       timeLabel: [
         if (genba.doorTimeMinutes != null)
           '開場 ${formatMinutes(genba.doorTimeMinutes!)}',
@@ -193,6 +197,4 @@ class _NextGenbaHero extends ConsumerWidget {
       ],
     );
   }
-
-  String _formatDate(DateTime d) => '${d.year}/${d.month}/${d.day}';
 }

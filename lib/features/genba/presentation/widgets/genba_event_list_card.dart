@@ -22,6 +22,7 @@ class GenbaEventListCard extends ConsumerWidget {
     required this.aggregate,
     required this.now,
     this.alwaysShowStatus = false,
+    this.minimal = false,
   });
 
   final GenbaAggregate aggregate;
@@ -31,6 +32,10 @@ class GenbaEventListCard extends ConsumerWidget {
   /// 並び順とヒーローで文脈が伝わるため、チップは異常状態に限定する）。
   final bool alwaysShowStatus;
 
+  /// true: 最小構成（日付・残日数・会場・公演名のみ）。準備状況や次アクションは
+  /// 一覧に出さず現場詳細で確認する方針（HOMEの今後の現場）。
+  final bool minimal;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final genba = aggregate.genba;
@@ -38,6 +43,24 @@ class GenbaEventListCard extends ConsumerWidget {
     final accent =
         resolveOshiAccent(ref, scheme, oshiGroupId: genba.oshiGroupId);
     final status = deriveGenbaStatus(genba, now);
+
+    // 最小構成: 日付（曜日つき）・残日数・会場・公演名のみ。中止だけは
+    // 安全上つねに明示する（誤って現地へ向かわないため）。
+    if (minimal) {
+      return EventListCard(
+        minimal: true,
+        title: genba.title,
+        dateLabel: formatEventDate(genba.eventDate),
+        venue: genba.venue,
+        daysUntil: daysUntil(genba, now),
+        accentColor: accent,
+        onTap: () => context.push('/genba/${genba.id}'),
+        statusChips: [
+          if (status == GenbaStatus.canceled) GenbaStatusChip(status: status),
+        ],
+      );
+    }
+
     final prep = GenbaPreparation.of(aggregate);
     final nextAction = deriveNextAction(aggregate, now);
 
@@ -45,7 +68,7 @@ class GenbaEventListCard extends ConsumerWidget {
       title: genba.title,
       subtitle: genba.artistName,
       dateLabel: [
-        '${genba.eventDate.year}/${genba.eventDate.month}/${genba.eventDate.day}',
+        formatEventDate(genba.eventDate),
         if (genba.startTimeMinutes != null)
           '${formatMinutes(genba.startTimeMinutes!)}開演',
       ].join('・'),

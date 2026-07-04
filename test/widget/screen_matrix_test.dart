@@ -55,7 +55,7 @@ void main() {
     // オーバーフローがあれば pump 時に例外として検出される。
     expect(find.text('横向き検証公演'), findsOneWidget);
     expect(find.text('次の現場まで'), findsOneWidget);
-    expect(find.text('現場を登録'), findsOneWidget); // FAB
+    expect(find.byTooltip('現場を登録'), findsOneWidget); // FAB（アイコンのみ）
     await unmountApp(tester);
   });
 

@@ -68,8 +68,12 @@ void main() {
     expect(find.text('今後の現場'), findsOneWidget);
     expect(find.text('先の公演'), findsOneWidget);
 
-    // FAB は残る。
-    expect(find.text('現場を登録'), findsOneWidget);
+    // FAB は残る（アイコンのみ・ラベルなし。ツールチップで識別）。
+    expect(find.byTooltip('現場を登録'), findsOneWidget);
+    expect(
+      find.widgetWithIcon(FloatingActionButton, Icons.add),
+      findsOneWidget,
+    );
     await unmountApp(tester);
   });
 

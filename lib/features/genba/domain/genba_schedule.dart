@@ -121,3 +121,17 @@ String formatMinutes(int minutes) {
   final m = minutes % 60;
   return '$h:${m.toString().padLeft(2, '0')}';
 }
+
+/// 曜日ラベル（月=1 … 日=7 に対応, [DateTime.weekday]）。
+const _weekdayLabels = ['月', '火', '水', '木', '金', '土', '日'];
+
+/// 公演日 → 「YYYY.MM.DD (曜)」表示（例: 2026.06.15 (土)）。
+///
+/// アプリ全体で日付表示を統一する（ヒーロー・一覧カード等）。祝日マーカー
+/// （例: 月・祝）は祝日カレンダーが必要なため現時点では付与しない。
+String formatEventDate(DateTime date) {
+  final d = dateOnly(date);
+  final mm = d.month.toString().padLeft(2, '0');
+  final dd = d.day.toString().padLeft(2, '0');
+  return '${d.year}.$mm.$dd (${_weekdayLabels[d.weekday - 1]})';
+}

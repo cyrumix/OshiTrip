@@ -69,8 +69,8 @@ void main() {
     // 空状態には説明と次の1アクションがある
     expect(find.text('予定している現場がありません'), findsOneWidget);
 
-    // FAB から現場登録フォームへ
-    await tester.tap(find.text('現場を登録'));
+    // FAB（アイコンのみ・ツールチップで識別）から現場登録フォームへ
+    await tester.tap(find.byTooltip('現場を登録'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, '現場を登録'), findsOneWidget);
 

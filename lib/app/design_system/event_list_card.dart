@@ -7,6 +7,10 @@ import 'app_card.dart';
 ///
 /// 左側の推しカラー罫線・日付・会場・公演名・残日数を持つ。
 /// 推しカラーは罫線のみ（本文の可読性を壊さない, §2）。
+///
+/// [minimal] = true のときは「日付＋残日数 → 会場 → 公演名（見出し）」だけの
+/// 最小構成にする（HOMEの今後の現場: 準備状況や次アクションは詳細画面で確認
+/// する方針。副題・チップ本文などのノイズを一覧から排し、編集的な階層を作る）。
 class EventListCard extends StatelessWidget {
   const EventListCard({
     super.key,
@@ -19,6 +23,7 @@ class EventListCard extends StatelessWidget {
     this.statusChips = const <Widget>[],
     this.footer,
     this.onTap,
+    this.minimal = false,
   });
 
   final String title;
@@ -40,6 +45,9 @@ class EventListCard extends StatelessWidget {
   /// 「次にやる」等の下部要素。
   final Widget? footer;
   final VoidCallback? onTap;
+
+  /// 最小構成（会場→公演名のみ、副題・フッターを出さない）。
+  final bool minimal;
 
   @override
   Widget build(BuildContext context) {
@@ -98,39 +106,68 @@ class EventListCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: AppSpace.xs),
-                    Text(
-                      title,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    if (subtitle != null)
+                    if (minimal) ...[
+                      // 会場（文脈）→ 公演名（見出し）の編集的な階層（§3）。
+                      if (venue != null)
+                        Text(
+                          venue!,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: tokens.textSecondary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       Text(
-                        subtitle!,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: tokens.textSecondary),
-                        maxLines: 1,
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    if (venue != null) ...[
-                      const SizedBox(height: 2),
+                      if (statusChips.isNotEmpty) ...[
+                        const SizedBox(height: AppSpace.sm),
+                        Wrap(
+                          spacing: AppSpace.sm,
+                          runSpacing: AppSpace.xs,
+                          children: statusChips,
+                        ),
+                      ],
+                    ] else ...[
                       Text(
-                        venue!,
-                        style: theme.textTheme.bodyMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        title,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
-                    ],
-                    if (statusChips.isNotEmpty) ...[
-                      const SizedBox(height: AppSpace.md),
-                      Wrap(
-                        spacing: AppSpace.sm,
-                        runSpacing: AppSpace.xs,
-                        children: statusChips,
-                      ),
-                    ],
-                    if (footer != null) ...[
-                      const SizedBox(height: AppSpace.sm),
-                      footer!,
+                      if (subtitle != null)
+                        Text(
+                          subtitle!,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: tokens.textSecondary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (venue != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          venue!,
+                          style: theme.textTheme.bodyMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      if (statusChips.isNotEmpty) ...[
+                        const SizedBox(height: AppSpace.md),
+                        Wrap(
+                          spacing: AppSpace.sm,
+                          runSpacing: AppSpace.xs,
+                          children: statusChips,
+                        ),
+                      ],
+                      if (footer != null) ...[
+                        const SizedBox(height: AppSpace.sm),
+                        footer!,
+                      ],
                     ],
                   ],
                 ),
