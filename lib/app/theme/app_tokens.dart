@@ -10,9 +10,16 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.divider,
     required this.primarySoft,
     required this.heroGradientStart,
+    required this.heroGradientMid,
     required this.heroGradientEnd,
     required this.heroOverlay,
     required this.favorite,
+    required this.dawn,
+    required this.backgroundTop,
+    required this.backgroundBottom,
+    required this.todayGradientStart,
+    required this.todayGradientMid,
+    required this.todayGradientEnd,
   });
 
   /// 補足・日付・メタ情報のテキスト色（Text Secondary）。
@@ -24,40 +31,67 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// ヒーローカード・選択背景などの淡い紫（Primary Light）。
   final Color primarySoft;
 
-  /// 写真なしヒーローのグラデーション（Primary → Primary Light 方向）。
+  /// 写真なしヒーローの「夜明け前の空」グラデーション（藍→菫→明るい菫）。
   final Color heroGradientStart;
+  final Color heroGradientMid;
   final Color heroGradientEnd;
 
   /// 写真上の文字可読性を保つ暗めのオーバーレイ色（design-spec §12）。
+  /// 黒ではなく夜空の藍＝世界観の統一。
   final Color heroOverlay;
 
   /// お気に入り（ハート）のアクセント。Error と分離する。
   final Color favorite;
 
-  /// ライトテーマの基準値（design-spec §2 の表）。
+  /// 暁（dawn）。ヒーロー底辺のヘアライン・残7日以下の温度表現・
+  /// FABの縁光に使う「夜明けの光」。本文テキストには使わない。
+  final Color dawn;
+
+  /// 画面背景の縦グラデーション（上に菫の靄／夜空、下へ静かに晴れる）。
+  final Color backgroundTop;
+  final Color backgroundBottom;
+
+  /// 当日ヒーローの「明けた空」グラデーション（菫→薔薇→暁）。
+  final Color todayGradientStart;
+  final Color todayGradientMid;
+  final Color todayGradientEnd;
+
+  /// ライトテーマ「朝靄」（design-spec §2 / HOME刷新デザイン案）。
   ///
-  /// textSecondary は基準 #7D7788 だと白面で 4.32:1 と WCAG AA（4.5:1）を
-  /// 満たさないため、同系色のまま #746D80 へ微調整している（§2 の
-  /// 「AA相当の文字コントラストを維持」が優先）。
+  /// textSecondary は白面で AA（4.5:1）以上を維持する値に調整している。
   static const light = AppTokens(
-    textSecondary: Color(0xFF746D80),
-    divider: Color(0xFFE9E5F0),
+    textSecondary: Color(0xFF6E6787),
+    divider: Color(0xFFE7E3F0),
     primarySoft: Color(0xFFEEE9FF),
-    heroGradientStart: Color(0xFF7B5CFF),
-    heroGradientEnd: Color(0xFFA98FFF),
-    heroOverlay: Color(0x8A241B38),
+    heroGradientStart: Color(0xFF2B2350),
+    heroGradientMid: Color(0xFF453796),
+    heroGradientEnd: Color(0xFF6A56D9),
+    heroOverlay: Color(0x8A171130),
     favorite: Color(0xFFE85A8A),
+    dawn: Color(0xFFF2A98F),
+    backgroundTop: Color(0xFFF1EDF7),
+    backgroundBottom: Color(0xFFF8F6F1),
+    todayGradientStart: Color(0xFF4D3BB0),
+    todayGradientMid: Color(0xFFC078AB),
+    todayGradientEnd: Color(0xFFE59A7F),
   );
 
-  /// ダークテーマ。色反転ではなく同じ情報階層を暗色面へ変換する（§2）。
+  /// ダークテーマ「未明」。色反転ではなく、同じ空の時間帯違いとして変換する。
   static const dark = AppTokens(
-    textSecondary: Color(0xFFA9A1B8),
-    divider: Color(0xFF39323F),
+    textSecondary: Color(0xFF9B94B8),
+    divider: Color(0xFF322B47),
     primarySoft: Color(0xFF352B52),
-    heroGradientStart: Color(0xFF4A3A8C),
-    heroGradientEnd: Color(0xFF6D57C4),
-    heroOverlay: Color(0x99120D1F),
+    heroGradientStart: Color(0xFF2B2350),
+    heroGradientMid: Color(0xFF453796),
+    heroGradientEnd: Color(0xFF6A56D9),
+    heroOverlay: Color(0x99110D26),
     favorite: Color(0xFFFF8AB0),
+    dawn: Color(0xFFE88FA0),
+    backgroundTop: Color(0xFF171226),
+    backgroundBottom: Color(0xFF131020),
+    todayGradientStart: Color(0xFF4D3BB0),
+    todayGradientMid: Color(0xFFB06E9E),
+    todayGradientEnd: Color(0xFFD98F76),
   );
 
   @override
@@ -66,18 +100,32 @@ class AppTokens extends ThemeExtension<AppTokens> {
     Color? divider,
     Color? primarySoft,
     Color? heroGradientStart,
+    Color? heroGradientMid,
     Color? heroGradientEnd,
     Color? heroOverlay,
     Color? favorite,
+    Color? dawn,
+    Color? backgroundTop,
+    Color? backgroundBottom,
+    Color? todayGradientStart,
+    Color? todayGradientMid,
+    Color? todayGradientEnd,
   }) {
     return AppTokens(
       textSecondary: textSecondary ?? this.textSecondary,
       divider: divider ?? this.divider,
       primarySoft: primarySoft ?? this.primarySoft,
       heroGradientStart: heroGradientStart ?? this.heroGradientStart,
+      heroGradientMid: heroGradientMid ?? this.heroGradientMid,
       heroGradientEnd: heroGradientEnd ?? this.heroGradientEnd,
       heroOverlay: heroOverlay ?? this.heroOverlay,
       favorite: favorite ?? this.favorite,
+      dawn: dawn ?? this.dawn,
+      backgroundTop: backgroundTop ?? this.backgroundTop,
+      backgroundBottom: backgroundBottom ?? this.backgroundBottom,
+      todayGradientStart: todayGradientStart ?? this.todayGradientStart,
+      todayGradientMid: todayGradientMid ?? this.todayGradientMid,
+      todayGradientEnd: todayGradientEnd ?? this.todayGradientEnd,
     );
   }
 
@@ -90,9 +138,20 @@ class AppTokens extends ThemeExtension<AppTokens> {
       primarySoft: Color.lerp(primarySoft, other.primarySoft, t)!,
       heroGradientStart:
           Color.lerp(heroGradientStart, other.heroGradientStart, t)!,
+      heroGradientMid: Color.lerp(heroGradientMid, other.heroGradientMid, t)!,
       heroGradientEnd: Color.lerp(heroGradientEnd, other.heroGradientEnd, t)!,
       heroOverlay: Color.lerp(heroOverlay, other.heroOverlay, t)!,
       favorite: Color.lerp(favorite, other.favorite, t)!,
+      dawn: Color.lerp(dawn, other.dawn, t)!,
+      backgroundTop: Color.lerp(backgroundTop, other.backgroundTop, t)!,
+      backgroundBottom:
+          Color.lerp(backgroundBottom, other.backgroundBottom, t)!,
+      todayGradientStart:
+          Color.lerp(todayGradientStart, other.todayGradientStart, t)!,
+      todayGradientMid:
+          Color.lerp(todayGradientMid, other.todayGradientMid, t)!,
+      todayGradientEnd:
+          Color.lerp(todayGradientEnd, other.todayGradientEnd, t)!,
     );
   }
 
@@ -110,10 +169,10 @@ abstract final class AppSpace {
   static const double xl = 24;
 }
 
-/// カード角丸の基準（design-spec §3: カード12〜16dp、ヒーロー16〜20dp）。
+/// カード角丸の基準（HOME刷新: カード16dp、ヒーロー24dp＝空の面）。
 abstract final class AppRadius {
-  static const double card = 14;
-  static const double hero = 18;
+  static const double card = 16;
+  static const double hero = 24;
   static const double chip = 8;
 }
 

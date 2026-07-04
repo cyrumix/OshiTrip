@@ -12,6 +12,7 @@ import '../../genba/domain/genba.dart';
 import '../../genba/domain/genba_preparation.dart';
 import '../../genba/domain/genba_schedule.dart';
 import '../../genba/presentation/widgets/genba_event_list_card.dart';
+import '../../oshi/application/oshi_providers.dart';
 import 'widgets/today_card.dart';
 
 /// ホーム（design-spec §6）。
@@ -29,7 +30,8 @@ class HomeScreen extends ConsumerWidget {
         ref.watch(nowProvider).valueOrNull ?? ref.watch(clockProvider).now();
 
     return AppScaffold(
-      title: 'ホーム',
+      // ホームはタイトルの代わりにロゴ（夜明けの一番星＋地平線）を掲げる。
+      showLogo: true,
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(genbaRepositoryProvider).refreshFromRemote();
@@ -100,11 +102,10 @@ class HomeScreen extends ConsumerWidget {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: AppFab(
         heroTag: 'home_fab',
         onPressed: () => context.push('/genba/new'),
         tooltip: '現場を登録',
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -139,10 +140,17 @@ class _NextGenbaHero extends ConsumerWidget {
       _ => null,
     };
     final days = daysUntil(genba, now);
+    // 推しカラーを「暁光」としてヒーローへ写す（本文には使わない）。
+    final accent = resolveOshiAccent(
+      ref,
+      Theme.of(context).colorScheme,
+      oshiGroupId: genba.oshiGroupId,
+    );
 
     return HeroEventCard(
       title: genba.title,
       artistName: genba.artistName,
+      accentColor: accent,
       dateLabel: formatEventDate(genba.eventDate),
       timeLabel: [
         if (genba.doorTimeMinutes != null)

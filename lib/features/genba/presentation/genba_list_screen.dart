@@ -65,11 +65,10 @@ class GenbaListScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: AppFab(
         heroTag: 'genba_fab',
         onPressed: () => context.push('/genba/new'),
         tooltip: '現場を登録',
-        child: const Icon(Icons.add),
       ),
     );
   }

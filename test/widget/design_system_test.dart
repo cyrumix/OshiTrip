@@ -17,18 +17,20 @@ void main() {
       return (hi + 0.05) / (lo + 0.05);
     }
 
-    test('ライト: 基準トークンが design-spec §2 の値である', () {
+    test('ライト: 基準トークンが HOME刷新デザイン案「朝靄」の値である', () {
       final theme = AppTheme.light();
       final tokens = theme.extension<AppTokens>()!;
-      expect(theme.colorScheme.primary, const Color(0xFF7B5CFF));
-      expect(theme.scaffoldBackgroundColor, const Color(0xFFF8F6FC));
+      expect(theme.colorScheme.primary, const Color(0xFF6A56D9));
+      expect(theme.scaffoldBackgroundColor, const Color(0xFFF8F6F1));
       expect(theme.colorScheme.surface, const Color(0xFFFFFFFF));
-      expect(theme.colorScheme.onSurface, const Color(0xFF29212E));
-      // 基準 #7D7788 は白面 4.32:1 で AA 未達のため、AA を満たす同系色
-      // #746D80 へ微調整している（app_tokens.dart のコメント参照）。
-      expect(tokens.textSecondary, const Color(0xFF746D80));
-      expect(tokens.divider, const Color(0xFFE9E5F0));
+      expect(theme.colorScheme.onSurface, const Color(0xFF251F36));
+      // 白面で AA（4.5:1）以上を満たす値（app_tokens.dart のコメント参照）。
+      expect(tokens.textSecondary, const Color(0xFF6E6787));
+      expect(tokens.divider, const Color(0xFFE7E3F0));
       expect(tokens.primarySoft, const Color(0xFFEEE9FF));
+      // 「夜明け前の空」と暁（HOME刷新の署名色）。
+      expect(tokens.heroGradientStart, const Color(0xFF2B2350));
+      expect(tokens.dawn, const Color(0xFFF2A98F));
     });
 
     test('ライト/ダークとも主要テキストのコントラストが AA 相当（§2/§14）', () {

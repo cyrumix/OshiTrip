@@ -60,11 +60,10 @@ class OshiListScreen extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: AppFab(
         heroTag: 'oshi_fab',
         onPressed: () => showGroupEditor(context, ref),
         tooltip: '推しグループを追加',
-        child: const Icon(Icons.add),
       ),
     );
   }

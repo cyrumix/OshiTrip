@@ -5,6 +5,7 @@ library;
 
 export '../theme/app_tokens.dart';
 export 'app_card.dart';
+export 'app_fab.dart';
 export 'app_scaffold.dart';
 export 'count_stat.dart';
 export 'empty_state.dart';
@@ -14,6 +15,7 @@ export 'hero_event_card.dart';
 export 'image_state_note.dart';
 export 'loading_skeleton.dart';
 export 'oshi_avatar.dart';
+export 'oshitrip_logo.dart';
 export 'photo_memory_card.dart';
 export 'section_header.dart';
 export 'segment_tabs.dart';

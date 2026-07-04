@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 import 'image_state_note.dart';
 
-/// 次の現場ヒーローカード（design-spec §4/§6.2）。
+/// 次の現場ヒーローカード（design-spec §4/§6.2 / HOME刷新「夜明け前の遠征ノート」）。
 ///
-/// - 写真がある場合は暗めのオーバーレイを重ねて文字可読性を保つ（§12）。
-/// - 写真がない場合は Primary〜Primary Light のグラデーションと淡い光表現。
-/// - 残日数を最も大きく表示し、単位と強弱を付ける（§3）。
+/// - 写真がない場合は「夜明け前の空」（藍→菫）のグラデーション。左下から
+///   推しカラーを帯びた暁光が差し、底辺に暁のヘアラインがひとすじ灯る。
+/// - 写真がある場合は夜空の藍スクリムを重ねて文字可読性を保つ（§12）。
+/// - 残日数は大きさを一段抑えた細身の数字（叫ばない数字）で品を出す。
 /// - カード下部に Todo/交通/宿泊/チケット等の状態ショートカットを載せる。
 class HeroEventCard extends StatelessWidget {
   const HeroEventCard({
@@ -21,12 +22,17 @@ class HeroEventCard extends StatelessWidget {
     this.leadLabel = '次の現場まで',
     this.timeLabel,
     this.venue,
+    this.accentColor,
     this.imageFile,
     this.imageAltText,
     this.imageUnavailableNote,
     this.statusItems = const <Widget>[],
     this.onTap,
   });
+
+  /// 推しカラー。暁光とヘアラインの色に写像する（本文には使わない）。
+  /// null のときは暁（dawn）のみで光らせる。
+  final Color? accentColor;
 
   final String title;
   final String artistName;
@@ -55,9 +61,12 @@ class HeroEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final tokens = AppTokens.of(context);
     final hasPhoto = imageFile != null;
+    // 暁光・ヘアラインの色: 推しカラーと暁を混ぜた「その推しの夜明け」。
+    final dawnLight = accentColor == null
+        ? tokens.dawn
+        : Color.lerp(tokens.dawn, accentColor, .55)!;
     // 写真上でもグラデーション上でも可読な白系文字。
     const fg = Colors.white;
     final daysLabel = daysUntil == 0
@@ -98,7 +107,10 @@ class HeroEventCard extends StatelessWidget {
                           errorBuilder: (_, __, ___) => Stack(
                             fit: StackFit.expand,
                             children: [
-                              _GradientBackground(tokens: tokens),
+                              _GradientBackground(
+                                tokens: tokens,
+                                dawnLight: dawnLight,
+                              ),
                               const Positioned(
                                 left: AppSpace.sm,
                                 top: AppSpace.sm,
@@ -110,7 +122,7 @@ class HeroEventCard extends StatelessWidget {
                           ),
                         ),
                       )
-                    : _GradientBackground(tokens: tokens),
+                    : _GradientBackground(tokens: tokens, dawnLight: dawnLight),
               ),
               // 設定済み画像が端末に無い・読めない場合の明示（§12）。
               if (!hasPhoto && imageUnavailableNote != null)
@@ -120,6 +132,7 @@ class HeroEventCard extends StatelessWidget {
                   child: ImageStateNote(message: imageUnavailableNote!),
                 ),
               // 可読性オーバーレイ（写真時は濃く、グラデ時は淡く）。
+              // 黒ではなく夜空の藍＝世界観の統一（§12）。
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -130,8 +143,33 @@ class HeroEventCard extends StatelessWidget {
                         tokens.heroOverlay
                             .withValues(alpha: hasPhoto ? 0.35 : 0.05),
                         tokens.heroOverlay
-                            .withValues(alpha: hasPhoto ? 0.75 : 0.35),
+                            .withValues(alpha: hasPhoto ? 0.75 : 0.30),
                       ],
+                    ),
+                  ),
+                ),
+              ),
+              // 暁のヘアライン（署名）: 底辺にひとすじ、推しカラーを帯びた
+              // 夜明けの光。装飾であり情報は持たない。
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: FractionallySizedBox(
+                    widthFactor: .8,
+                    child: Container(
+                      height: 2,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(2),
+                        gradient: LinearGradient(
+                          colors: [
+                            dawnLight.withValues(alpha: 0),
+                            dawnLight.withValues(alpha: .95),
+                            dawnLight.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -148,13 +186,17 @@ class HeroEventCard extends StatelessWidget {
                       ExcludeSemantics(
                         child: Text(
                           leadLabel,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: fg.withValues(alpha: 0.9),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            letterSpacing: 2.2,
+                            color: fg.withValues(alpha: 0.88),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                      // 残日数を最大サイズで（§3: 28〜40sp・単位と強弱）。
+                      const SizedBox(height: 2),
+                      // 残日数: 大きさを一段抑えた細身のタビュラー数字
+                      // （叫ばない数字。高揚は細さと余白で表す）。
                       Text.rich(
                         TextSpan(
                           children: daysUntil == 0
@@ -162,8 +204,9 @@ class HeroEventCard extends StatelessWidget {
                                   const TextSpan(
                                     text: '本日',
                                     style: TextStyle(
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.w800,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 1,
                                     ),
                                   ),
                                 ]
@@ -171,23 +214,29 @@ class HeroEventCard extends StatelessWidget {
                                   TextSpan(
                                     text: daysUntil > 0 ? 'あと ' : '',
                                     style: const TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 12.5,
                                       fontWeight: FontWeight.w600,
+                                      letterSpacing: .5,
                                     ),
                                   ),
                                   TextSpan(
                                     text: '${daysUntil.abs()}',
                                     style: const TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.w800,
+                                      fontSize: 52,
+                                      fontWeight: FontWeight.w300,
                                       height: 1.0,
+                                      letterSpacing: -1,
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures(),
+                                      ],
                                     ),
                                   ),
                                   TextSpan(
                                     text: daysUntil > 0 ? ' 日' : ' 日前',
                                     style: const TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 12.5,
                                       fontWeight: FontWeight.w600,
+                                      letterSpacing: .5,
                                     ),
                                   ),
                                 ],
@@ -198,17 +247,23 @@ class HeroEventCard extends StatelessWidget {
                       const SizedBox(height: AppSpace.md),
                       Text(
                         title,
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        style: const TextStyle(
                           color: fg,
+                          fontSize: 16.5,
                           fontWeight: FontWeight.w700,
+                          height: 1.4,
+                          letterSpacing: .2,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         artistName,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: fg.withValues(alpha: 0.9)),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: fg.withValues(alpha: 0.9),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -219,22 +274,28 @@ class HeroEventCard extends StatelessWidget {
                           if (timeLabel != null) timeLabel!,
                           if (venue != null) venue!,
                         ].join('　'),
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: fg.withValues(alpha: 0.9)),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: fg.withValues(alpha: 0.9),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (statusItems.isNotEmpty) ...[
                         const SizedBox(height: AppSpace.lg),
-                        // 状態ショートカットの4分割（§6.2）。面を少し分けて
-                        // 写真上でも読めるようにする。
+                        // 状態ショートカットの4分割（§6.2）。磨りガラス風の帯に
+                        // 集約し、写真上でも読めるようにする。
                         Container(
                           padding: const EdgeInsets.symmetric(
                             vertical: AppSpace.sm,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.25),
+                            color: Colors.white.withValues(alpha: 0.11),
                             borderRadius: BorderRadius.circular(AppRadius.card),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.14),
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -257,28 +318,37 @@ class HeroEventCard extends StatelessWidget {
 }
 
 class _GradientBackground extends StatelessWidget {
-  const _GradientBackground({required this.tokens});
+  const _GradientBackground({required this.tokens, required this.dawnLight});
 
   final AppTokens tokens;
+
+  /// 左下から差す暁光の色（推しカラー×暁の混色）。
+  final Color dawnLight;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
+        // 「夜明け前の空」: 藍 → 菫 → 明るい菫（§1/§6.2）。
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [tokens.heroGradientStart, tokens.heroGradientEnd],
+          stops: const [0, .46, 1],
+          colors: [
+            tokens.heroGradientStart,
+            tokens.heroGradientMid,
+            tokens.heroGradientEnd,
+          ],
         ),
       ),
-      // 抽象的な光の表現（夜明け前の淡い光, §1/§6.2）。
-      child: CustomPaint(painter: _GlowPainter(tokens.primarySoft)),
+      // 左下の地平線から差す暁光（推しカラーが空に写る）。
+      child: CustomPaint(painter: _DawnGlowPainter(dawnLight)),
     );
   }
 }
 
-class _GlowPainter extends CustomPainter {
-  const _GlowPainter(this.glow);
+class _DawnGlowPainter extends CustomPainter {
+  const _DawnGlowPainter(this.glow);
 
   final Color glow;
 
@@ -286,17 +356,17 @@ class _GlowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..shader = RadialGradient(
-        colors: [glow.withValues(alpha: 0.55), glow.withValues(alpha: 0)],
+        colors: [glow.withValues(alpha: 0.5), glow.withValues(alpha: 0)],
       ).createShader(
         Rect.fromCircle(
-          center: Offset(size.width * 0.85, size.height * 0.1),
-          radius: size.width * 0.6,
+          center: Offset(size.width * 0.16, size.height * 1.05),
+          radius: size.width * 0.62,
         ),
       );
     canvas.drawRect(Offset.zero & size, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _GlowPainter oldDelegate) =>
+  bool shouldRepaint(covariant _DawnGlowPainter oldDelegate) =>
       oldDelegate.glow != glow;
 }
