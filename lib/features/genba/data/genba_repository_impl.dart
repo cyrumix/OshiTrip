@@ -8,6 +8,7 @@ import '../../../core/db/app_database.dart';
 import '../../../core/db/owner_guard.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import '../../../core/network/network_timeout.dart';
 import '../../../core/sync/outbox_operation.dart';
 import '../../../core/sync/outbox_store.dart';
 import '../../../core/sync/remote_pull.dart';
@@ -577,7 +578,7 @@ class GenbaRepositoryImpl implements GenbaRepository {
     TextColumn Function(T table) ownerColumn,
     String Function(R row) idOf,
   ) async {
-    final rows = await client.from(tableName).select();
+    final rows = await client.from(tableName).select().withRemoteTimeout();
     // 各リモート取得後の認証切替チェック（別owner/世代になったら適用しない）。
     if (_refreshIsStale?.call() ?? false) return;
     await applyPulledRows(
@@ -626,4 +627,134 @@ class GenbaRepositoryImpl implements GenbaRepository {
         idOf: idOf,
         isStale: _refreshIsStale,
       );
+
+  // ---- 競合解決「サーバーを採用」（R8-A 再レビュー）------------------------
+
+  @override
+  Future<Result<void>> adoptServerEntity(
+    String entityTable,
+    String entityId,
+  ) async {
+    final client = _remote();
+    if (client == null) return const Ok(null); // デモ: サーバー無し（何もしない）
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    return guardResult(
+      () async {
+        switch (entityTable) {
+          case SyncEntity.genbas:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.genbas,
+              entityId,
+              (json) => genbaToCompanion(
+                Genba.fromJson(json),
+                preserveLocalImage: true,
+              ),
+              _db.genbas,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.tickets:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.tickets,
+              entityId,
+              (json) => ticketToCompanion(Ticket.fromJson(json)),
+              _db.tickets,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.transports:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.transports,
+              entityId,
+              (json) => transportToCompanion(Transport.fromJson(json)),
+              _db.transports,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.lodgings:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.lodgings,
+              entityId,
+              (json) => lodgingToCompanion(Lodging.fromJson(json)),
+              _db.lodgings,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.todos:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.todos,
+              entityId,
+              (json) => todoToCompanion(GenbaTodo.fromJson(json)),
+              _db.todos,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.genbaMemos:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.genbaMemos,
+              entityId,
+              (json) => memoToCompanion(GenbaMemo.fromJson(json)),
+              _db.genbaMemos,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          default:
+            throw ArgumentError('genba repo は $entityTable を所有しません');
+        }
+      },
+      onError: (e, _) => e is ArgumentError
+          ? UnknownFailure(cause: e)
+          : NetworkFailure(cause: e),
+    );
+  }
+
+  /// [tableName] のサーバー行を取得し、[entityId] 1件だけ強制適用する
+  /// （競合opが残っていても上書き／サーバーに無ければローカル削除）。
+  Future<void> _adoptOne<T extends Table, R>(
+    SupabaseClient client,
+    String owner,
+    String tableName,
+    String entityId,
+    Insertable<R> Function(Map<String, dynamic> json) toCompanion,
+    TableInfo<T, R> table,
+    TextColumn Function(T table) idColumn,
+    TextColumn Function(T table) ownerColumn,
+    String Function(R row) idOf,
+  ) async {
+    final rows = await client.from(tableName).select().withRemoteTimeout();
+    await applyPulledRowsInto(
+      db: _db,
+      outbox: _outbox,
+      owner: owner,
+      tableName: tableName,
+      rows: rows,
+      toCompanion: toCompanion,
+      table: table,
+      idColumn: idColumn,
+      ownerColumn: ownerColumn,
+      idOf: idOf,
+      forceEntityIds: {entityId},
+    );
+  }
 }

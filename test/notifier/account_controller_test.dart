@@ -377,4 +377,33 @@ void main() {
     // paused のまま残っていないこと（新規 drain が走る）を確認する。
     expect(await engineCanDrain(engine, store, remote), isTrue);
   });
+
+  test('二重タップ: 連打してもサーバー削除RPCは1回だけ実行される（E-2 / R8-C）', () async {
+    await seedGenba('g-a', 'user-A');
+    var serverCalls = 0;
+    // サーバー削除の最中に、2回目の deleteAccount を割り込ませて連打を再現する。
+    late final ProviderContainer container;
+    late final Future<Failure?> secondTap;
+    container = await containerFor(
+      serverResult: const Ok(null),
+      ownerId: 'user-A',
+      onServerCall: () {
+        serverCalls++;
+        // 1回目の削除がまだ進行中のうちに2回目を呼ぶ（並行タップ相当）。
+        secondTap =
+            container.read(accountControllerProvider.notifier).deleteAccount();
+      },
+    );
+
+    final firstTap = await container
+        .read(accountControllerProvider.notifier)
+        .deleteAccount();
+    final second = await secondTap;
+
+    // 実サーバーRPCは1回だけ（2回目は進行中ガードで無視され null を返す）。
+    expect(serverCalls, 1);
+    expect(firstTap, isNull);
+    expect(second, isNull);
+    expect(container.read(accountControllerProvider).isLoading, isFalse);
+  });
 }

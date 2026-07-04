@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/design_system/empty_state.dart';
 import '../error/failure.dart';
 
 /// loading / empty / error / data を一貫表示する共通ビュー（§2 / ADR-0003）。
@@ -11,6 +12,7 @@ class AsyncValueView<T> extends StatelessWidget {
     required this.data,
     this.isEmpty,
     this.emptyView,
+    this.loadingView,
     this.onRetry,
   });
 
@@ -20,19 +22,24 @@ class AsyncValueView<T> extends StatelessWidget {
   /// データが「空」とみなす条件（例: リストが空）。
   final bool Function(T data)? isEmpty;
   final Widget? emptyView;
+
+  /// loading 表示の差し替え（例: [LoadingSkeleton]。design-spec §4/§13）。
+  final Widget? loadingView;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     return value.when(
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(
-            semanticsLabel: '読み込み中',
+      loading: () =>
+          loadingView ??
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(
+                semanticsLabel: '読み込み中',
+              ),
+            ),
           ),
-        ),
-      ),
       error: (error, _) => ErrorView(error: error, onRetry: onRetry),
       data: (v) {
         if (isEmpty != null && isEmpty!(v)) {
@@ -93,6 +100,7 @@ class ErrorView extends StatelessWidget {
 }
 
 /// 空状態: 説明と「次の1アクション」を必ず添える（§6 / UX原則）。
+/// 見た目は共通Design Systemの [EmptyState]（design-spec §4）へ委譲する。
 class EmptyView extends StatelessWidget {
   const EmptyView({
     super.key,
@@ -111,35 +119,12 @@ class EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 44, color: theme.colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(message, style: theme.textTheme.titleMedium),
-            if (description != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                description!,
-                style: theme.textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-            ],
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onAction,
-                icon: const Icon(Icons.add),
-                label: Text(actionLabel!),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return EmptyState(
+      message: message,
+      description: description,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      icon: icon,
     );
   }
 }

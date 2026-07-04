@@ -1,7 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme/app_theme.dart';
 import '../../../core/providers.dart';
 import '../../genba/application/genba_providers.dart';
+import '../../settings/application/oshi_color_controller.dart';
 import '../domain/oshi.dart';
 import '../domain/oshi_stats.dart';
 
@@ -13,6 +16,31 @@ final oshiGroupsProvider = StreamProvider<List<OshiGroupWithMembers>>(
 final oshiAnniversariesProvider = StreamProvider<List<OshiAnniversary>>(
   (ref) => ref.watch(oshiRepositoryProvider).watchAnniversaries(),
 );
+
+/// 現場のアクセント色を解決する（design-spec §2/§6.3）。
+///
+/// 紐づく推しグループの推しカラー → ユーザーの推しカラー設定 →
+/// テーマPrimary の順でフォールバックする。アクセント（罫線・リング・
+/// プレースホルダー）のみに使い、本文の可読性を壊さない。
+Color resolveOshiAccent(
+  WidgetRef ref,
+  ColorScheme scheme, {
+  String? oshiGroupId,
+}) {
+  if (oshiGroupId != null) {
+    final groups = ref.watch(oshiGroupsProvider).valueOrNull;
+    if (groups != null) {
+      for (final g in groups) {
+        if (g.group.id == oshiGroupId) {
+          final parsed = AppTheme.tryParseHexColor(g.group.color);
+          if (parsed != null) return parsed;
+          break;
+        }
+      }
+    }
+  }
+  return resolveUserAccent(ref, scheme);
+}
 
 /// 推しグループ単位の活動統計（保存済みデータから導出。固定値ではない）。
 /// 入力は owner 限定の [genbaAggregatesProvider] のため owner 分離が保たれる。

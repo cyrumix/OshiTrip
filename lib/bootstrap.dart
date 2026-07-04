@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -21,6 +22,7 @@ import 'core/db/local_data_purge.dart';
 import 'core/db/open_verified_database.dart';
 import 'core/images/image_store.dart';
 import 'core/logging/app_logger.dart';
+import 'core/network/network_timeout.dart';
 import 'core/providers.dart';
 
 /// 共通起動処理（flavor別エントリポイントから呼ばれる）。
@@ -85,6 +87,11 @@ Future<void> bootstrap(Flavor flavor) async {
         // 旧形式の anon key を引き続き受け付ける（新 publishable key も同引数で動作）。
         // ignore: deprecated_member_use
         anonKey: env.supabaseAnonKey,
+        // 全通信（Auth/PostgREST/Storage/Realtime）にリクエスト単位の共通
+        // タイムアウトを課す。無期限ハングで同期・アカウント削除が固まるのを
+        // 防ぐ多層防御（R8-C / H-A）。個々の呼び出しにも .withRemoteTimeout()
+        // を付けているが、付け忘れてもここで必ず効く。
+        httpClient: TimeoutHttpClient(http.Client()),
       );
     } else {
       logger.info('demo mode: Supabase未設定のためローカルのみで起動します');

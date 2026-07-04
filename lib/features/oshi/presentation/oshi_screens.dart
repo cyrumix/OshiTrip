@@ -1,49 +1,68 @@
-import 'dart:io';
-
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:uuid/uuid.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/design_system/design_system.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../core/error/failure.dart';
-import '../../../core/images/image_store.dart';
 import '../../../core/providers.dart';
 import '../../../core/time/date_only.dart';
 import '../../../core/widgets/async_view.dart';
+import '../../genba/application/genba_providers.dart';
+import '../../genba/domain/genba_schedule.dart';
+import '../../genba/presentation/widgets/action_feedback.dart';
+import '../../settings/application/oshi_color_controller.dart';
+import '../application/oshi_actions_controller.dart';
 import '../application/oshi_providers.dart';
 import '../domain/oshi.dart';
+import '../domain/oshi_stats.dart';
+import 'oshi_editors.dart';
 
-/// マイ推し一覧（§9）。グループ／アーティストとメンバーのローカルCRUD。
+/// マイ推し（design-spec §10）。
+///
+/// グループごとのプロフィールカード（画像/イニシャル・推しカラーリング・
+/// お気に入り）、横スクロールのメンバー、導出統計3件、次の現場、
+/// 誕生日・記念日を表示する。統計は保存済みデータからの導出値のみ
+/// （登録数を「参戦数」と表示しない, §10/§12.1）。
 class OshiListScreen extends ConsumerWidget {
   const OshiListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final groupsAsync = ref.watch(oshiGroupsProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('マイ推し')),
+    return AppScaffold(
+      title: 'マイ推し',
       body: AsyncValueView<List<OshiGroupWithMembers>>(
         value: groupsAsync,
         isEmpty: (list) => list.isEmpty,
+        loadingView: const LoadingSkeleton.list(cardCount: 2),
         emptyView: EmptyView(
           icon: Icons.favorite_outline,
           message: 'まだ推しが登録されていません',
           description: 'グループやアーティストを登録すると、現場作成時に選べるようになります。',
           actionLabel: '推しを登録する',
-          onAction: () => _showGroupEditor(context, ref),
+          onAction: () => showGroupEditor(context, ref),
         ),
         data: (groups) => ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          key: const PageStorageKey('oshi_list'),
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
           children: [
-            for (final g in groups) _GroupCard(item: g),
-            const SizedBox(height: 80),
+            for (final g in groups)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.lg,
+                  vertical: 6,
+                ),
+                child: _GroupCard(item: g),
+              ),
+            const SizedBox(height: 96),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'oshi_fab',
-        onPressed: () => _showGroupEditor(context, ref),
+        onPressed: () => showGroupEditor(context, ref),
         tooltip: '推しグループを追加',
         child: const Icon(Icons.add),
       ),
@@ -59,106 +78,268 @@ class _GroupCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final accent = AppTheme.accentFromHex(item.group.color, theme.colorScheme);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final tokens = AppTokens.of(context);
+    final group = item.group;
+    // 推しカラーの優先順位: グループ固有カラー → ユーザー設定 → Primary
+    // （design-spec §2 / decisions.md R7）。
+    final accent = AppTheme.tryParseHexColor(group.color) ??
+        resolveUserAccent(ref, theme.colorScheme);
+    final groupImage = group.imageLocalPath == null
+        ? null
+        : ref
+            .read(imageStoreProvider)
+            .tryResolveOwned(group.ownerId, group.imageLocalPath!);
+    final saioshi = item.members
+        .where((m) => m.rank == OshiRank.saioshi)
+        .map((m) => m.name)
+        .toList();
+    final favoriteBusy = ref
+        .watch(oshiActionsControllerProvider)
+        .contains(OshiActionsController.groupFavoriteKey(group.id));
+
+    Future<void> toggleFavorite() async {
+      final failure = await ref
+          .read(oshiActionsControllerProvider.notifier)
+          .setGroupFavorite(groupId: group.id, isFavorite: !group.isFavorite);
+      if (context.mounted) handleActionResult(context, failure);
+    }
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // プロフィール行: 画像/initial + 推しカラーring + 名前/種別 + お気に入り。
+          Row(
+            children: [
+              OshiAvatar(
+                name: group.name,
+                imageFile: groupImage,
+                ringColor: accent,
+                size: 56,
+                altText: group.imageAltText ?? '${group.name}の画像',
+              ),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      group.name,
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    if (group.kind != null)
+                      Text(
+                        group.kind!,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: tokens.textSecondary),
+                      ),
+                    if (saioshi.isNotEmpty)
+                      Text(
+                        '最推し: ${saioshi.join('、')}',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: tokens.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              FavoriteButton(
+                isFavorite: group.isFavorite,
+                onPressed: favoriteBusy ? null : toggleFavorite,
+                subjectLabel: group.name,
+              ),
+              _GroupMenu(item: item),
+            ],
+          ),
+          const SizedBox(height: AppSpace.md),
+          // メンバー: 横スクロールのアバター列（§10）。最推しはリング強調。
+          _MemberRow(item: item),
+          const SizedBox(height: AppSpace.md),
+          // 導出統計3件（§10/§12.1）。
+          _StatsRow(groupId: group.id),
+          // 次の現場（淡紫カード・残日数強調, §10）。
+          _NextGenbaCard(groupId: group.id),
+          // 誕生日・記念日（近い順, §10）。
+          _AnniversarySection(item: item),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupMenu extends ConsumerWidget {
+  const _GroupMenu({required this.item});
+
+  final OshiGroupWithMembers item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<String>(
+      tooltip: 'グループの操作',
+      onSelected: (value) async {
+        switch (value) {
+          case 'edit':
+            await showGroupEditor(context, ref, existing: item.group);
+          case 'delete':
+            final ok = await confirmDangerAction(
+              context,
+              title: 'グループを削除',
+              message: '「${item.group.name}」とメンバーを削除します。既存の現場は削除されません。',
+            );
+            if (!ok) return;
+            // 書き込みと画像掃除は application 層（R7）。失敗は必ず表示する。
+            final failure = await ref
+                .read(oshiActionsControllerProvider.notifier)
+                .deleteGroup(item);
+            if (context.mounted) handleActionResult(context, failure);
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'edit', child: Text('グループを編集')),
+        PopupMenuItem(value: 'delete', child: Text('グループを削除…')),
+      ],
+    );
+  }
+}
+
+class _MemberRow extends ConsumerWidget {
+  const _MemberRow({required this.item});
+
+  final OshiGroupWithMembers item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    final scheme = theme.colorScheme;
+    return SizedBox(
+      height: 92,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (final member in item.members)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpace.md),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                onTap: () => showMemberEditor(
+                  context,
+                  ref,
+                  groupId: item.group.id,
+                  existing: member,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    OshiAvatar(
+                      name: member.name,
+                      imageFile: member.imageLocalPath == null
+                          ? null
+                          : ref.read(imageStoreProvider).tryResolveOwned(
+                                member.ownerId,
+                                member.imageLocalPath!,
+                              ),
+                      // リング色: メンバーカラー → グループカラー →
+                      // ユーザー推しカラー → Primary（§2/§11）。
+                      ringColor: AppTheme.tryParseHexColor(member.color) ??
+                          AppTheme.tryParseHexColor(item.group.color) ??
+                          resolveUserAccent(ref, scheme),
+                      selected: member.rank == OshiRank.saioshi,
+                      altText: member.imageAltText ??
+                          '${member.name}（${member.rank.label}）',
+                    ),
+                    const SizedBox(height: 2),
+                    SizedBox(
+                      width: 64,
+                      child: Text(
+                        member.name,
+                        style: theme.textTheme.labelSmall,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      member.rank.label,
+                      style: theme.textTheme.labelSmall
+                          ?.copyWith(color: tokens.textSecondary, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // メンバー追加（48dp タップ領域, §3）。
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            onTap: () => showMemberEditor(context, ref, groupId: item.group.id),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                CircleAvatar(
-                  radius: 10,
-                  backgroundColor: accent,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    item.group.name,
-                    style: theme.textTheme.titleMedium,
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: tokens.divider, width: 1.5),
                   ),
+                  child: const Icon(Icons.add),
                 ),
-                IconButton(
-                  tooltip: 'グループを編集',
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () =>
-                      _showGroupEditor(context, ref, existing: item.group),
-                ),
-                IconButton(
-                  tooltip: 'グループを削除',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () async {
-                    final ok = await confirmDangerAction(
-                      context,
-                      title: 'グループを削除',
-                      message: '「${item.group.name}」とメンバーを削除します。既存の現場は削除されません。',
-                    );
-                    if (!ok) return;
-                    // 削除前にメンバー画像参照を集める（削除後は取得不可）。
-                    final owner = item.group.ownerId;
-                    final refs = [
-                      for (final m in item.members)
-                        if (m.imageLocalPath != null) m.imageLocalPath!,
-                    ];
-                    final result = await ref
-                        .read(oshiRepositoryProvider)
-                        .deleteGroup(item.group.id);
-                    if (result.isOk && owner.isNotEmpty) {
-                      final store = ref.read(imageStoreProvider);
-                      for (final r in refs) {
-                        await store.deleteRef(owner, r);
-                      }
-                    }
-                  },
-                ),
+                const SizedBox(height: 2),
+                Text('追加', style: theme.textTheme.labelSmall),
               ],
             ),
-            if (item.group.kind != null) Text('種別: ${item.group.kind}'),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                for (final member in item.members)
-                  InputChip(
-                    avatar: _memberAvatar(ref, member, theme),
-                    label: Text('${member.name}（${member.rank.label}）'),
-                    onPressed: () => _showMemberEditor(
-                      context,
-                      ref,
-                      groupId: item.group.id,
-                      existing: member,
-                    ),
-                    onDeleted: () async {
-                      final ok = await confirmDangerAction(
-                        context,
-                        title: 'メンバーを削除',
-                        message: '「${member.name}」を削除します。',
-                      );
-                      if (!ok) return;
-                      final imageRef = member.imageLocalPath;
-                      final result = await ref
-                          .read(oshiRepositoryProvider)
-                          .deleteMember(member.id);
-                      // レコード削除成功後に紐づく画像を owner スコープで掃除。
-                      if (result.isOk && imageRef != null) {
-                        await ref
-                            .read(imageStoreProvider)
-                            .deleteRef(member.ownerId, imageRef);
-                      }
-                    },
-                  ),
-                ActionChip(
-                  avatar: const Icon(Icons.add, size: 16),
-                  label: const Text('メンバー追加'),
-                  onPressed: () => _showMemberEditor(
-                    context,
-                    ref,
-                    groupId: item.group.id,
-                  ),
-                ),
-              ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 現場数・思い出数・参戦数の3分割（§10）。「参戦数」は attended のみ。
+class _StatsRow extends ConsumerWidget {
+  const _StatsRow({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final statsAsync = ref.watch(oshiStatsProvider(groupId));
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: AppTokens.of(context).divider),
+          bottom: BorderSide(color: AppTokens.of(context).divider),
+        ),
+      ),
+      // 統計の読み込み中・失敗を非表示（SizedBox.shrink）へ変換しない（§15）。
+      child: statsAsync.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpace.sm),
+          child: LinearProgressIndicator(semanticsLabel: '統計を読み込み中'),
+        ),
+        error: (error, _) => Text(
+          error is Failure ? error.message : '統計を読み込めませんでした',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.error),
+        ),
+        data: (stats) => Row(
+          children: [
+            Expanded(
+              child: CountStat(value: stats.genbaCount, label: '現場数'),
+            ),
+            Expanded(
+              child: CountStat(value: stats.memoryCount, label: '思い出数'),
+            ),
+            Expanded(
+              child: CountStat(
+                value: stats.attendedCount,
+                label: '参戦数',
+                semanticsLabel: '参戦数 ${stats.attendedCount}件（参加を明示した現場のみ）',
+              ),
             ),
           ],
         ),
@@ -167,312 +348,244 @@ class _GroupCard extends ConsumerWidget {
   }
 }
 
-Future<void> _showGroupEditor(
-  BuildContext context,
-  WidgetRef ref, {
-  OshiGroup? existing,
-}) async {
-  final name = TextEditingController(text: existing?.name ?? '');
-  final kind = TextEditingController(text: existing?.kind ?? '');
-  final color = TextEditingController(text: existing?.color ?? '');
-  final memo = TextEditingController(text: existing?.memo ?? '');
-  await showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(existing == null ? '推しグループを追加' : 'グループを編集'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+/// 次の現場（淡紫カード・残日数を強調, §10）。
+class _NextGenbaCard extends ConsumerWidget {
+  const _NextGenbaCard({required this.groupId});
+
+  final String groupId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    final statsAsync = ref.watch(oshiStatsProvider(groupId));
+    // 読み込み中は _StatsRow がインジケーターを出すためここでは重ねない。
+    // 失敗は非表示にせず理由を示す（§15）。「次の現場が無い」（data で
+    // nextGenba == null）だけを正当な空として非表示にする。
+    if (statsAsync.hasError && !statsAsync.hasValue) {
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpace.md),
+        child: Text(
+          '次の現場を読み込めませんでした',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.error),
+        ),
+      );
+    }
+    final next = statsAsync.valueOrNull?.nextGenba;
+    if (next == null) return const SizedBox.shrink();
+    final now =
+        ref.watch(nowProvider).valueOrNull ?? ref.read(clockProvider).now();
+    final days = daysUntil(next, now);
+    final daysText = days == 0 ? '本日' : 'あと$days日';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.md),
+      child: AppCard(
+        color: tokens.primarySoft,
+        onTap: () => context.push('/genba/${next.id}'),
+        child: Row(
           children: [
-            TextField(
-              controller: name,
-              decoration: const InputDecoration(labelText: 'グループ／アーティスト名 *'),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: kind,
-              decoration: const InputDecoration(
-                labelText: '種別（アイドル・バンド・声優 など）',
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '次の現場',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    next.title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${next.eventDate.year}/${next.eventDate.month}/${next.eventDate.day}'
+                    '${next.venue != null ? '・${next.venue}' : ''}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: color,
-              decoration: const InputDecoration(
-                labelText: 'カラー（#RRGGBB）',
-                helperText: 'アクセント表示に使用します',
+            Text(
+              daysText,
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w800,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: memo,
-              decoration: const InputDecoration(labelText: 'メモ'),
+              semanticsLabel: days == 0 ? '公演は本日です' : '公演まであと$days日',
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('キャンセル'),
-        ),
-        FilledButton(
-          onPressed: () async {
-            if (name.text.trim().isEmpty) return;
-            final now = ref.read(clockProvider).now().toUtc();
-            final owner =
-                ref.read(authRepositoryProvider).currentUser?.id ?? '';
-            await ref.read(oshiRepositoryProvider).upsertGroup(
-                  OshiGroup(
-                    id: existing?.id ?? const Uuid().v4(),
-                    ownerId: existing?.ownerId ?? owner,
-                    name: name.text.trim(),
-                    kind: kind.text.trim().isEmpty ? null : kind.text.trim(),
-                    color: color.text.trim().isEmpty ? null : color.text.trim(),
-                    memo: memo.text.trim().isEmpty ? null : memo.text.trim(),
-                    createdAt: existing?.createdAt ?? now,
-                    updatedAt: now,
-                  ),
-                );
-            if (context.mounted) Navigator.pop(context);
-          },
-          child: const Text('保存'),
-        ),
-      ],
-    ),
-  );
-}
-
-/// メンバーチップのアバター。推し画像があれば表示、無ければメンバーカラー。
-Widget _memberAvatar(WidgetRef ref, OshiMember member, ThemeData theme) {
-  final localRef = member.imageLocalPath;
-  final file = localRef == null
-      ? null
-      : ref.read(imageStoreProvider).tryResolveOwned(member.ownerId, localRef);
-  if (file != null) {
-    return CircleAvatar(radius: 10, backgroundImage: FileImage(file));
+    );
   }
-  return CircleAvatar(
-    backgroundColor: AppTheme.accentFromHex(member.color, theme.colorScheme),
-    radius: 8,
-  );
 }
 
-Future<void> _showMemberEditor(
-  BuildContext context,
-  WidgetRef ref, {
-  required String groupId,
-  OshiMember? existing,
-}) async {
-  final name = TextEditingController(text: existing?.name ?? '');
-  final color = TextEditingController(text: existing?.color ?? '');
-  final memo = TextEditingController(text: existing?.memo ?? '');
-  var rank = existing?.rank ?? OshiRank.oshi;
-  var oshiSince = existing?.oshiSince;
-  var birthday = existing?.birthday;
+/// 誕生日・記念日（近い順, §10）。エラーは隠さず表示する。
+class _AnniversarySection extends ConsumerWidget {
+  const _AnniversarySection({required this.item});
 
-  // 推し画像（端末内・同期対象外, H-04）。編集セッションで import した参照を
-  // 追跡し、キャンセル時や差替えで不要になったものを孤立させず削除する。
-  final owner = existing?.ownerId ??
-      (ref.read(authRepositoryProvider).currentUser?.id ?? '');
-  var imageLocalPath = existing?.imageLocalPath;
-  final sessionImports = <String>[];
-  var saved = false;
+  final OshiGroupWithMembers item;
 
-  await showDialog<void>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) {
-        Future<void> pickImage() async {
-          final picked =
-              await ImagePicker().pickImage(source: ImageSource.gallery);
-          if (picked == null || owner.isEmpty) return;
-          try {
-            final storedRef = await ref.read(imageStoreProvider).import(
-                  ownerId: owner,
-                  category: ImageCategory.oshiImage,
-                  source: File(picked.path),
-                );
-            sessionImports.add(storedRef);
-            setState(() => imageLocalPath = storedRef);
-          } on ImageStorageException {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('推し画像の保存に失敗しました')),
-              );
-            }
-          }
-        }
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    final upcomingAsync =
+        ref.watch(oshiUpcomingAnniversariesProvider(item.group.id));
 
-        final localRef = imageLocalPath;
-        final file = localRef == null
-            ? null
-            : ref.read(imageStoreProvider).tryResolveOwned(owner, localRef);
-        return AlertDialog(
-          title: Text(existing == null ? 'メンバーを追加' : 'メンバーを編集'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpace.md),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '誕生日・記念日',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => showAnniversaryEditor(
+                  context,
+                  ref,
+                  group: item.group,
+                  members: item.members,
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('追加'),
+              ),
+            ],
+          ),
+        ),
+        switch (upcomingAsync) {
+          AsyncData(value: final list) when list.isEmpty => Text(
+              'まだ記念日がありません。メンバーの誕生日や推し始めた日も、ここに表示されます。',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: tokens.textSecondary),
+            ),
+          AsyncData(value: final list) => Column(
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundImage: file == null ? null : FileImage(file),
-                      child: file == null
-                          ? const Icon(Icons.person_outline)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    TextButton.icon(
-                      onPressed: pickImage,
-                      icon: const Icon(Icons.photo_library_outlined, size: 18),
-                      label: Text(file == null ? '推し画像を選択' : '画像を差し替え'),
-                    ),
-                    if (localRef != null)
-                      IconButton(
-                        tooltip: '推し画像を外す',
-                        onPressed: () => setState(() => imageLocalPath = null),
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'メンバー名 *'),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final r in OshiRank.values)
-                      ChoiceChip(
-                        label: Text(r.label),
-                        selected: rank == r,
-                        onSelected: (_) => setState(() => rank = r),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: color,
-                  decoration: const InputDecoration(
-                    labelText: 'メンバーカラー（#RRGGBB）',
-                  ),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('推し始めた日'),
-                  subtitle: Text(
-                    oshiSince == null ? '未設定' : formatDateOnly(oshiSince!),
-                  ),
-                  trailing: const Icon(Icons.calendar_month),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: oshiSince ?? ref.read(clockProvider).now(),
-                      firstDate: DateTime(1990),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) setState(() => oshiSince = picked);
-                  },
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('誕生日・記念日'),
-                  subtitle: Text(
-                    birthday == null ? '未設定' : formatDateOnly(birthday!),
-                  ),
-                  trailing: const Icon(Icons.cake_outlined),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: birthday ?? ref.read(clockProvider).now(),
-                      firstDate: DateTime(1950),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) setState(() => birthday = picked);
-                  },
-                ),
-                TextField(
-                  controller: memo,
-                  decoration: const InputDecoration(labelText: 'メモ'),
-                ),
+                for (final a in list.take(5))
+                  _AnniversaryTile(item: item, anniversary: a),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('キャンセル'),
+          AsyncError() => Text(
+              '記念日を読み込めませんでした',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.error),
             ),
-            FilledButton(
-              onPressed: () async {
-                if (name.text.trim().isEmpty) return;
-                final now = ref.read(clockProvider).now().toUtc();
-                final result =
-                    await ref.read(oshiRepositoryProvider).upsertMember(
-                          OshiMember(
-                            id: existing?.id ?? const Uuid().v4(),
-                            groupId: groupId,
-                            ownerId: existing?.ownerId ?? owner,
-                            name: name.text.trim(),
-                            rank: rank,
-                            color: color.text.trim().isEmpty
-                                ? null
-                                : color.text.trim(),
-                            oshiSince: oshiSince,
-                            birthday: birthday,
-                            memo: memo.text.trim().isEmpty
-                                ? null
-                                : memo.text.trim(),
-                            imageLocalPath: imageLocalPath,
-                            createdAt: existing?.createdAt ?? now,
-                            updatedAt: now,
-                          ),
-                        );
-                saved = result.isOk;
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  if (!result.isOk) {
-                    final f = result.failureOrNull;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(f is Failure ? f.message : '保存に失敗しました'),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('保存'),
+          _ => const Padding(
+              padding: EdgeInsets.all(AppSpace.sm),
+              child: LinearProgressIndicator(semanticsLabel: '記念日を読み込み中'),
             ),
-          ],
-        );
-      },
-    ),
-  );
+        },
+      ],
+    );
+  }
+}
 
-  // ダイアログ終了後の孤立画像清掃（owner スコープのみ、他ユーザーに触れない）。
-  if (owner.isNotEmpty) {
-    final store = ref.read(imageStoreProvider);
-    if (saved) {
-      // 差替え/クリアで捨てた旧画像と、不採用の中間 import を削除。
-      final original = existing?.imageLocalPath;
-      if (original != null && original != imageLocalPath) {
-        await store.deleteRef(owner, original);
-      }
-      for (final r in sessionImports) {
-        if (r != imageLocalPath) await store.deleteRef(owner, r);
-      }
-    } else {
-      // キャンセル: 今回 import した未確定画像は全て孤立するため削除。
-      for (final r in sessionImports) {
-        await store.deleteRef(owner, r);
-      }
+class _AnniversaryTile extends ConsumerWidget {
+  const _AnniversaryTile({required this.item, required this.anniversary});
+
+  final OshiGroupWithMembers item;
+  final UpcomingAnniversary anniversary;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    final a = anniversary;
+    final icon = switch (a.kind) {
+      AnniversaryKind.birthday => Icons.cake_outlined,
+      AnniversaryKind.oshiSince => Icons.favorite_outline,
+      AnniversaryKind.custom => Icons.celebration_outlined,
+    };
+    final daysText = a.daysUntil == 0 ? '本日' : 'あと${a.daysUntil}日';
+
+    Future<void> editCustom() async {
+      final sourceId = a.sourceId;
+      if (sourceId == null) return;
+      final source = ref
+          .read(oshiAnniversariesProvider)
+          .valueOrNull
+          ?.where((x) => x.id == sourceId)
+          .firstOrNull;
+      if (source == null || !context.mounted) return;
+      await showAnniversaryEditor(
+        context,
+        ref,
+        group: item.group,
+        members: item.members,
+        existing: source,
+      );
     }
+
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, size: 20),
+      title: Text(a.label),
+      subtitle: Text(formatDateOnly(a.nextOccurrence)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            daysText,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+            semanticsLabel: a.daysUntil == 0
+                ? '${a.label}は本日です'
+                : '${a.label}まであと${a.daysUntil}日',
+          ),
+          if (a.kind == AnniversaryKind.custom) ...[
+            IconButton(
+              tooltip: '記念日を削除',
+              icon: const Icon(Icons.delete_outline, size: 18),
+              onPressed: () async {
+                final sourceId = a.sourceId;
+                if (sourceId == null) return;
+                final ok = await confirmDangerAction(
+                  context,
+                  title: '記念日を削除',
+                  message: '「${a.label}」を削除します。',
+                );
+                if (!ok) return;
+                final failure = await ref
+                    .read(oshiActionsControllerProvider.notifier)
+                    .deleteAnniversary(sourceId);
+                if (context.mounted) handleActionResult(context, failure);
+              },
+            ),
+          ] else
+            Padding(
+              padding: const EdgeInsets.only(left: AppSpace.sm),
+              child: Text(
+                'メンバー編集から変更',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: tokens.textSecondary, fontSize: 10),
+              ),
+            ),
+        ],
+      ),
+      onTap: a.kind == AnniversaryKind.custom ? editCustom : null,
+    );
   }
 }

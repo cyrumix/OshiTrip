@@ -155,6 +155,23 @@ class ImageStore {
     }
   }
 
+  /// [statusOf] の同期版（判定規則は同一）。UI の build 中に「表示できない
+  /// 理由」を読み込み待ちのちらつきなしで確定させるために使う（R7 / §12）。
+  /// stat 相当の軽量な問い合わせのみで、画像本体は読み込まない。
+  ImageAssetStatus statusOfSync(String ownerId, String ref) {
+    if (!_isValidOwnedRef(ownerId, ref)) return ImageAssetStatus.missing;
+    final file = File(p.joinAll([_baseDir.path, ...ref.split('/')]));
+    try {
+      if (file.existsSync()) return ImageAssetStatus.present;
+      final type = FileSystemEntity.typeSync(file.path);
+      return type == FileSystemEntityType.notFound
+          ? ImageAssetStatus.missing
+          : ImageAssetStatus.inaccessible;
+    } on FileSystemException {
+      return ImageAssetStatus.inaccessible;
+    }
+  }
+
   /// [ownerId] に属する有効な参照のみ削除する。無効・別owner は何もしない。
   Future<void> deleteRef(String ownerId, String ref) async {
     if (!_isValidOwnedRef(ownerId, ref)) return;

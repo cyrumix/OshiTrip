@@ -51,4 +51,13 @@ abstract interface class GenbaRepository {
   /// [isStale] は認証切替検出用（H-02）。各リモート取得後・ローカル適用直前に
   /// 呼ばれ、true なら以降のローカル書き込みを中断する。
   Future<Result<void>> refreshFromRemote({bool Function()? isStale});
+
+  /// 競合解決「サーバーを採用」用（R8-A 再レビュー）: [entityTable] の
+  /// [entityId] 1件だけ、サーバーの最新内容を取得してローカルへ強制適用する
+  /// （競合opが残っていても上書きし、サーバーに無ければローカル行を削除する）。
+  ///
+  /// このリポジトリが所有しないテーブルが渡された場合は失敗を返す。通信・保存に
+  /// 失敗したら [Result] の [Err]（NetworkFailure 等）を返し、ローカルは変更しない。
+  /// 呼び出し側は成功を確認してから競合opを削除する（失敗安全）。
+  Future<Result<void>> adoptServerEntity(String entityTable, String entityId);
 }

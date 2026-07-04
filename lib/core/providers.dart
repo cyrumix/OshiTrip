@@ -17,10 +17,14 @@ import '../features/settings/domain/account_repository.dart';
 import 'auth/local_data_scope.dart';
 import 'config/env.dart';
 import 'db/app_database.dart';
+import 'error/failure.dart';
+import 'error/result.dart';
 import 'images/image_store.dart';
 import 'logging/app_logger.dart';
 import 'network/connectivity.dart';
+import 'network/network_timeout.dart';
 import 'storage/kv_store.dart';
+import 'sync/conflict_resolver.dart';
 import 'sync/outbox_operation.dart';
 import 'sync/outbox_store.dart';
 import 'sync/remote_mutation_client.dart';
@@ -178,6 +182,15 @@ final outboxStatusProvider = StreamProvider<Map<OutboxStatus, int>>((ref) {
       );
 });
 
+/// 現在の到達性（オフライン表示用）。既存の [ConnectivityObserver] の判定を
+/// そのまま流す（架空の状態・固定ダミーを作らない）。デモ・未設定では
+/// [AlwaysOnlineConnectivity] のため常に true（オフライン表示は出ない）。
+final isOnlineProvider = StreamProvider<bool>((ref) async* {
+  final connectivity = ref.watch(connectivityProvider);
+  yield await connectivity.isOnline;
+  yield* connectivity.onlineChanges;
+});
+
 final genbaRepositoryProvider = Provider<GenbaRepository>((ref) {
   // scope を watch し、認証切替のたびに新しいインスタンスへ作り直す。
   // これにより watchAll() の購読も再構築され、前ownerの値が残らない。
@@ -268,6 +281,84 @@ final sessionSyncProvider = Provider<void>((ref) {
     },
     fireImmediately: true,
   );
+});
+
+/// [entityTable] を所有するリポジトリの `adoptServerEntity` へ委譲する
+/// （R8-A 再レビュー: サーバー採用を失敗安全にする seam）。所有リポジトリが
+/// なければ通信・保存に触れず [Err] を返す（競合は未解決のまま維持される）。
+Future<Result<void>> _adoptServerEntityRouter(
+  Ref ref,
+  String entityTable,
+  String entityId,
+) {
+  if (_genbaTables.contains(entityTable)) {
+    return ref
+        .read(genbaRepositoryProvider)
+        .adoptServerEntity(entityTable, entityId);
+  }
+  if (_memoryTables.contains(entityTable)) {
+    return ref
+        .read(memoryRepositoryProvider)
+        .adoptServerEntity(entityTable, entityId);
+  }
+  if (_oshiTables.contains(entityTable)) {
+    return ref
+        .read(oshiRepositoryProvider)
+        .adoptServerEntity(entityTable, entityId);
+  }
+  return Future.value(
+    Err(UnknownFailure(message: '未知のテーブル $entityTable は採用できません')),
+  );
+}
+
+const _genbaTables = {
+  'genbas',
+  'tickets',
+  'transports',
+  'lodgings',
+  'todos',
+  'genba_memos',
+};
+const _memoryTables = {
+  'memory_entries',
+  'memory_photos',
+  'setlist_items',
+  'goods_items',
+  'visited_places',
+};
+const _oshiTables = {'oshi_groups', 'oshi_members', 'oshi_anniversaries'};
+
+/// 競合(conflict)状態の Outbox 操作をユーザー選択で解決する（E-1 / R8-A）。
+///
+/// - サーバー採用: **先に**当該エンティティのサーバー最新内容を取得・強制適用し、
+///   成功してから競合opを削除する（失敗安全 / R8-A 再レビュー）。
+/// - この端末を再送: サーバー現在版を取得して版キャッシュを整合 → op を
+///   pending へ戻す → drain。
+/// owner分離は OutboxStore の owner 限定メソッドと `_ownerId` で担保する。
+final conflictResolverProvider = Provider<ConflictResolver>((ref) {
+  return ConflictResolver(
+    store: ref.watch(outboxStoreProvider),
+    db: ref.watch(databaseProvider),
+    fetchRemoteRows: (tableName) async {
+      final client = _remoteClientOrNull(ref);
+      if (client == null) return const [];
+      final rows = await client.from(tableName).select().withRemoteTimeout();
+      return rows.cast<Map<String, dynamic>>();
+    },
+    adoptServerEntity: (entityTable, entityId) =>
+        _adoptServerEntityRouter(ref, entityTable, entityId),
+    drain: () => ref.read(syncEngineProvider).drain(),
+  );
+});
+
+/// 現在ownerの競合一覧（解決UI用）。未認証時は空。
+final conflictsProvider = FutureProvider<List<OutboxOperation>>((ref) async {
+  // Outbox の変化に追随して競合一覧を再取得する（解決後に消えるように）。
+  final counts = ref.watch(outboxStatusProvider).valueOrNull ?? const {};
+  final scope = ref.watch(localDataScopeProvider);
+  if (scope is! LocalDataScopeAuthenticated) return const [];
+  if ((counts[OutboxStatus.conflict] ?? 0) == 0) return const [];
+  return ref.read(conflictResolverProvider).conflicts(ownerId: scope.ownerId);
 });
 
 /// 写真アップロード境界（デモモードでは null = アップロード不可）。

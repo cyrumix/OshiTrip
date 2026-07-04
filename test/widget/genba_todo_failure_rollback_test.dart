@@ -114,6 +114,10 @@ void main() {
     await tester.tap(find.text('失敗ロールバック検証現場'));
     await tester.pumpAndSettle();
 
+    // R7: Todo は詳細タブへ移動したため、Todoタブを開く。
+    await tester.tap(find.text('Todo'));
+    await tester.pumpAndSettle();
+
     // 保存前: 未完了。
     final checkbox = find.widgetWithText(CheckboxListTile, '銀テを持参する');
     expect(tester.widget<CheckboxListTile>(checkbox).value, isFalse);

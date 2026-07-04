@@ -6,6 +6,7 @@ import '../../../core/db/app_database.dart';
 import '../../../core/db/owner_guard.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import '../../../core/network/network_timeout.dart';
 import '../../../core/sync/outbox_operation.dart';
 import '../../../core/sync/outbox_store.dart';
 import '../../../core/sync/remote_pull.dart';
@@ -296,7 +297,10 @@ class OshiRepositoryImpl implements OshiRepository {
           outbox: _outbox,
           owner: owner,
           tableName: SyncEntity.oshiGroups,
-          rows: await client.from(SyncEntity.oshiGroups).select(),
+          rows: await client
+              .from(SyncEntity.oshiGroups)
+              .select()
+              .withRemoteTimeout(),
           // 端末内のグループ画像参照はサーバーに無い。pull で null 上書きしない。
           toCompanion: (json) => _groupToCompanion(
             OshiGroup.fromJson(json),
@@ -313,7 +317,10 @@ class OshiRepositoryImpl implements OshiRepository {
           outbox: _outbox,
           owner: owner,
           tableName: SyncEntity.oshiMembers,
-          rows: await client.from(SyncEntity.oshiMembers).select(),
+          rows: await client
+              .from(SyncEntity.oshiMembers)
+              .select()
+              .withRemoteTimeout(),
           // 端末内の推し画像参照はサーバーに無い。pull で null 上書きしない。
           toCompanion: (json) => _memberToCompanion(
             OshiMember.fromJson(json),
@@ -330,7 +337,10 @@ class OshiRepositoryImpl implements OshiRepository {
           outbox: _outbox,
           owner: owner,
           tableName: SyncEntity.oshiAnniversaries,
-          rows: await client.from(SyncEntity.oshiAnniversaries).select(),
+          rows: await client
+              .from(SyncEntity.oshiAnniversaries)
+              .select()
+              .withRemoteTimeout(),
           toCompanion: (json) =>
               _anniversaryToCompanion(OshiAnniversary.fromJson(json)),
           table: _db.oshiAnniversaries,
@@ -341,6 +351,101 @@ class OshiRepositoryImpl implements OshiRepository {
         );
       },
       onError: (e, _) => NetworkFailure(cause: e),
+    );
+  }
+
+  // ---- 競合解決「サーバーを採用」（R8-A 再レビュー）------------------------
+
+  @override
+  Future<Result<void>> adoptServerEntity(
+    String entityTable,
+    String entityId,
+  ) async {
+    final client = _remote();
+    if (client == null) return const Ok(null);
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    return guardResult(
+      () async {
+        switch (entityTable) {
+          case SyncEntity.oshiGroups:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.oshiGroups,
+              entityId,
+              (json) => _groupToCompanion(
+                OshiGroup.fromJson(json),
+                preserveLocalImage: true,
+              ),
+              _db.oshiGroups,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.oshiMembers:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.oshiMembers,
+              entityId,
+              (json) => _memberToCompanion(
+                OshiMember.fromJson(json),
+                preserveLocalImage: true,
+              ),
+              _db.oshiMembers,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.oshiAnniversaries:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.oshiAnniversaries,
+              entityId,
+              (json) => _anniversaryToCompanion(OshiAnniversary.fromJson(json)),
+              _db.oshiAnniversaries,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          default:
+            throw ArgumentError('oshi repo は $entityTable を所有しません');
+        }
+      },
+      onError: (e, _) => e is ArgumentError
+          ? UnknownFailure(cause: e)
+          : NetworkFailure(cause: e),
+    );
+  }
+
+  Future<void> _adoptOne<T extends Table, R>(
+    SupabaseClient client,
+    String owner,
+    String tableName,
+    String entityId,
+    Insertable<R> Function(Map<String, dynamic> json) toCompanion,
+    TableInfo<T, R> table,
+    TextColumn Function(T table) idColumn,
+    TextColumn Function(T table) ownerColumn,
+    String Function(R row) idOf,
+  ) async {
+    final rows = await client.from(tableName).select().withRemoteTimeout();
+    await applyPulledRowsInto(
+      db: _db,
+      outbox: _outbox,
+      owner: owner,
+      tableName: tableName,
+      rows: rows,
+      toCompanion: toCompanion,
+      table: table,
+      idColumn: idColumn,
+      ownerColumn: ownerColumn,
+      idOf: idOf,
+      forceEntityIds: {entityId},
     );
   }
 

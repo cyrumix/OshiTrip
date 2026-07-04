@@ -39,6 +39,25 @@ class SyncEntity {
     oshiMembers,
     oshiAnniversaries,
   ];
+
+  /// 競合解決UI等でエンティティ種別を日本語表示するためのラベル。
+  static String label(String entityTable) => switch (entityTable) {
+        genbas => '現場',
+        tickets => 'チケット',
+        transports => '交通',
+        lodgings => '宿泊',
+        todos => 'Todo',
+        genbaMemos => 'メモ',
+        memoryEntries => '思い出',
+        memoryPhotos => '思い出の写真',
+        setlistItems => 'セトリ',
+        goodsItems => 'グッズ',
+        visitedPlaces => '立ち寄り先',
+        oshiGroups => '推しグループ',
+        oshiMembers => '推しメンバー',
+        oshiAnniversaries => '記念日',
+        _ => 'データ',
+      };
 }
 
 class OutboxOperation {

@@ -108,7 +108,7 @@ class GenbaCard extends StatelessWidget {
   String _formatDate(DateTime d) => '${d.year}/${d.month}/${d.day}';
 }
 
-/// 現場状態チップ。色だけに依存せずラベル文字でも状態を示す（§15.4）。
+/// 現場状態チップ。色だけに依存せず文字＋アイコンでも状態を示す（§15.4/§14）。
 class GenbaStatusChip extends StatelessWidget {
   const GenbaStatusChip({super.key, required this.status});
 
@@ -126,20 +126,37 @@ class GenbaStatusChip extends StatelessWidget {
       GenbaStatus.canceled => (scheme.errorContainer, scheme.onErrorContainer),
       _ => (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
     };
+    final icon = switch (status) {
+      GenbaStatus.scheduled => Icons.event_outlined,
+      GenbaStatus.preparing => Icons.hourglass_bottom,
+      GenbaStatus.today => Icons.celebration_outlined,
+      GenbaStatus.afterglow => Icons.nightlight_outlined,
+      GenbaStatus.memory => Icons.photo_album_outlined,
+      GenbaStatus.canceled => Icons.block,
+    };
     return Semantics(
       label: '状態: ${status.label}',
+      container: true,
+      excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(
-          status.label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: fg, fontWeight: FontWeight.bold),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: fg),
+            const SizedBox(width: 4),
+            Text(
+              status.label,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: fg, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );

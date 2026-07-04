@@ -2,9 +2,11 @@
 
 基準: [要件定義書](requirements.md) / [トレーサビリティ](requirements-traceability.md) / [実装プロンプト集](implementation-prompts.md)
 
+> **2026-07-04 R8監査での訂正**: 本ファイルは長らく「Flutter SDK未導入」時点（Phase 0）の記述のまま更新されておらず、R1〜R7完了後の実態と大きく乖離していた。以下のPhase 0節の「未実装/ブロッカー」表・テスト結果は**2026-07-02時点の記録として履歴保持**するが、現在は解消済み。最新状態は本ファイル末尾の「R8監査時点の実態（2026-07-04）」を参照すること。
+
 ---
 
-## Phase 0: 技術設計と土台 — 状態: 🟡 部分完了（ビルド系はブロッカーで未達）
+## Phase 0: 技術設計と土台 — 状態（2026-07-02時点の記録）: 🟡 部分完了（ビルド系はブロッカーで未達）
 
 実施日: 2026-07-01
 
@@ -114,3 +116,42 @@
 
 上記の根幹一括実装により、Phase 1〜4 相当の中心機能は実装済み。
 残りは [follow-up-work.md](follow-up-work.md) の依存順に沿って進める。
+
+## R1〜R7 修正パッケージ（2026-07-02〜2026-07-04）
+
+`docs/current-program-review-and-remediation-prompts.md` のR1〜R7を実施し、
+owner分離・同期ライフサイクル・暗号化・flavor構成・現場状態機械・画像基調UIの
+データ契約・design-spec準拠のDesign Systemと主要6領域UIを実装した。
+各パッケージの実装判断・受入条件・テスト結果は [decisions.md](decisions.md) の
+該当節（D-40〜D-166）を正とする。
+
+## R8監査時点の実態（2026-07-04, Claude Sonnet 5による独立監査）
+
+`docs/fable-post-implementation-review-prompt.md` 準拠の独立監査を実施した。
+監査手法・全指摘・重大度判定は [decisions.md「R8 独立監査」節](decisions.md) を参照。
+
+### ツール・実行環境（2026-07-04時点、Windows host）
+
+| ツール | 状態 |
+|---|---|
+| Flutter SDK / Dart SDK | ✅ 利用可能（`C:\src\flutter`） |
+| `dart format` / `dart analyze` | ✅ 利用可能・issues無し |
+| `flutter test`（単体+Widget） | ✅ 利用可能・実行済み（358件パス/6件失敗、失敗は全件 `ink_sparkle.frag`/Vulkan の既知環境制約） |
+| Android SDK | ❌ 未導入。`flutter build apk` は未実行 |
+| Xcode/macOS | ❌ 本機（Windows）には無く未確認。iOSビルドは未実行 |
+| Supabase CLI / Docker | ❌ 未導入。`supabase test db` は未実行（pgTAPは静的レビューのみ） |
+| 実機・エミュレータ | ❌ 無し。`flutter test integration_test` は未実行 |
+
+「Flutter SDK未導入」という旧Phase 0の記述は誤り（2026-07-02時点で既に解消済みだった）。
+Android/iOSビルド・pgTAP実行・integration_testは**環境不足により継続して未実行**であり、
+コード不良ではない。
+
+### R8監査結果サマリ
+
+- Critical: 0件
+- High: 3件（同期競合(conflict)状態が永久に解消されない／RLS pgTAPカバレッジ欠如／
+  Supabase通信のタイムアウト欠如。いずれも `docs/current-program-review-and-remediation-prompts.md`
+  §8 のR8-A/R8-B/R8-Cとして Claude Opus 4.8 向けに切り出し済み、未修正）
+- Medium: 6件、Low: 6件（詳細はdecisions.md参照）
+- 中心フロー（初回起動→ログイン→現場登録→準備→当日→思い出→再起動復元）は
+  静的読解でエンドツーエンドの配線を確認済み。実機での動作確認は未実施。

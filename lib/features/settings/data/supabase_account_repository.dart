@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import '../../../core/network/network_timeout.dart';
 import '../domain/account_repository.dart';
 
 /// アカウント削除の Supabase RPC 境界実装。
@@ -17,8 +18,8 @@ class SupabaseAccountRepository implements AccountRepository {
   @override
   Future<Result<void>> deleteAccount() async {
     try {
-      await _client.rpc<void>('delete_account');
-      await _client.auth.signOut();
+      await _client.rpc<void>('delete_account').withRemoteTimeout();
+      await _client.auth.signOut().withRemoteTimeout();
       return const Ok(null);
     } on PostgrestException catch (e) {
       return Err(

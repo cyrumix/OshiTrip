@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/design_system/design_system.dart';
 import '../../../core/providers.dart';
-import '../../../core/widgets/async_view.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../onboarding/application/tutorial_controller.dart';
-import '../application/account_controller.dart';
+import '../application/oshi_color_controller.dart';
 import '../application/settings_controller.dart';
 
-/// 設定（§13の基礎: テーマ・チュートリアル再表示・アカウント・データ削除・アプリ情報）。
+/// 設定トップ（design-spec §11）。階層型リスト。
+///
+/// 通知設定・プライバシー共有は未実装のため、押せる見せかけの行を
+/// 出さない（§11/§15.4）。危険操作（ログアウト・削除）は通常項目と
+/// 視覚的に分離する。
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -19,58 +23,76 @@ class SettingsScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider).valueOrNull;
     final themeMode =
         ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.system;
+    final oshiHex = ref.watch(oshiColorProvider).valueOrNull;
+    final oshiName = oshiColorPresets
+            .where((p) => p.hex == oshiHex)
+            .map((p) => p.name)
+            .firstOrNull ??
+        (oshiHex != null ? 'カスタム' : '未設定');
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('設定')),
+    return AppScaffold(
+      title: '設定',
       body: ListView(
+        key: const PageStorageKey('settings_list'),
         children: [
+          const _SectionLabel('アカウント'),
+          SettingsRow(
+            icon: Icons.person_outline,
+            title: 'アカウント設定',
+            value: user?.email,
+            subtitle: user?.isDemo ?? false ? 'デモモード（端末内のみ・サーバー未接続）' : null,
+            onTap: () => context.push('/settings/account'),
+          ),
+          const Divider(),
           const _SectionLabel('表示'),
-          RadioGroup<ThemeMode>(
-            groupValue: themeMode,
-            onChanged: (v) {
-              if (v != null) {
-                ref.read(themeModeProvider.notifier).setMode(v);
-              }
+          SettingsRow(
+            icon: Icons.brightness_6_outlined,
+            title: 'テーマ設定',
+            value: switch (themeMode) {
+              ThemeMode.system => '端末に合わせる',
+              ThemeMode.light => 'ライト',
+              ThemeMode.dark => 'ダーク',
             },
-            child: const Column(
-              children: [
-                RadioListTile<ThemeMode>(
-                  title: Text('端末の設定に合わせる'),
-                  value: ThemeMode.system,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: Text('ライト'),
-                  value: ThemeMode.light,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: Text('ダーク'),
-                  value: ThemeMode.dark,
-                ),
-              ],
-            ),
+            onTap: () => context.push('/settings/theme'),
+          ),
+          SettingsRow(
+            icon: Icons.palette_outlined,
+            title: '推しカラー設定',
+            value: oshiName,
+            onTap: () => context.push('/settings/oshi-color'),
+          ),
+          const Divider(),
+          const _SectionLabel('データ'),
+          SettingsRow(
+            icon: Icons.storage_outlined,
+            title: 'データ管理',
+            onTap: () => context.push('/settings/data'),
           ),
           const Divider(),
           const _SectionLabel('ヘルプ'),
-          ListTile(
-            leading: const Icon(Icons.replay_outlined),
-            title: const Text('チュートリアルをもう一度見る'),
+          SettingsRow(
+            icon: Icons.replay_outlined,
+            title: 'チュートリアルをもう一度見る',
+            showChevron: false,
             onTap: () async {
               await ref.read(tutorialDoneProvider.notifier).reset();
               // redirect によりオンボーディングへ遷移する。
             },
           ),
-          const Divider(),
-          const _SectionLabel('アカウント'),
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: Text(user?.email ?? '未ログイン'),
-            subtitle: user?.isDemo ?? false
-                ? const Text('デモモード（端末内のみ・サーバー未接続）')
-                : null,
+          SettingsRow(
+            icon: Icons.info_outline,
+            title: env.appTitle,
+            subtitle: 'バージョン 0.1.0 / 環境: ${env.flavor.name}'
+                '${env.isDemoMode ? '（デモモード）' : ''}',
+            showChevron: false,
           ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('ログアウト'),
+          const Divider(),
+          // 危険操作は通常項目と分離（§11）。
+          const _SectionLabel('ログアウト・削除'),
+          SettingsRow(
+            icon: Icons.logout,
+            title: 'ログアウト',
+            showChevron: false,
             onTap: () async {
               final failure =
                   await ref.read(authControllerProvider.notifier).signOut();
@@ -81,67 +103,10 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
           ),
-          ListTile(
-            leading: Icon(
-              Icons.delete_forever_outlined,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            title: Text(
-              'アカウントとデータを削除',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-            onTap: () => _confirmDeleteAccount(context, ref),
-          ),
-          const Divider(),
-          const _SectionLabel('アプリ情報'),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(env.appTitle),
-            subtitle: Text(
-              'バージョン 0.1.0 / 環境: ${env.flavor.name}'
-              '${env.isDemoMode ? '（デモモード）' : ''}',
-            ),
-          ),
           const SizedBox(height: 40),
         ],
       ),
     );
-  }
-
-  /// アカウント削除は危険操作として二段階で確認する。
-  Future<void> _confirmDeleteAccount(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final first = await confirmDangerAction(
-      context,
-      title: 'アカウントとデータを削除',
-      message: '現場・思い出・マイ推しなど、すべてのデータがサーバーから削除されます。'
-          'この操作は取り消せません。',
-      confirmLabel: '続ける',
-    );
-    if (!first || !context.mounted) return;
-    final second = await confirmDangerAction(
-      context,
-      title: '最終確認',
-      message: '本当に削除しますか？削除後は復元できません。',
-      confirmLabel: '完全に削除する',
-    );
-    if (!second || !context.mounted) return;
-
-    final failure =
-        await ref.read(accountControllerProvider.notifier).deleteAccount();
-    if (!context.mounted) return;
-    if (failure == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('アカウントを削除しました')),
-      );
-      context.go('/login');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failure.message)),
-      );
-    }
   }
 }
 
@@ -163,4 +128,8 @@ class _SectionLabel extends StatelessWidget {
       ),
     );
   }
+}
+
+extension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

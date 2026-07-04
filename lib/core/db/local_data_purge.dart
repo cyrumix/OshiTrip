@@ -48,6 +48,11 @@ Future<void> purgeLocalDataForOwner(
     await (db.delete(db.remoteVersions)
           ..where((t) => t.ownerId.equals(ownerId)))
         .go();
+    // owner 単位の端末設定（推しカラー等、`<key>.<ownerId>` 形式）も削除する。
+    // 端末共通の AppKvs（テーマ・チュートリアル等, D-45）には触れない。
+    await (db.delete(db.appKvs)
+          ..where((t) => t.key.equals(KvKeys.oshiAccentColorFor(ownerId))))
+        .go();
   });
   // DB トランザクション確定後に物理ファイルを掃除する（別 owner は触らない）。
   await imageStore?.purgeOwner(ownerId);

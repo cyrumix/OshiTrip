@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import '../../../core/network/network_timeout.dart';
 import '../domain/auth_repository.dart';
 
 /// Supabase Auth（メールアドレス + パスワード）実装。
@@ -26,8 +27,9 @@ class SupabaseAuthRepository implements AuthRepository {
     required String password,
   }) async {
     try {
-      final response =
-          await _client.auth.signUp(email: email, password: password);
+      final response = await _client.auth
+          .signUp(email: email, password: password)
+          .withRemoteTimeout();
       final user = _toAppUser(response.user);
       if (user == null) {
         return const Err(AuthFailure(message: '登録に失敗しました'));
@@ -47,7 +49,8 @@ class SupabaseAuthRepository implements AuthRepository {
   }) async {
     try {
       final response = await _client.auth
-          .signInWithPassword(email: email, password: password);
+          .signInWithPassword(email: email, password: password)
+          .withRemoteTimeout();
       final user = _toAppUser(response.user);
       if (user == null) {
         return const Err(AuthFailure());
@@ -63,7 +66,7 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<Result<void>> signOut() async {
     try {
-      await _client.auth.signOut();
+      await _client.auth.signOut().withRemoteTimeout();
       return const Ok(null);
     } on sb.AuthException catch (e) {
       return Err(AuthFailure(cause: e));
@@ -75,7 +78,7 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<Result<void>> sendPasswordReset(String email) async {
     try {
-      await _client.auth.resetPasswordForEmail(email);
+      await _client.auth.resetPasswordForEmail(email).withRemoteTimeout();
       return const Ok(null);
     } on sb.AuthException catch (e) {
       return Err(AuthFailure(message: _authMessage(e), cause: e));

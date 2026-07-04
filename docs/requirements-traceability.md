@@ -1,147 +1,154 @@
 # 要件トレーサビリティ
 
-版: 1.0（Phase 0 時点）
-基準: [要件定義書 v2.1](requirements.md) / [UI・ビジュアルデザイン仕様書](design-spec.md) / [実装プロンプト集](implementation-prompts.md)
+版: 2.0（R8監査時点, 2026-07-04）
+基準: [要件定義書 v2.1](requirements.md) / [UI・ビジュアルデザイン仕様書](design-spec.md) / [実装判断の記録](decisions.md)
 
-各節を担当Phaseへ割り当てる。**未割当は0件**。状態は 未着手 / 進行中 / 完了 / 非MVP のいずれか。「実装箇所」「テスト」は各Phase完了時に証拠（ファイルパス・テスト名）を記入する。証拠のない項目は完了にしない。
+各節を担当Phaseへ割り当てる。**未割当は0件**。状態は 未着手 / 進行中 / 完了 / 非MVP のいずれか。
+「実装箇所」「テスト」は実際のファイルパス・テスト名を証拠として記入する。証拠のない項目は完了にしない。
 
-Phase一覧: **P0** 土台 / **P1** 基盤・認証・初回 / **P2** 現場・準備 / **P3** 当日・オフライン / **P4** 思い出 / **P5** マイ推し・公演DB / **P6** 共有・通知 / **P7** マネタイズ・品質・リリース。
+> **2026-07-04 改訂**: 版1.0はPhase 0（旧計画のフェーズ番号）時点の割当表のまま全項目が
+> ⬜未着手だった。実際には「根幹一括実装」（2026-07-02）と修正パッケージR1〜R7
+> （2026-07-02〜2026-07-04）により大半のMVP機能が実装済みである。本改訂は
+> `docs/decisions.md` のD-01〜D-168と、R8独立監査（同ファイル「R8 独立監査」節）の
+> 確認結果に基づき、実装箇所・状態を実証結果のみで更新する。旧Phase番号（P0〜P7）の
+> 呼称は歴史的経緯として残すが、実装は「根幹一括実装＋R1〜R7」という別の進め方で行われた。
 
-凡例: ⬜未着手 / 🟡進行中 / ✅完了 / 🅱️非MVPバックログ
+凡例: ⬜未着手 / 🟡進行中（境界のみ・部分実装） / ✅完了（実装＋テスト証拠あり） / 🅱️非MVPバックログ
 
 ---
 
 ## 横断原則（全Phaseで遵守・検証）
 
-| 節 | 内容 | 主担当 | 検証Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|---|
-| §1 | プロダクト概要 / 中心単位=1現場 | 全体 | P2〜 | ⬜ | — | — |
-| §2.1 | 最小入力・段階的開示 | P2 | P2 | ⬜ | — | — |
-| §2.2 | 現場を育てる体験 | P2/P4 | P4 | ⬜ | — | — |
-| §2.3 | 当日の即時性 | P3 | P3 | ⬜ | — | — |
-| §2.4 | 非公開を基本 | P0(基盤)/P6 | P0,P6 | 🟡 | [ADR-0008](adr/0008-authorization-and-data-protection.md) | supabase/tests（予定） |
-| §3 | 対象ユーザー（設計前提） | 全体 | — | ✅ | 要件・本表で反映 | — |
-| §18 | 最重要思想（現場中心） | 全体 | — | ✅ | [architecture.md](architecture.md) 設計方針 | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §1 | プロダクト概要 / 中心単位=1現場 | ✅ | `lib/features/genba/`配下の集約設計（genba×ticket/transport/lodging/todo/memo） | `test/domain/genba_schedule_test.dart`ほか |
+| §2.1 | 最小入力・段階的開示 | ✅ | `genba_form_controller.dart`（最小3項目バリデーション、下書き自動保存） | `test/notifier/genba_form_controller_test.dart` |
+| §2.2 | 現場を育てる体験 | ✅ | 現場状態機械（`genba_schedule.dart`）＋思い出への段階移行 | `test/domain/genba_schedule_test.dart` |
+| §2.3 | 当日の即時性 | ✅ | `TodayCard`（`lib/features/home/presentation/widgets/today_card.dart`）、ローカルDB直読でオフライン表示 | R8監査E章で確認 |
+| §2.4 | 非公開を基本 | ✅ | 全ユーザー所有テーブルRLS（`supabase/migrations/0001〜0007`） | `supabase/tests/0001〜0004`（一部pgTAPカバレッジ欠如あり、decisions.md F-2参照） |
+| §2.5, §19 | 写真と余韻を中心にした視覚体験 / design-spec準拠 | ✅ | `lib/app/design_system/`、`lib/app/theme/` | `test/widget/design_system_test.dart`ほか |
+| §3 | 対象ユーザー（設計前提） | ✅ | 要件・本表で反映 | — |
+| §18 | 最重要思想（現場中心） | ✅ | `architecture.md`設計方針、genba集約 | — |
 
-## §4 初回起動・チュートリアル → P1
+## §4 初回起動・チュートリアル
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §4.1 | 初回チュートリアル（最大4画面/スキップ/完了状態保存/通知許可を要求しない/設定から再表示） | P1 | ⬜ | — | — |
-| §4.2 | 初回現場登録（最小必須3項目/直後の残日数・おすすめTodo・次の準備・選択肢） | P1導線→P2本実装 | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §4.1 | 初回チュートリアル（4画面/スキップ/完了状態保存/通知許可を要求しない/設定から再表示） | ✅ | `lib/features/onboarding/` | `test/widget/routing_test.dart`（環境制約で本ホスト未実行、R8-B1参照） |
+| §4.2 | 初回現場登録（最小必須3項目） | ✅ | `genba_form_controller.dart`（残日数/次の準備の直後表示は簡略実装） | `test/notifier/genba_form_controller_test.dart` |
 
-## §5 情報設計とグローバルメニュー → P1
+## §5 情報設計とグローバルメニュー
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §5 | 5タブ（ホーム/現場/思い出/マイ推し/設定）、現場=未来+当日、思い出=過去、移行は表示区分変更 | P1（タブ）/P4（移行） | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §5 | 5タブ、現場=未来+当日、思い出=過去、移行は表示区分変更 | ✅ | `lib/app/router.dart`（StatefulShellRoute）、`genba_schedule.dart`のisMemory/isUpcoming | `test/widget/app_shell_navigation_test.dart`、`test/domain/genba_schedule_test.dart` |
 
-## §6 ホーム → P2（通常）/ P3（当日）
+## §6 ホーム
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §6.1 | 通常時ホーム（近い順/現場カード項目/準備状態/次アクション/項目別重要度） | P2 | ⬜ | — | — |
-| §6.2 | 当日ホーム（本日の現場モード/1タップ到達/キャッシュ/外部リンクと保存画像の区別/余韻中切替/複数当日公演） | P3 | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §6.1 | 通常時ホーム（近い順/カード項目/準備状態/次アクション） | ✅ | `lib/features/home/presentation/home_screen.dart` | `test/widget/home_screen_hero_test.dart` |
+| §6.2 | 当日ホーム（本日モード/キャッシュ/余韻中切替/複数当日公演） | ✅ | `today_card.dart`、`deriveGenbaStatus` | `test/widget/home_screen_hero_test.dart`、`test/domain/genba_schedule_test.dart` |
 
-## §7 現場 → P2（共有§7.8はP6）
+## §7 現場
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §7.1 | 状態（予定/準備中/本日/余韻中/思い出/中止）、自動判定＋手動修正、過去は思い出へ | P2 | ⬜ | — | — |
-| §7.2 | 現場作成（最小3項目＋段階追加項目） | P2 | ⬜ | — | — |
-| §7.3 | チケット（取得/当落/発券/座席/整理番号/入場口/URL/画像/メモ、画像はセンシティブ表示・デフォルト共有外） | P2（項目別共有はP6） | ⬜ | — | — |
-| §7.4 | 交通（手段/出発到着/往復/予約番号/URL/メモ、遠征なし・不要を区別） | P2 | ⬜ | — | — |
-| §7.5 | 宿泊（要否/宿泊先/日程/住所/予約番号/URL/メモ、宿泊なし区別） | P2 | ⬜ | — | — |
-| §7.6 | Todo（名/期限/完了/担当/重要度/メモ/テンプレ種別、種別・遠征・日数でテンプレ提案・一括解除） | P2 | ⬜ | — | — |
-| §7.7 | メモ（自由/物販/集合場所/周辺施設/注意事項） | P2 | ⬜ | — | — |
-| §7.8 | 共有（オーナー/編集可/閲覧のみ、項目単位共有可否） | P6（基盤P0） | 🟡 | [ADR-0008](adr/0008-authorization-and-data-protection.md) | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §7.1 | 状態機械（予定/準備中/本日/余韻中/思い出/中止） | ✅ | `lib/features/genba/domain/genba_schedule.dart` | `test/domain/genba_schedule_test.dart`（境界値・深夜公演・手動終演を網羅） |
+| §7.2 | 現場作成（最小3項目＋段階追加） | ✅ | `genba_form_screen.dart`/`genba_form_controller.dart` | `test/notifier/genba_form_controller_test.dart` |
+| §7.3 | チケット | ✅（画像アップロードは§フェーズB未実装、ローカル参照のみ） | `lib/features/genba/data/genba_repository_impl.dart`、`child_editors.dart` | `test/data/repositories_test.dart` |
+| §7.4 | 交通（不要/未登録の区別） | ✅ | `genba_preparation.dart`（`CategoryPrepState`） | R8監査B章で確認 |
+| §7.5 | 宿泊（宿泊なし区別） | ✅ | 同上 | 同上 |
+| §7.6 | Todo | ✅（テンプレート提案は未実装、follow-up-work.mdフェーズE） | `child_editors.dart`、`genba_actions_controller.dart` | `test/notifier/genba_actions_controller_test.dart` |
+| §7.7 | メモ（5区分） | ✅ | `child_editors.dart`（`_MemoEditor`） | `test/widget/genba_detail_tabs_test.dart` |
+| §7.8 | 共有（owner/editor/viewer） | 🟡 境界のみ | `lib/features/sharing/domain/share.dart`（型のみ、data層未実装・未配線） | follow-up-work.mdフェーズC |
 
-## §8 思い出 → P4（入力通知§8.3はP6）
+## §8 思い出
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §8.1 | 移行（同一IDで表示区分変更/翌日以降は現場一覧・通常ホーム非表示/日付修正で再判定） | P4 | ⬜ | — | — |
-| §8.2 | 段階入力（終演直後/翌日/後日、先行入力可、短い感想は本文初期値） | P4 | ⬜ | — | — |
-| §8.3 | 入力通知（空項目のみ/終演後・翌日・3〜7日後/直接遷移/繰り返さない/設定変更可） | P6 | ⬜ | — | — |
-| §8.4 | 思い出詳細（概要/写真/感想/セトリ/MC/座席/グッズ/共有メンバー、感想はユーザーごと非共同編集） | P4 | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §8.1 | 移行（同一ID表示区分変更） | ✅ | `genba_schedule.dart`のisMemory/isUpcoming | `test/domain/genba_schedule_test.dart` |
+| §8.2 | 段階入力（終演直後/翌日/後日、任意順） | ✅ | `lib/features/memory/domain/memory.dart`、`memory_edit_screen.dart` | R8監査B章で確認（全フィールド任意・非順序拘束を確認） |
+| §8.3 | 入力通知 | ⬜ 境界のみ | `lib/features/notifications/domain/notification_plan.dart`（型のみ、未配線） | — |
+| §8.4 | 思い出詳細 | ✅（共有メンバー表示は§7.8同様未実装） | `memory_detail_screen.dart` | `test/widget/memory_detail_view_test.dart`、`test/widget/memory_image_states_test.dart` |
 
-## §9 マイ推し → P5
+## §9 マイ推し
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §9 | グループ/メンバー/推し区分/カラー/記念日/画像、現場登録中の同時作成、事前登録不要、現場・思い出との紐づけ | P5 | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §9 | グループ/メンバー/推し区分/カラー/記念日/画像、現場登録中の同時作成 | ✅ | `lib/features/oshi/`、`genba_form_screen.dart`の`_quickAddGroup` | `test/widget/oshi_selection_test.dart`、`test/widget/oshi_screen_stats_test.dart` |
 
-## §10 ユーザー投稿型公演DB → P5
+## §10 ユーザー投稿型公演DB
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §10.1 | 基本方針（共通マスタ/既存選択or新規/「登録者」表記） | P5 | ⬜ | — | — |
-| §10.2 | 公演登録（必須項目/重複候補をグループ・日付・会場・開演時間で判定） | P5 | ⬜ | — | — |
-| §10.3 | 公開とプライバシー（マスタ公開/個人情報非公開/登録者数匿名/集計参加設定/少人数閾値） | P5（基盤P0） | ⬜ | [ADR-0008](adr/0008-authorization-and-data-protection.md) | — |
-| §10.4 | 信頼性と運用（候補順=一致・登録者数・日付近さ/変更記録/統合・通報・管理者修正） | P5 | ⬜ | — | — |
-| — | 外部公演API（§14 MVP対象外） | 🅱️ | 🅱️ | [非MVPバックログ](#非mvpバックログ) | — |
-| — | 公式メンバーDB（§14 MVP対象外） | 🅱️ | 🅱️ | [非MVPバックログ](#非mvpバックログ) | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §10.1 | 基本方針（共通マスタ） | 🟡 境界のみ | `performances`テーブル+RLS（`supabase/migrations/0002`）、`Genba.performanceId` | pgTAPカバレッジ一部欠如（decisions.md F-1） |
+| §10.2 | 公演登録・重複判定 | ⬜ 未実装 | インクリメンタル検索・重複候補UIは未着手 | follow-up-work.mdフェーズC |
+| §10.3 | 公開とプライバシー | 🟡 部分実装 | RLSポリシーのみ（登録者数集計・閾値マスキングは未実装） | — |
+| §10.4 | 信頼性と運用 | ⬜ 未実装 | — | follow-up-work.mdフェーズC |
+| — | 外部公演API（§14 MVP対象外） | 🅱️ | [非MVPバックログ](#非mvpバックログ) | — |
+| — | 公式メンバーDB（§14 MVP対象外） | 🅱️ | [非MVPバックログ](#非mvpバックログ) | — |
 
-## §11 通知 → P6
+## §11 通知
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §11 | 通知対象一式/用途説明後に許可/重要通知に絞る初期設定/直接遷移/完了・不要は非通知/同日集約/種類別設定 | P6（基盤 ADR-0009） | ⬜ | [ADR-0009](adr/0009-push-notifications-fcm.md) | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §11 | 通知対象一式/FCM/APNs | ⬜ 境界のみ | `NotificationPlan`型のみ、firebase_messaging等未導入 | follow-up-work.mdフェーズD |
 
-## §12 マネタイズ → P7（プレミアムは非MVP）
+## §12 マネタイズ
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §12 | 必要かつ未登録時のみ導線/アフィリエイト明示/当日主要操作を優先しない | P7 | ⬜ | — | — |
-| §12 | プレミアム候補（容量拡張/AI整理/年間レポート/着せ替え/高度検索/クラウドバックアップ/共有上限拡張） | 🅱️ | 🅱️ | [非MVPバックログ](#非mvpバックログ) | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §12 | 必要かつ未登録時のみ導線 | ⬜ 未実装 | `GenbaPreparation`が判定材料として利用可能だが導線自体は未実装 | follow-up-work.mdフェーズE |
+| §12 | プレミアム候補 | 🅱️ | [非MVPバックログ](#非mvpバックログ) | — |
 
-## §13 設定 → P1（基盤）→ 各Phase追加 → P7（完成）
+## §13 設定
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §13 | アカウント/表示・テーマ・推しカラー・ダークモード・TZ | P1 | ⬜ | — | — |
-| §13 | 通知設定 | P6 | ⬜ | — | — |
-| §13 | プライバシー/人数集計参加/共有範囲/検索可否 | P6 | ⬜ | — | — |
-| §13 | データ出力・削除 | P7 | ⬜ | — | — |
-| §13 | チュートリアルをもう一度見る | P1 | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §13 | アカウント/表示・テーマ・推しカラー | ✅ | `lib/features/settings/`（`account_settings_screen.dart`、`theme_settings_screen.dart`、`oshi_color_settings_screen.dart`） | `test/widget/settings_screens_test.dart`、`test/notifier/oshi_color_controller_test.dart` |
+| §13 | 通知設定 | ⬜ 未実装 | §11に依存 | — |
+| §13 | プライバシー/人数集計参加/共有範囲 | ⬜ 未実装 | §7.8/§10.3に依存 | — |
+| §13 | データ出力・削除 | 🟡 部分実装 | `AccountController.deleteAccount`（アカウント削除は実装、データ**出力**は未実装） | `test/notifier/account_controller_test.dart` |
+| §13 | チュートリアルをもう一度見る | ✅ | `settings_screen.dart`の「チュートリアルをもう一度見る」行 | R8監査B章で確認 |
 
-## §14 MVP範囲 → 全Phase（対象外は非MVP）
+## §14 MVP範囲
 
-| 内容 | Phase | 状態 |
-|---|---|---|
-| MVP機能一式（登録・ログイン〜Push通知） | P1〜P7 | ⬜ |
-| MVP対象外（外部公演API/公式メンバーDB/本格SNS/支出管理/AI/年間レポート/公開プロフィール・ランキング・公式ニュース連携） | 🅱️非MVP | 🅱️ |
+| 内容 | 状態 |
+|---|---|
+| MVP機能一式 | 🟡 大半が✅（現場/思い出/マイ推し/設定/同期/認証）。共有・通知・公演DB高度機能・マネタイズは未実装（詳細は各節） |
+| MVP対象外 | 🅱️非MVP（下記バックログ） |
 
-## §15 非機能要件 → 横断
+## §15 非機能要件
 
-| 節 | 内容 | 主担当Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §15.1 | 対応環境/OS最低バージョン確定 | **P0** | ✅ | [ADR-0006](adr/0006-minimum-os-versions.md) | CIビルド（ツールチェーン導入後） |
-| §15.2 | セキュリティ・プライバシー（分離/暗号化/画像認可/共有サーバー検証/ログ除外/削除/デフォルト非公開） | P0基盤→各Phase→P7監査 | 🟡 | [ADR-0008](adr/0008-authorization-and-data-protection.md) | supabase/tests（予定） |
-| §15.3 | パフォーマンス・可用性（キャッシュ先行/オフライン/非同期アップロード/ページング/インクリメンタル検索/自動保存） | P2/P3/P4/P5 | ⬜ | [ADR-0005](adr/0005-local-persistence-drift.md) | — |
-| §15.4 | アクセシビリティ（色以外の区別/コントラスト/読み上げラベル/タップ領域） | P1基盤→各Phase→P7検証 | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §15.1 | 対応環境/OS最低バージョン | ✅ | [ADR-0006](adr/0006-minimum-os-versions.md)（iOS 15/Android API 26） | `dart run tool/verify_flavor_config.dart` |
+| §15.2 | セキュリティ・プライバシー | 🟡 | RLS全テーブル・SQLCipher暗号化・ログマスキング実装済みだが、R8監査でpgTAPカバレッジ欠如（F-2）とログマスキングのcamelCase欠陥（H-B、本監査で是正済み）を検出 | `supabase/tests/`、`test/core/result_and_logging_test.dart`、`test/core/encrypted_db_resolver_test.dart` |
+| §15.3 | パフォーマンス・可用性 | 🟡 | キャッシュ先行/Outbox/自動保存は実装済み。R8監査でOutbox conflict状態が永久に解消されない欠陥（E-1, High）を検出、Opus 4.8向け修正待ち。ページング・インクリメンタル検索は未実装 | R8監査E章 |
+| §15.4 | アクセシビリティ | ✅ | Semantics境界・Tooltip・48dp・文字200%対応（R7） | `test/widget/design_system_matrix_test.dart`、`test/widget/screen_matrix_test.dart` |
 
-## §16 開発・リリース前提 → P0 / P7
+## §16 開発・リリース前提
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §16.1 | クライアント（Flutter/Dart、FCM/APNs、写真選択/ディープリンク/オフライン） | P0（技術選定）/実装は各Phase | ✅(選定) | [ADR-0001](adr/0001-flutter-client.md),[ADR-0009](adr/0009-push-notifications-fcm.md) | — |
-| §16.2 | Windows開発範囲 / macOS必須工程 / リリース工程 | P0（整理）/P7（提出手順） | 🟡 | [setup.md](setup.md),[ci.yml](../.github/workflows/ci.yml) | CI（macOS導入後） |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §16.1 | クライアント技術選定 | ✅ | [ADR-0001](adr/0001-flutter-client.md) | — |
+| §16.2 | Windows開発範囲 / macOS必須工程 | 🟡 | Windows側（format/analyze/test/Android設定静的検証）は実行可能・実行済み。Android実ビルド・iOSビルドはSDK/macOS環境が本機に無く未実行（環境制約、コード不良ではない） | `.github/workflows/ci.yml`（CI環境では実行される想定） |
 
-## §17 成功指標 → 計測実装 P7
+## §17 成功指標
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §17 | 主要指標「2件目の現場登録率」＋補助指標の匿名イベント計測 | P7（各Phaseで計測点を用意） | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §17 | 匿名イベント計測 | ⬜ 未実装 | — | — |
 
-## §19 UI・ビジュアルデザイン → P1基盤 / 各Phase / P7最終検証
+## §19 UI・ビジュアルデザイン
 
-| 節 | 内容 | Phase | 状態 | 実装箇所 | テスト |
-|---|---|---|---|---|---|
-| §2.5, §19 | デザインコンセプト、配色、Design Token、共通コンポーネント | P1 | ⬜ | — | — |
-| §19 | ホーム、現場詳細、思い出一覧・詳細、マイ推し、設定・テーマの画面構成 | P1（基礎）→各機能Phase | ⬜ | — | — |
-| §19 | 写真あり／なし、ライト／ダーク、推しカラー、レスポンシブ、a11y | P1→P7 | ⬜ | — | — |
-| §19 | 権利処理済み画像のみ使用、チケット画像の自動露出禁止 | P1/P5/P7 | ⬜ | — | — |
+| 節 | 内容 | 状態 | 実装箇所 | テスト |
+|---|---|---|---|---|
+| §2.5, §19 | Design Token・共通コンポーネント | ✅ | `lib/app/design_system/`（15コンポーネント）、`lib/app/theme/app_tokens.dart` | `test/widget/design_system_test.dart`、`test/widget/design_system_matrix_test.dart` |
+| §19 | 主要6領域の画面構成 | ✅ | ホーム/現場一覧・詳細/思い出一覧・詳細/マイ推し/設定の各presentation | `test/widget/screen_matrix_test.dart`ほか |
+| §19 | 写真あり／なし、ライト／ダーク、推しカラー、レスポンシブ、a11y | ✅ | 同上 | `test/widget/design_system_matrix_test.dart`（360/430dp×light/dark×textScale2.0×推しカラー10色） |
+| §19 | 権利処理済み画像のみ使用、チケット画像の自動露出禁止 | ✅ | `Genba.heroImage`とTicketの型分離（`genba.dart`） | R8監査C章で構造分離を確認 |
 
 ---
 
@@ -168,4 +175,16 @@ MVPへ混入させない。将来対応候補として維持する（§14 対象
 
 ## 未割当チェック
 
-要件定義書 §1〜§19（サブ節含む）はすべて上記いずれかのPhaseまたは非MVPバックログへ割り当て済み。**未割当: 0件**。
+要件定義書 §1〜§19（サブ節含む）はすべて上記いずれかの状態・非MVPバックログへ割り当て済み。**未割当: 0件**。
+
+## 未実装・境界のみの項目一覧（follow-up-work.md対応表）
+
+| 節 | 内容 | follow-up-work.md該当フェーズ |
+|---|---|---|
+| §7.8 | 共有・権限 | フェーズC |
+| §8.3 | 入力通知 | フェーズD |
+| §10.2〜§10.4 | 公演DB検索・重複統合・通報 | フェーズC |
+| §11, §13通知設定 | Push通知一式 | フェーズD |
+| §12 | マネタイズ導線 | フェーズE |
+| §13データ出力 | データエクスポート | 未着手（follow-up-work.md未記載、要追加） |
+| §17 | 成功指標計測 | 未着手（follow-up-work.md未記載、要追加） |

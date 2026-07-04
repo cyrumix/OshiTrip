@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../db/app_database.dart';
 import '../error/failure.dart';
 import '../error/result.dart';
+import '../network/network_timeout.dart';
 import 'mutation_transport.dart';
 import 'outbox_operation.dart';
 import 'remote_mutation_client.dart';
@@ -101,13 +104,16 @@ class SupabaseMutationTransport implements MutationTransport {
           'p_payload': op.payload,
           'p_base_version': baseVersion,
         },
-      );
+      ).withRemoteTimeout();
       final map = (res as Map).cast<String, dynamic>();
       final status = map['status'] == 'conflict'
           ? MutationStatus.conflict
           : MutationStatus.applied;
       final version = (map['version'] as num?)?.toInt();
       return Ok(MutationOutcome(status: status, version: version));
+    } on TimeoutException catch (e) {
+      // ハングは NetworkFailure として pending に戻し、バックオフ再送する。
+      return Err(NetworkFailure(cause: e));
     } on AuthException catch (e) {
       return Err(AuthFailure(cause: e));
     } on PostgrestException catch (e) {

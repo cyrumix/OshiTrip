@@ -22,4 +22,10 @@ abstract interface class OshiRepository {
   /// しない。デモ・未ログインでは何もしない。
   /// [isStale] は認証切替検出用（true で以降のローカル適用を中断）。
   Future<Result<void>> refreshFromRemote({bool Function()? isStale});
+
+  /// 競合解決「サーバーを採用」用（R8-A 再レビュー）: [entityTable] の
+  /// [entityId] 1件だけサーバー最新内容を取得しローカルへ強制適用する。
+  /// 通信・保存失敗時は [Err] を返しローカルは変更しない（呼び出し側は成功後に
+  /// 競合opを削除する = 失敗安全）。所有しないテーブルは失敗を返す。
+  Future<Result<void>> adoptServerEntity(String entityTable, String entityId);
 }

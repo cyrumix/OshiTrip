@@ -69,10 +69,15 @@ class UpcomingAnniversary {
     required this.nextOccurrence,
     required this.daysUntil,
     this.memberId,
+    this.sourceId,
   });
 
   final AnniversaryKind kind;
   final String label;
+
+  /// custom の場合の元 [OshiAnniversary.id]（編集・削除に使う）。
+  /// birthday / oshiSince はメンバー編集から変更するため null。
+  final String? sourceId;
 
   /// 元の日付（誕生日・推し始めた日・記念日）。
   final DateTime date;
@@ -110,6 +115,7 @@ List<UpcomingAnniversary> deriveUpcomingAnniversaries({
     String label,
     DateTime date, {
     String? memberId,
+    String? sourceId,
   }) {
     final occ = nextOccurrence(date);
     return UpcomingAnniversary(
@@ -119,6 +125,7 @@ List<UpcomingAnniversary> deriveUpcomingAnniversaries({
       nextOccurrence: occ,
       daysUntil: occ.difference(today).inDays,
       memberId: memberId,
+      sourceId: sourceId,
     );
   }
 
@@ -149,7 +156,13 @@ List<UpcomingAnniversary> deriveUpcomingAnniversaries({
   }
   for (final a in anniversaries) {
     result.add(
-      build(AnniversaryKind.custom, a.label, a.date, memberId: a.memberId),
+      build(
+        AnniversaryKind.custom,
+        a.label,
+        a.date,
+        memberId: a.memberId,
+        sourceId: a.id,
+      ),
     );
   }
   result.sort((a, b) => a.nextOccurrence.compareTo(b.nextOccurrence));

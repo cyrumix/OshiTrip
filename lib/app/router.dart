@@ -15,7 +15,11 @@ import '../features/memory/presentation/memory_list_screen.dart';
 import '../features/onboarding/application/tutorial_controller.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/oshi/presentation/oshi_screens.dart';
+import '../features/settings/presentation/account_settings_screen.dart';
+import '../features/settings/presentation/data_management_screen.dart';
+import '../features/settings/presentation/oshi_color_settings_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
+import '../features/settings/presentation/theme_settings_screen.dart';
 
 /// ルーティング（go_router / StatefulShellRoute, ADR-0004）。
 ///
@@ -158,6 +162,25 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/settings',
                 builder: (context, state) => const SettingsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'theme',
+                    builder: (context, state) => const ThemeSettingsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'oshi-color',
+                    builder: (context, state) =>
+                        const OshiColorSettingsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'account',
+                    builder: (context, state) => const AccountSettingsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'data',
+                    builder: (context, state) => const DataManagementScreen(),
+                  ),
+                ],
               ),
             ],
           ),

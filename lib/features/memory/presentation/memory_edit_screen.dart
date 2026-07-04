@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
+import '../application/memory_actions_controller.dart';
 import '../application/memory_controllers.dart';
 import '../domain/memory.dart';
 
@@ -67,6 +68,15 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
     _showFailure(failure);
   }
 
+  /// 表紙を設定する（同一現場で cover は常に最大1件, design-spec §12.1）。
+  /// 書き込みは application 層（R7）。二重タップは controller 側で防ぐ。
+  Future<void> _setCover(String photoId) async {
+    final failure = await ref
+        .read(memoryActionsControllerProvider(widget.genbaId).notifier)
+        .setCoverPhoto(photoId);
+    _showFailure(failure);
+  }
+
   /// 失敗（null以外）だけを SnackBar で示す。成功していない操作を成功表示しない
   /// （H-07/M-01）。
   void _showFailure(Object? failure) {
@@ -116,7 +126,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
               ),
               if (bundle.photos.isNotEmpty)
                 SizedBox(
-                  height: 96,
+                  height: 120,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: bundle.photos.length,
@@ -133,8 +143,8 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: SizedBox(
-                              width: 96,
-                              height: 96,
+                              width: 120,
+                              height: 120,
                               child: file != null
                                   ? Image.file(
                                       file,
@@ -158,6 +168,46 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                               icon: const Icon(Icons.close),
                               onPressed: () => _deletePhoto(photo.id),
                             ),
+                          ),
+                          // 表紙の指定（isCover は常に最大1件, §12.1）。
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            child: photo.isCover
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      borderRadius: const BorderRadius.only(
+                                        topRight: Radius.circular(8),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '表紙',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                      semanticsLabel: '表紙に設定済み',
+                                    ),
+                                  )
+                                : IconButton(
+                                    tooltip: 'この写真を表紙にする',
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black45,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    iconSize: 16,
+                                    icon: const Icon(Icons.star_outline),
+                                    onPressed: () => _setCover(photo.id),
+                                  ),
                           ),
                         ],
                       );

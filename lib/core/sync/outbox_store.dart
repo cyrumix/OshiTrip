@@ -176,6 +176,111 @@ class OutboxStore {
         ),
       );
 
+  /// [ownerId] の競合(conflict)状態の操作を作成順で返す（解決UI用）。
+  /// 別ownerの競合は返さない（C-01）。
+  Future<List<OutboxOperation>> conflictOps({required String ownerId}) async {
+    final rows = await (_db.select(_db.outboxOps)
+          ..where(
+            (t) => t.status.equals('conflict') & t.ownerId.equals(ownerId),
+          )
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.createdAt),
+            (_) => OrderingTerm.asc(_rowid),
+          ]))
+        .get();
+    return rows.map(_toOp).toList();
+  }
+
+  /// [mutationId] の操作を状態不問で返す（owner一致のみ）。競合解決後の
+  /// 状態確認（drain 後に synced=削除／conflict／pending 等を判別）に使う。
+  Future<OutboxOperation?> opById(
+    String mutationId, {
+    required String ownerId,
+  }) async {
+    final row = await (_db.select(_db.outboxOps)
+          ..where(
+            (t) => t.mutationId.equals(mutationId) & t.ownerId.equals(ownerId),
+          ))
+        .getSingleOrNull();
+    return row == null ? null : _toOp(row);
+  }
+
+  /// [mutationId] の競合操作を返す（owner一致かつ status==conflict のときのみ）。
+  /// 解決処理が対象エンティティ（table/id）を知るために使う。
+  Future<OutboxOperation?> conflictById(
+    String mutationId, {
+    required String ownerId,
+  }) async {
+    final row = await (_db.select(_db.outboxOps)
+          ..where(
+            (t) =>
+                t.mutationId.equals(mutationId) &
+                t.ownerId.equals(ownerId) &
+                t.status.equals('conflict'),
+          ))
+        .getSingleOrNull();
+    return row == null ? null : _toOp(row);
+  }
+
+  /// 競合操作を破棄する（「サーバーの内容を採用」= この端末の変更を捨てる）。
+  ///
+  /// owner一致かつ status==conflict の行のみ削除する（別ownerの競合や、
+  /// 競合以外の状態の行は変更しない）。削除できたら true。
+  /// 上書き競合を黙って pending/failed へ戻すのではなく、ユーザーが明示的に
+  /// 「破棄」を選んだときだけ削除する（conflictの黙殺をしない）。
+  Future<bool> discardConflict(
+    String mutationId, {
+    required String ownerId,
+  }) async {
+    final deleted = await (_db.delete(_db.outboxOps)
+          ..where(
+            (t) =>
+                t.mutationId.equals(mutationId) &
+                t.ownerId.equals(ownerId) &
+                t.status.equals('conflict'),
+          ))
+        .go();
+    return deleted > 0;
+  }
+
+  /// 競合操作を pending へ戻して再送対象にする（「この端末の変更で再送」）。
+  ///
+  /// owner一致かつ status==conflict の行のみ対象。バックオフ待機も解除する。
+  /// **base_version は変えない**ため、サーバーが依然として先行していれば
+  /// 再び conflict に戻る（上書き競合を隠さず、安全に再判定される）。
+  /// 「この端末の変更を実際にサーバーへ反映させる」には、呼び出し側が事前に
+  /// 版キャッシュをサーバーの現在版へ整合させておく必要がある
+  /// （[reconcileServerVersionInto] 参照）。戻せたら true。
+  Future<bool> reopenConflict(
+    String mutationId, {
+    required String ownerId,
+  }) async {
+    final current = await (_db.select(_db.outboxOps)
+          ..where(
+            (t) =>
+                t.mutationId.equals(mutationId) &
+                t.ownerId.equals(ownerId) &
+                t.status.equals('conflict'),
+          ))
+        .getSingleOrNull();
+    if (current == null) return false;
+    await (_db.update(_db.outboxOps)
+          ..where(
+            (t) =>
+                t.mutationId.equals(mutationId) &
+                t.ownerId.equals(ownerId) &
+                t.status.equals('conflict'),
+          ))
+        .write(
+      OutboxOpsCompanion(
+        status: const Value('pending'),
+        nextRetryAt: const Value(null),
+        updatedAt: Value(_nowIso),
+      ),
+    );
+    return true;
+  }
+
   /// 対象エンティティ（[ownerId] 限定）に未同期変更が残っているか
   /// （pull時の上書き防止用）。別ownerの同一IDは対象にしない。
   Future<bool> hasPendingFor(

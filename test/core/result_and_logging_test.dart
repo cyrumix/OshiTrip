@@ -84,6 +84,23 @@ void main() {
       expect(masked['count'], 3);
     });
 
+    test('camelCaseキー（Dartフィールド名由来）でもマスクされる（R8監査是正）', () {
+      // context には JSON/DB由来の snake_case だけでなく、Dartの
+      // フィールド名（camelCase）がそのまま渡される呼び出しもあり得る。
+      // 旧実装は 'from_place' 等のパターンがアンダースコア込みだったため
+      // 'fromPlace'（小文字化すると 'fromplace'）に一致せず素通りしていた。
+      final masked = AppLogger.maskContext({
+        'entryNumber': '123',
+        'fromPlace': '東京駅',
+        'toPlace': '大阪駅',
+        'reservationNumber': 'RSV-999',
+      });
+      expect(masked['entryNumber'], AppLogger.maskText);
+      expect(masked['fromPlace'], AppLogger.maskText);
+      expect(masked['toPlace'], AppLogger.maskText);
+      expect(masked['reservationNumber'], AppLogger.maskText);
+    });
+
     test('ネストした Map / List 内もマスクされる', () {
       final masked = AppLogger.maskContext({
         'payload': {

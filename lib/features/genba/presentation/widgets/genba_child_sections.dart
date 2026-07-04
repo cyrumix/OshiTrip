@@ -1,0 +1,475 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../app/design_system/design_system.dart';
+import '../../../../core/widgets/async_view.dart';
+import '../../application/genba_actions_controller.dart';
+import '../../domain/genba.dart';
+import 'action_feedback.dart';
+import 'child_editors.dart';
+
+/// 現場詳細の子データタブ（チケット/交通/宿泊/Todo/メモ, design-spec §7.2）。
+///
+/// 各タブは独立したスクロール領域。既存のCRUD（child_editors）と
+/// [GenbaActionsController]（二重タップ防止・型付き失敗表示）へ接続する。
+
+/// タブ共通のリスト外装。スクロール位置はタブ切替後も保持する（§5）。
+class GenbaTabList extends StatelessWidget {
+  const GenbaTabList({
+    super.key,
+    required this.storageKey,
+    required this.children,
+  });
+
+  final String storageKey;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: PageStorageKey(storageKey),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.lg,
+        AppSpace.md,
+        AppSpace.lg,
+        96,
+      ),
+      children: children,
+    );
+  }
+}
+
+class TicketTab extends ConsumerWidget {
+  const TicketTab({super.key, required this.aggregate});
+
+  final GenbaAggregate aggregate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final genbaId = aggregate.genba.id;
+    final busyKeys = ref.watch(genbaActionsControllerProvider(genbaId));
+    GenbaActionsController controller() =>
+        ref.read(genbaActionsControllerProvider(genbaId).notifier);
+    return GenbaTabList(
+      storageKey: 'genba_tab_ticket_$genbaId',
+      children: [
+        SectionHeader(
+          title: 'チケット',
+          count: aggregate.tickets.length,
+          padding: const EdgeInsets.only(bottom: AppSpace.sm),
+          action: TextButton.icon(
+            onPressed: () => showTicketEditor(context, ref, genbaId: genbaId),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('追加'),
+          ),
+        ),
+        if (aggregate.tickets.isEmpty)
+          const AppCard(
+            child: Text('未登録。取得状況を記録しておくと当日すぐ確認できます。'),
+          ),
+        for (final ticket in aggregate.tickets)
+          AppCard(
+            margin: const EdgeInsets.only(bottom: AppSpace.sm),
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.confirmation_number_outlined),
+              title: Text(
+                [
+                  ticket.acquisitionStatus.label,
+                  ticket.paymentStatus.label,
+                  ticket.issuanceStatus.label,
+                ].join(' / '),
+              ),
+              subtitle: (ticket.seat != null || ticket.entryNumber != null)
+                  ? Text(
+                      [
+                        if (ticket.seat != null) '座席 ${ticket.seat}',
+                        if (ticket.entryNumber != null)
+                          '整理番号 ${ticket.entryNumber}',
+                      ].join(' / '),
+                    )
+                  : null,
+              trailing: IconButton(
+                tooltip: 'チケットを削除',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: busyKeys.contains(controller().ticketKey(ticket.id))
+                    ? null
+                    : () async {
+                        final ok = await confirmDangerAction(
+                          context,
+                          title: 'チケットを削除',
+                          message: 'このチケット情報を削除します。',
+                        );
+                        if (!ok || !context.mounted) return;
+                        final failure = await controller().deleteTicket(ticket);
+                        if (context.mounted) {
+                          handleActionResult(context, failure);
+                        }
+                      },
+              ),
+              onTap: () => showTicketEditor(
+                context,
+                ref,
+                genbaId: genbaId,
+                existing: ticket,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class TransportTab extends ConsumerWidget {
+  const TransportTab({super.key, required this.aggregate});
+
+  final GenbaAggregate aggregate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final genba = aggregate.genba;
+    final busyKeys = ref.watch(genbaActionsControllerProvider(genba.id));
+    GenbaActionsController controller() =>
+        ref.read(genbaActionsControllerProvider(genba.id).notifier);
+    return GenbaTabList(
+      storageKey: 'genba_tab_transport_${genba.id}',
+      children: [
+        SectionHeader(
+          title: '交通',
+          padding: const EdgeInsets.only(bottom: AppSpace.sm),
+          action: TextButton.icon(
+            onPressed: () =>
+                showTransportEditor(context, ref, genbaId: genba.id),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('追加'),
+          ),
+        ),
+        RequirementSelector(
+          value: genba.transportRequirement,
+          notRequiredLabel: '交通の登録は不要',
+          enabled: !busyKeys.contains('transportRequirement'),
+          onChanged: (req) async {
+            final failure =
+                await controller().setTransportRequirement(genba, req);
+            if (context.mounted) handleActionResult(context, failure);
+          },
+        ),
+        if (genba.transportRequirement != RequirementStatus.notRequired) ...[
+          if (aggregate.transports.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpace.sm),
+              child: Text('未登録'),
+            ),
+          for (final t in aggregate.transports)
+            AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpace.sm),
+              padding: EdgeInsets.zero,
+              child: ListTile(
+                leading: Icon(
+                  t.direction == TransportDirection.outbound
+                      ? Icons.arrow_circle_right_outlined
+                      : Icons.arrow_circle_left_outlined,
+                ),
+                title: Text('${t.direction.label} ${t.method ?? ''}'.trim()),
+                subtitle: (t.fromPlace != null || t.toPlace != null)
+                    ? Text('${t.fromPlace ?? '?'} → ${t.toPlace ?? '?'}')
+                    : null,
+                trailing: IconButton(
+                  tooltip: '交通を削除',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: busyKeys.contains(controller().transportKey(t.id))
+                      ? null
+                      : () async {
+                          final ok = await confirmDangerAction(
+                            context,
+                            title: '交通を削除',
+                            message: 'この交通情報を削除します。',
+                          );
+                          if (!ok || !context.mounted) return;
+                          final failure = await controller().deleteTransport(t);
+                          if (context.mounted) {
+                            handleActionResult(context, failure);
+                          }
+                        },
+                ),
+                onTap: () => showTransportEditor(
+                  context,
+                  ref,
+                  genbaId: genba.id,
+                  existing: t,
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class LodgingTab extends ConsumerWidget {
+  const LodgingTab({super.key, required this.aggregate});
+
+  final GenbaAggregate aggregate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final genba = aggregate.genba;
+    final busyKeys = ref.watch(genbaActionsControllerProvider(genba.id));
+    GenbaActionsController controller() =>
+        ref.read(genbaActionsControllerProvider(genba.id).notifier);
+    return GenbaTabList(
+      storageKey: 'genba_tab_lodging_${genba.id}',
+      children: [
+        SectionHeader(
+          title: '宿泊',
+          padding: const EdgeInsets.only(bottom: AppSpace.sm),
+          action: TextButton.icon(
+            onPressed: () => showLodgingEditor(context, ref, genbaId: genba.id),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('追加'),
+          ),
+        ),
+        RequirementSelector(
+          value: genba.lodgingRequirement,
+          notRequiredLabel: '宿泊なし',
+          enabled: !busyKeys.contains('lodgingRequirement'),
+          onChanged: (req) async {
+            final failure =
+                await controller().setLodgingRequirement(genba, req);
+            if (context.mounted) handleActionResult(context, failure);
+          },
+        ),
+        if (genba.lodgingRequirement != RequirementStatus.notRequired) ...[
+          if (aggregate.lodgings.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpace.sm),
+              child: Text('未登録'),
+            ),
+          for (final l in aggregate.lodgings)
+            AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpace.sm),
+              padding: EdgeInsets.zero,
+              child: ListTile(
+                leading: const Icon(Icons.hotel_outlined),
+                title: Text(l.name ?? '宿泊先'),
+                subtitle: l.checkinDate != null
+                    ? Text(
+                        '${l.checkinDate!.month}/${l.checkinDate!.day} チェックイン',
+                      )
+                    : null,
+                trailing: IconButton(
+                  tooltip: '宿泊を削除',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: busyKeys.contains(controller().lodgingKey(l.id))
+                      ? null
+                      : () async {
+                          final ok = await confirmDangerAction(
+                            context,
+                            title: '宿泊を削除',
+                            message: 'この宿泊情報を削除します。',
+                          );
+                          if (!ok || !context.mounted) return;
+                          final failure = await controller().deleteLodging(l);
+                          if (context.mounted) {
+                            handleActionResult(context, failure);
+                          }
+                        },
+                ),
+                onTap: () => showLodgingEditor(
+                  context,
+                  ref,
+                  genbaId: genba.id,
+                  existing: l,
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// 「未設定 / 必要 / 不要」の選択。「不要」と「未登録」を区別する（§7.4/§7.5）。
+class RequirementSelector extends StatelessWidget {
+  const RequirementSelector({
+    super.key,
+    required this.value,
+    required this.notRequiredLabel,
+    required this.onChanged,
+    this.enabled = true,
+  });
+
+  final RequirementStatus value;
+  final String notRequiredLabel;
+  final void Function(RequirementStatus value) onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+      child: Wrap(
+        spacing: AppSpace.sm,
+        children: [
+          ChoiceChip(
+            label: const Text('必要'),
+            selected: value == RequirementStatus.required,
+            onSelected:
+                enabled ? (_) => onChanged(RequirementStatus.required) : null,
+          ),
+          ChoiceChip(
+            label: Text(notRequiredLabel),
+            selected: value == RequirementStatus.notRequired,
+            onSelected: enabled
+                ? (_) => onChanged(RequirementStatus.notRequired)
+                : null,
+          ),
+          ChoiceChip(
+            label: const Text('未定'),
+            selected: value == RequirementStatus.unknown,
+            onSelected:
+                enabled ? (_) => onChanged(RequirementStatus.unknown) : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Todoタブ。タップ即座に見た目を切り替え（楽観更新）、保存に失敗したら
+/// 実際の値（変更されていない）に自然に戻り、理由を SnackBar で示す
+/// （H-07/M-01: 失敗を成功表示しない・ロールバック）。
+class TodoTab extends ConsumerStatefulWidget {
+  const TodoTab({super.key, required this.aggregate});
+
+  final GenbaAggregate aggregate;
+
+  @override
+  ConsumerState<TodoTab> createState() => _TodoTabState();
+}
+
+class _TodoTabState extends ConsumerState<TodoTab> {
+  /// 保存中の楽観表示値（todo.id -> 表示中のチェック状態）。
+  final Map<String, bool> _optimistic = {};
+
+  Future<void> _toggle(GenbaTodo todo, bool checked) async {
+    setState(() => _optimistic[todo.id] = checked);
+    final genbaId = widget.aggregate.genba.id;
+    final failure = await ref
+        .read(genbaActionsControllerProvider(genbaId).notifier)
+        .toggleTodo(todo, checked);
+    if (!mounted) return;
+    // ストリームが実データを反映するまでの間だけ楽観値を使う。
+    // 成功・失敗いずれでも楽観値は外し、実データ（成功時は新値、失敗時は
+    // 変更されていない元の値）に委ねる。
+    setState(() => _optimistic.remove(todo.id));
+    if (failure != null) handleActionResult(context, failure);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final genbaId = widget.aggregate.genba.id;
+    return GenbaTabList(
+      storageKey: 'genba_tab_todo_$genbaId',
+      children: [
+        SectionHeader(
+          title: 'Todo（残り${widget.aggregate.incompleteTodoCount}）',
+          padding: const EdgeInsets.only(bottom: AppSpace.sm),
+          action: TextButton.icon(
+            onPressed: () => showTodoEditor(context, ref, genbaId: genbaId),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('追加'),
+          ),
+        ),
+        if (widget.aggregate.todos.isEmpty)
+          const AppCard(
+            child: Text('Todoはまだありません。「追加」から準備リストを作りましょう。'),
+          ),
+        for (final todo in widget.aggregate.todos)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: _optimistic[todo.id] ?? todo.isDone,
+            onChanged: (checked) => _toggle(todo, checked ?? false),
+            title: Text(
+              todo.name,
+              style: todo.isDone
+                  ? const TextStyle(decoration: TextDecoration.lineThrough)
+                  : null,
+              semanticsLabel: '${todo.name}、${todo.isDone ? '完了済み' : '未完了'}',
+            ),
+            subtitle:
+                (todo.dueDate != null || todo.priority == TodoPriority.high)
+                    ? Text(
+                        [
+                          if (todo.priority == TodoPriority.high) '重要',
+                          if (todo.dueDate != null)
+                            '期限 ${todo.dueDate!.month}/${todo.dueDate!.day}',
+                        ].join(' / '),
+                      )
+                    : null,
+            secondary: IconButton(
+              tooltip: 'Todoを編集',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => showTodoEditor(
+                context,
+                ref,
+                genbaId: genbaId,
+                existing: todo,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class MemoTab extends ConsumerWidget {
+  const MemoTab({super.key, required this.aggregate});
+
+  final GenbaAggregate aggregate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final genbaId = aggregate.genba.id;
+    return GenbaTabList(
+      storageKey: 'genba_tab_memo_$genbaId',
+      children: [
+        const SectionHeader(
+          title: 'メモ',
+          padding: EdgeInsets.only(bottom: AppSpace.sm),
+        ),
+        for (final category in MemoCategory.values)
+          Builder(
+            builder: (context) {
+              final memo = aggregate.memoOf(category);
+              final hasBody = memo != null && memo.body.isNotEmpty;
+              return AppCard(
+                margin: const EdgeInsets.only(bottom: AppSpace.sm),
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  leading: const Icon(Icons.sticky_note_2_outlined),
+                  title: Text(category.label),
+                  subtitle: hasBody
+                      ? Text(
+                          memo.body,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      : const Text('未入力'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showMemoEditor(
+                    context,
+                    ref,
+                    genbaId: genbaId,
+                    category: category,
+                    existing: memo,
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}

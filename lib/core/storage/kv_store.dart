@@ -17,6 +17,16 @@ class KvKeys {
   static const themeMode = 'theme_mode';
   static const demoUser = 'demo_user';
 
+  /// ユーザーが選んだ推しカラー（#RRGGBB）。アクセント（罫線・リング・
+  /// プレースホルダー）のフォールバックに使う（design-spec §2/§11）。
+  ///
+  /// 推しカラーは個人化設定のため owner 単位で保存する（C-01）。ログアウト・
+  /// ユーザー切替時に別ユーザーへ色設定が漏れないよう、キーへ ownerId を
+  /// 含める。owner 不明の旧キー `oshi_accent_color`（R7 中間版のみ）は
+  /// 推測で誰かへ帰属させず読み捨てる（D-44 と同方針）。
+  static String oshiAccentColorFor(String ownerId) =>
+      'oshi_accent_color.$ownerId';
+
   /// サーバー側アカウント削除は成功したが、ローカルデータの物理削除が
   /// 未完了の owner_id を記録する（C-01）。値が残っている間は、次回起動時に
   /// ローカル purge を安全に再試行する。端末単位の運用フラグのため owner

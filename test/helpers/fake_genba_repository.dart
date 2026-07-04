@@ -113,4 +113,8 @@ class FakeGenbaRepository implements GenbaRepository {
   @override
   Future<Result<void>> refreshFromRemote({bool Function()? isStale}) =>
       _inner.refreshFromRemote(isStale: isStale);
+
+  @override
+  Future<Result<void>> adoptServerEntity(String entityTable, String entityId) =>
+      _inner.adoptServerEntity(entityTable, entityId);
 }

@@ -3,6 +3,24 @@
 対象: 根幹一括実装（2026-07-02）で「境界と土台」に留めた範囲。
 各項目に前提（依存）と、実装の起点となる既存境界を記す。
 
+## R8監査是正（2026-07-04, High 3件 → **実施済み**）
+
+R1〜R7完了後の独立監査（`docs/decisions.md`「R8 独立監査」節）でHigh 3件を検出し、
+Claude Opus 4.8 で R8-A → R8-C → R8-B の順に是正した（`docs/decisions.md`
+「R8 是正実施」節, D-169〜D-177）。
+
+- **R8-A ✅**: Outbox競合(conflict)の正式な解決処理を実装（`ConflictResolver`・
+  `OutboxStore` の owner 限定解決メソッド・`reconcileServerVersionInto`・
+  競合解決シートUI）。サーバー採用／端末再送の2択、conflictの黙殺なし、owner分離維持。
+- **R8-C ✅**: Supabase全通信に共通タイムアウト（`TimeoutHttpClient` + 各境界の
+  `.withRemoteTimeout()`）を導入し、`TimeoutException`→`NetworkFailure`へ変換。
+  `AccountController.deleteAccount()` に二重タップ防止を追加。
+- **R8-B ✅（SQLは静的検証のみ）**: 子テーブル7種+`outbox_operations`のpgTAP正例/負例を
+  `supabase/tests/0005_rls_child_and_master.sql` に追加。`performances` は DELETE 不可を
+  意図的仕様として明記・テスト化。`enforce_oshi_anniversary_owner` の直接防御を
+  `0008_anniversary_owner_hardening.sql` で追加。**Docker 未導入のため `supabase test db`
+  は未実行**（静的検証済み・要実機確認）。
+
 ## 追加方針: UI・ビジュアル刷新（2026-07-02）
 
 ユーザー提示の画面コンセプトを[UI・ビジュアルデザイン仕様書](design-spec.md)と要件§2.5／§19へ反映した。実装は[Fable後Phase別プロンプト](post-fable-phase-prompts.md)のPhase 1を正とし、根幹実装後レビューのCritical／High修正が完了してから行う。

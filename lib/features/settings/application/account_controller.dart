@@ -34,7 +34,24 @@ class AccountController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
+  /// 実行中の削除処理があるか（二重タップ防止, E-2 / R8-C）。
+  /// 他コントローラ（GenbaActionsController 等）と同じく操作単位のガードで、
+  /// ボタン連打で `deleteAccount()` が並行して2回走る（＝サーバーRPCが2回
+  /// 呼ばれる）ことを防ぐ。
+  bool _deleting = false;
+
   Future<Failure?> deleteAccount() async {
+    // 進行中の再入は無視する（連打しても実RPCは1回だけ）。
+    if (_deleting) return null;
+    _deleting = true;
+    try {
+      return await _deleteAccount();
+    } finally {
+      _deleting = false;
+    }
+  }
+
+  Future<Failure?> _deleteAccount() async {
     final scope = ref.read(localDataScopeProvider);
     final ownerId = scope is LocalDataScopeAuthenticated ? scope.ownerId : null;
     final db = ref.read(databaseProvider);

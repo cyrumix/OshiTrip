@@ -116,6 +116,13 @@ void main() {
     expect(find.text('まだ推しが登録されていません'), findsOneWidget);
 
     await tapTab('設定');
+    // R7: 設定は階層型リストになり項目が増えたため、行が画面外の場合は
+    // スクロールして表示する。
+    await tester.scrollUntilVisible(
+      find.text('チュートリアルをもう一度見る'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('チュートリアルをもう一度見る'), findsOneWidget);
 
     await tapTab('ホーム');

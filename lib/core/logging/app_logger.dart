@@ -18,16 +18,23 @@ class AppLogger {
   final LogLevel minLevel;
   final void Function(String line)? _output;
 
-  /// マスク対象キー（部分一致・小文字比較）。
+  /// マスク対象キー（部分一致・区切り文字を除いた小文字比較）。
+  ///
+  /// snake_case（DB/JSON由来: `from_place`）と camelCase（Dartフィールド:
+  /// `fromPlace`）のどちらでキー名が渡されても一致するよう、比較側
+  /// ([isSensitiveKey]) でアンダースコアを除去してから照合する。このため
+  /// パターン自体もアンダースコア無しの形で持つ（R8監査で発見: 旧実装は
+  /// `from_place` を持ちながら `fromPlace`（→`fromplace`）に一致せず、
+  /// camelCase キーで渡された場合にマスクを素通りする経路があった）。
   static const List<String> sensitiveKeyPatterns = [
     'seat', '座席',
-    'entry_number', 'entrynumber', '整理番号',
+    'entrynumber', '整理番号',
     'reservation', '予約番号',
     'address', '住所',
     'image', '画像',
     'password', 'token', 'secret', 'key', 'authorization',
-    'depart', 'arrive', 'from_place', 'to_place', // 交通詳細
-    'checkin', 'checkout', 'lodging_name', '宿泊',
+    'depart', 'arrive', 'fromplace', 'toplace', // 交通詳細
+    'checkin', 'checkout', '宿泊',
     'email', 'phone',
     'url',
   ];
@@ -43,8 +50,8 @@ class AppLogger {
       };
 
   static bool isSensitiveKey(String key) {
-    final lower = key.toLowerCase();
-    return sensitiveKeyPatterns.any(lower.contains);
+    final normalized = key.toLowerCase().replaceAll('_', '');
+    return sensitiveKeyPatterns.any(normalized.contains);
   }
 
   /// [context] のセンシティブ値をマスクした安全なマップを返す。

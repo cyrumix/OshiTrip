@@ -7,6 +7,7 @@ import '../../../core/db/app_database.dart';
 import '../../../core/db/owner_guard.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import '../../../core/network/network_timeout.dart';
 import '../../../core/sync/outbox_operation.dart';
 import '../../../core/sync/outbox_store.dart';
 import '../../../core/sync/remote_pull.dart';
@@ -421,7 +422,10 @@ class MemoryRepositoryImpl implements MemoryRepository {
           outbox: _outbox,
           owner: owner,
           tableName: SyncEntity.memoryEntries,
-          rows: await client.from(SyncEntity.memoryEntries).select(),
+          rows: await client
+              .from(SyncEntity.memoryEntries)
+              .select()
+              .withRemoteTimeout(),
           toCompanion: (json) => entryToCompanion(MemoryEntry.fromJson(json)),
           table: _db.memoryEntries,
           idColumn: (t) => t.id,
@@ -434,7 +438,10 @@ class MemoryRepositoryImpl implements MemoryRepository {
           outbox: _outbox,
           owner: owner,
           tableName: SyncEntity.memoryPhotos,
-          rows: await client.from(SyncEntity.memoryPhotos).select(),
+          rows: await client
+              .from(SyncEntity.memoryPhotos)
+              .select()
+              .withRemoteTimeout(),
           // 端末内の写真参照(local_path)はサーバーに無い。pull で null 上書き
           // しない（R6独立レビュー#3。hero/oshi 画像と同じ方針, H-04）。
           toCompanion: (json) => photoToCompanion(
@@ -452,7 +459,10 @@ class MemoryRepositoryImpl implements MemoryRepository {
           outbox: _outbox,
           owner: owner,
           tableName: SyncEntity.setlistItems,
-          rows: await client.from(SyncEntity.setlistItems).select(),
+          rows: await client
+              .from(SyncEntity.setlistItems)
+              .select()
+              .withRemoteTimeout(),
           toCompanion: (json) => setlistToCompanion(SetlistItem.fromJson(json)),
           table: _db.setlistItems,
           idColumn: (t) => t.id,
@@ -465,7 +475,10 @@ class MemoryRepositoryImpl implements MemoryRepository {
           outbox: _outbox,
           owner: owner,
           tableName: SyncEntity.goodsItems,
-          rows: await client.from(SyncEntity.goodsItems).select(),
+          rows: await client
+              .from(SyncEntity.goodsItems)
+              .select()
+              .withRemoteTimeout(),
           toCompanion: (json) => goodsToCompanion(GoodsItem.fromJson(json)),
           table: _db.goodsItems,
           idColumn: (t) => t.id,
@@ -478,7 +491,10 @@ class MemoryRepositoryImpl implements MemoryRepository {
           outbox: _outbox,
           owner: owner,
           tableName: SyncEntity.visitedPlaces,
-          rows: await client.from(SyncEntity.visitedPlaces).select(),
+          rows: await client
+              .from(SyncEntity.visitedPlaces)
+              .select()
+              .withRemoteTimeout(),
           toCompanion: (json) => placeToCompanion(VisitedPlace.fromJson(json)),
           table: _db.visitedPlaces,
           idColumn: (t) => t.id,
@@ -488,6 +504,122 @@ class MemoryRepositoryImpl implements MemoryRepository {
         );
       },
       onError: (e, _) => NetworkFailure(cause: e),
+    );
+  }
+
+  // ---- 競合解決「サーバーを採用」（R8-A 再レビュー）------------------------
+
+  @override
+  Future<Result<void>> adoptServerEntity(
+    String entityTable,
+    String entityId,
+  ) async {
+    final client = _remote();
+    if (client == null) return const Ok(null);
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    return guardResult(
+      () async {
+        switch (entityTable) {
+          case SyncEntity.memoryEntries:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.memoryEntries,
+              entityId,
+              (json) => entryToCompanion(MemoryEntry.fromJson(json)),
+              _db.memoryEntries,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.memoryPhotos:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.memoryPhotos,
+              entityId,
+              (json) => photoToCompanion(
+                MemoryPhoto.fromJson(json),
+                preserveLocalImage: true,
+              ),
+              _db.memoryPhotos,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.setlistItems:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.setlistItems,
+              entityId,
+              (json) => setlistToCompanion(SetlistItem.fromJson(json)),
+              _db.setlistItems,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.goodsItems:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.goodsItems,
+              entityId,
+              (json) => goodsToCompanion(GoodsItem.fromJson(json)),
+              _db.goodsItems,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          case SyncEntity.visitedPlaces:
+            await _adoptOne(
+              client,
+              owner,
+              SyncEntity.visitedPlaces,
+              entityId,
+              (json) => placeToCompanion(VisitedPlace.fromJson(json)),
+              _db.visitedPlaces,
+              (t) => t.id,
+              (t) => t.ownerId,
+              (r) => r.id,
+            );
+          default:
+            throw ArgumentError('memory repo は $entityTable を所有しません');
+        }
+      },
+      onError: (e, _) => e is ArgumentError
+          ? UnknownFailure(cause: e)
+          : NetworkFailure(cause: e),
+    );
+  }
+
+  Future<void> _adoptOne<T extends Table, R>(
+    SupabaseClient client,
+    String owner,
+    String tableName,
+    String entityId,
+    Insertable<R> Function(Map<String, dynamic> json) toCompanion,
+    TableInfo<T, R> table,
+    TextColumn Function(T table) idColumn,
+    TextColumn Function(T table) ownerColumn,
+    String Function(R row) idOf,
+  ) async {
+    final rows = await client.from(tableName).select().withRemoteTimeout();
+    await applyPulledRowsInto(
+      db: _db,
+      outbox: _outbox,
+      owner: owner,
+      tableName: tableName,
+      rows: rows,
+      toCompanion: toCompanion,
+      table: table,
+      idColumn: idColumn,
+      ownerColumn: ownerColumn,
+      idOf: idOf,
+      forceEntityIds: {entityId},
     );
   }
 }

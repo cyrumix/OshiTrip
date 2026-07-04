@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
 import '../../../core/images/image_store.dart';
+import '../../../core/network/network_timeout.dart';
 import '../../../core/time/clock.dart';
 import '../domain/memory.dart';
 import '../domain/memory_repository.dart';
@@ -43,11 +46,14 @@ class SupabasePhotoUploader implements MemoryPhotoUploader {
     }
     try {
       final path = _objectPath(photo);
-      await _client.storage.from(bucket).upload(
+      await _client.storage
+          .from(bucket)
+          .upload(
             path,
             file,
             fileOptions: const FileOptions(upsert: true),
-          );
+          )
+          .withRemoteTimeout();
       return Ok(
         photo.copyWith(
           storagePath: path,
@@ -55,6 +61,8 @@ class SupabasePhotoUploader implements MemoryPhotoUploader {
           updatedAt: _clock.now().toUtc(),
         ),
       );
+    } on TimeoutException catch (e) {
+      return Err(NetworkFailure(message: '写真のアップロードに失敗しました', cause: e));
     } on StorageException catch (e) {
       if (e.statusCode == '403') {
         return Err(PermissionFailure(cause: e));
@@ -74,8 +82,11 @@ class SupabasePhotoUploader implements MemoryPhotoUploader {
     try {
       final url = await _client.storage
           .from(bucket)
-          .createSignedUrl(path, 60 * 60); // 1時間
+          .createSignedUrl(path, 60 * 60) // 1時間
+          .withRemoteTimeout();
       return Ok(Uri.parse(url));
+    } on TimeoutException catch (e) {
+      return Err(NetworkFailure(message: '写真URLの取得に失敗しました', cause: e));
     } on StorageException catch (e) {
       return Err(PermissionFailure(cause: e));
     } catch (e) {
