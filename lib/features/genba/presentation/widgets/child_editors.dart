@@ -12,6 +12,7 @@ import '../../../../core/images/image_store.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/time/date_only.dart';
 import '../../../../core/widgets/async_view.dart';
+import '../../application/genba_actions_controller.dart';
 import '../../domain/genba.dart';
 
 /// 現場詳細の子データ編集ボトムシート群（§7.3〜§7.7）。
@@ -761,11 +762,22 @@ class _TodoEditorState extends ConsumerState<_TodoEditor> {
       message: '「${existing.name}」を削除します。この操作は取り消せません。',
     );
     if (!confirmed || !mounted) return;
-    final result =
-        await ref.read(genbaRepositoryProvider).deleteTodo(existing.id);
+    // 削除は application 層（GenbaActionsController）へ集約する。完了切替
+    // （toggleTodo）と同じ todoKey を使うため、同一項目の完了切替・削除の
+    // 連続/競合実行は二重タップ防止で直列化される。
+    final failure = await ref
+        .read(genbaActionsControllerProvider(widget.genbaId).notifier)
+        .deleteTodo(existing);
     if (!mounted) return;
-    Navigator.of(context).pop();
-    _showResult(context, result, '$labelを削除しました');
+    if (failure == null) {
+      // 成功時のみシートを閉じる。失敗時は開いたまま再試行・キャンセルできる
+      // ようにし、成功したような表示はしない。
+      Navigator.of(context).pop();
+      _showResult(context, const Ok(null), '$labelを削除しました');
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(failure.message)));
+    }
   }
 
   @override
@@ -970,68 +982,81 @@ class _EditorScaffoldState extends State<_EditorScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.85,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                if (widget.onDelete != null)
-                  // 削除は確認ダイアログ→即時削除で完結するため、進行中は
-                  // ボタンを無効化するだけにする（確認中に回るスピナーは出さない）。
-                  IconButton(
-                    onPressed: _busy ? null : _handleDelete,
-                    tooltip: '削除',
-                    color: Theme.of(context).colorScheme.error,
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  tooltip: '閉じる',
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.all(16),
-              children: widget.children,
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _busy ? null : _handleSave,
-                  child: _saving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            semanticsLabel: '保存中',
-                          ),
-                        )
-                      : const Text('保存する'),
+    // _busy 中はシートを閉じさせない。PopScope はシステム戻る操作／バリア
+    // （シート外）タップを止める（どちらも Navigator.maybePop 経由）。一方、
+    // DraggableScrollableSheet を最小サイズまでドラッグして閉じる操作は
+    // Navigator.pop を直接呼ぶため PopScope では止まらず、ここでは
+    // NotificationListener で DraggableScrollableNotification 自体を
+    // 握りつぶして親（BottomSheetの自動クローズ処理）へ伝播させない。
+    return PopScope(
+      canPop: !_busy,
+      child: NotificationListener<DraggableScrollableNotification>(
+        onNotification: (notification) => _busy,
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.85,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) => Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    if (widget.onDelete != null)
+                      // 削除は確認ダイアログ→即時削除で完結するため、進行中は
+                      // ボタンを無効化するだけにする（確認中に回るスピナーは出さない）。
+                      IconButton(
+                        onPressed: _busy ? null : _handleDelete,
+                        tooltip: '削除',
+                        color: Theme.of(context).colorScheme.error,
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    IconButton(
+                      onPressed:
+                          _busy ? null : () => Navigator.of(context).pop(),
+                      tooltip: '閉じる',
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
               ),
-            ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(16),
+                  children: widget.children,
+                ),
+              ),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _busy ? null : _handleSave,
+                      child: _saving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                semanticsLabel: '保存中',
+                              ),
+                            )
+                          : const Text('保存する'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

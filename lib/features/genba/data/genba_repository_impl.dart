@@ -137,6 +137,14 @@ class GenbaRepositoryImpl implements GenbaRepository {
   /// 見ずに既存行を更新してしまう。別ownerが同一ID（推測ID含む）で upsert
   /// できないよう、書き込み前に「同一IDで別ownerの行が既に存在しないか」を
   /// 確認して拒否する。
+  ///
+  /// delete も同様に、実際の削除は owner 付き WHERE 句で絞られるため別owner
+  /// の行そのものは消えないが、確認なしに進めると「削除対象0件」でも成功扱い
+  /// となり、実行していないowner側に不要な delete Outbox が積まれてしまう。
+  /// そのため upsert と同じ事前チェックで、ローカルに別ownerの同一IDが存在
+  /// する削除は型付き [AuthFailure] で拒否し、ローカル行にもOutboxにも触れない。
+  /// 一方、どのownerにも存在しないID（通常の冪等削除・リモートのみに存在する
+  /// 行など）は該当せず、従来どおり delete Outbox を積んで同期へ回す。
   /// [parentTable]/[parentId] を指定すると、書き込みと同一 transaction 内で
   /// 「親が現在ownerに属する」ことを検証し、満たさない場合は型付き
   /// [ValidationFailure] で拒否してローカル行も Outbox も作成しない（C-01）。
@@ -156,7 +164,7 @@ class GenbaRepositoryImpl implements GenbaRepository {
     if (payload.containsKey('owner_id') && payload['owner_id'] != owner) {
       return const Err(AuthFailure(message: '所有者が一致しません'));
     }
-    if (opType == OutboxOpType.upsert &&
+    if ((opType == OutboxOpType.upsert || opType == OutboxOpType.delete) &&
         await _db.existsForOtherOwner(entityTable, entityId, owner)) {
       return const Err(AuthFailure(message: '既存の別ユーザーのデータは操作できません'));
     }

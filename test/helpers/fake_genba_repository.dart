@@ -118,8 +118,35 @@ class FakeGenbaRepository implements GenbaRepository {
     return _inner.upsertTodo(todo);
   }
 
+  /// true の間、次回の [deleteTodo] 呼び出しは実行前に失敗を返す（委譲しない）。
+  /// 一度使うと自動的に false へ戻る（Todo/持ち物削除の失敗回帰テスト用）。
+  bool failNextDeleteTodo = false;
+
+  /// 次回の [deleteTodo] を明示的に「停止」できるゲート。設定すると、次の
+  /// deleteTodo 呼び出しは委譲せずこの Completer の future を返し、テストが
+  /// complete するまで未完了のまま留まる（実時間 delay に依存しない）。
+  Completer<Result<void>>? nextDeleteTodoGate;
+
+  /// [deleteTodo] の総呼び出し回数（二重実行防止で「実際には呼ばれていない」
+  /// ことを検証するため）。
+  int deleteTodoCallCount = 0;
+
   @override
-  Future<Result<void>> deleteTodo(String id) => _inner.deleteTodo(id);
+  Future<Result<void>> deleteTodo(String id) async {
+    deleteTodoCallCount++;
+    final gate = nextDeleteTodoGate;
+    if (gate != null) {
+      nextDeleteTodoGate = null;
+      final result = await gate.future;
+      if (result.isOk) return _inner.deleteTodo(id);
+      return result;
+    }
+    if (failNextDeleteTodo) {
+      failNextDeleteTodo = false;
+      return const Err(StorageFailure(message: 'テスト用のTodo削除失敗'));
+    }
+    return _inner.deleteTodo(id);
+  }
 
   @override
   Future<Result<void>> upsertMemo(GenbaMemo memo) => _inner.upsertMemo(memo);

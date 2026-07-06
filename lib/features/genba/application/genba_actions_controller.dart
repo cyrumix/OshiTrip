@@ -14,6 +14,9 @@ import '../domain/genba.dart';
 ///   ことはない（同一キーの再入だけを弾く）。
 /// - 成功していない操作を成功表示しない: 各メソッドは [Failure]（null=成功）を
 ///   返し、呼び出し側（presentation）が必ず結果を見てユーザーへ伝える。
+///   同一キーが処理中で今回の呼び出しを実行しなかった場合も、成功を表す
+///   null ではなく [OperationInProgressFailure] を返す（「成功」と「未実行」を
+///   混同しない。呼び出し側で成功表示・楽観更新の確定をしてしまうのを防ぐ）。
 /// - 画像を伴う削除（チケット/ヒーロー）は、レコード削除成功後にのみ
 ///   owner スコープでファイルを掃除する（他ユーザーのファイルには触れない, H-04）。
 /// - 現場フィールドの更新（中止/終演/要否/ヒーロー画像）は [Genba] 全体を
@@ -35,7 +38,10 @@ class GenbaActionsController
     String key,
     Future<Failure?> Function() action,
   ) async {
-    if (state.contains(key)) return null; // 二重タップ: 同一操作の再入を無視。
+    // 二重タップ: 同一操作の再入は実行しない。ただし「実行して成功した」
+    // (null) と区別できないと、呼び出し側が未実行を成功と誤認しうるため、
+    // 専用の Failure を返す（実際に action() が走った場合のみ null=成功）。
+    if (state.contains(key)) return const OperationInProgressFailure();
     state = {...state, key};
     try {
       return await action();
@@ -154,6 +160,17 @@ class GenbaActionsController
         final result = await ref
             .read(genbaRepositoryProvider)
             .upsertTodo(todo.copyWith(isDone: done));
+        return result.failureOrNull;
+      });
+
+  /// Todo/持ち物の削除。呼び出し前に presentation 側で確認ダイアログを表示すること。
+  /// [toggleTodo] と同じ [todoKey] を使うため、同一項目の完了切替・削除・
+  /// 連続削除が同時実行されることはない（キー単位の二重タップ防止）。
+  /// owner認可・Outboxへの積み込みは [GenbaRepository.deleteTodo] へ委譲する。
+  Future<Failure?> deleteTodo(GenbaTodo todo) =>
+      _run(todoKey(todo.id), () async {
+        final result =
+            await ref.read(genbaRepositoryProvider).deleteTodo(todo.id);
         return result.failureOrNull;
       });
 
