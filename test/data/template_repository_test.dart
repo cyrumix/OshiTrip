@@ -123,7 +123,7 @@ void main() {
     await repoA.saveTemplateWithItems(
       template: makeTemplate(id: 'tpl-a', ownerId: 'user-1'),
       items: [
-        makeTemplateItem(id: 'i1', templateId: 'tpl-a', ownerId: 'user-1')
+        makeTemplateItem(id: 'i1', templateId: 'tpl-a', ownerId: 'user-1'),
       ],
     );
 
@@ -165,5 +165,150 @@ void main() {
     expect(all, hasLength(1));
     expect(all.single.template.name, '永続確認');
     expect(all.single.sortedItems.map((i) => i.name), ['X', 'Y']);
+  });
+
+  group('saveTemplateWithItems の原子性（単一トランザクション）', () {
+    test('項目保存の途中で失敗すると、テンプレート本体も項目もOutboxも残らない', () async {
+      final repo = repoFor('user-1');
+      // 2件目の項目書き込みの直前で失敗させる（実時間 delay に依存しない seam）。
+      repo.debugBeforeItemWrite = (item) {
+        if (item.id == 'i2') throw Exception('boom');
+      };
+      final result = await repo.saveTemplateWithItems(
+        template: makeTemplate(id: 'tpl-a', name: '途中失敗'),
+        items: [
+          makeTemplateItem(id: 'i1', templateId: 'tpl-a', name: 'A'),
+          makeTemplateItem(id: 'i2', templateId: 'tpl-a', name: 'B'),
+          makeTemplateItem(id: 'i3', templateId: 'tpl-a', name: 'C'),
+        ],
+      );
+      expect(result.isOk, isFalse);
+
+      // テンプレート本体・項目とも残っていない（全ロールバック）。
+      expect(await repo.watchAll().first, isEmpty);
+      expect(await db.select(db.todoTemplates).get(), isEmpty);
+      expect(await db.select(db.todoTemplateItems).get(), isEmpty);
+
+      // Outbox にもテンプレート系の op が積まれていない。
+      final ops = await outbox.pendingOps(ownerId: 'user-1');
+      expect(
+        ops.where(
+          (o) =>
+              o.entityTable == SyncEntity.todoTemplates ||
+              o.entityTable == SyncEntity.todoTemplateItems,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('replaceItems 途中の失敗で既存テンプレートが部分更新されない', () async {
+      final repo = repoFor('user-1');
+      // 既存テンプレート（name=旧, items i1=A, i2=B）を作る。
+      await repo.saveTemplateWithItems(
+        template: makeTemplate(id: 'tpl-a', name: '旧'),
+        items: [
+          makeTemplateItem(id: 'i1', templateId: 'tpl-a', name: 'A'),
+          makeTemplateItem(id: 'i2', templateId: 'tpl-a', name: 'B'),
+        ],
+      );
+
+      // 置換保存を試みる: name=新、i1をA2へ改名、i2を削除、i3を追加。
+      // ただし i3 の書き込み直前で失敗させる。
+      repo.debugBeforeItemWrite = (item) {
+        if (item.id == 'i3') throw Exception('boom');
+      };
+      final result = await repo.saveTemplateWithItems(
+        template: makeTemplate(id: 'tpl-a', name: '新'),
+        items: [
+          makeTemplateItem(id: 'i1', templateId: 'tpl-a', name: 'A2'),
+          makeTemplateItem(id: 'i3', templateId: 'tpl-a', name: 'C'),
+        ],
+      );
+      expect(result.isOk, isFalse);
+
+      // 既存テンプレートは一切変更されていない（name も項目もロールバック）。
+      final all = await repo.watchAll().first;
+      expect(all, hasLength(1));
+      expect(all.single.template.name, '旧');
+      expect(all.single.sortedItems.map((i) => i.name), ['A', 'B']);
+    });
+
+    test('成功時は必要なOutbox（テンプレート1件+項目2件）がすべて作成される', () async {
+      final repo = repoFor('user-1');
+      final result = await repo.saveTemplateWithItems(
+        template: makeTemplate(id: 'tpl-a'),
+        items: [
+          makeTemplateItem(id: 'i1', templateId: 'tpl-a', name: 'A'),
+          makeTemplateItem(id: 'i2', templateId: 'tpl-a', name: 'B'),
+        ],
+      );
+      expect(result.isOk, isTrue);
+      final ops = await outbox.pendingOps(ownerId: 'user-1');
+      expect(
+        ops.where((o) => o.entityTable == SyncEntity.todoTemplates),
+        hasLength(1),
+      );
+      expect(
+        ops.where((o) => o.entityTable == SyncEntity.todoTemplateItems),
+        hasLength(2),
+      );
+    });
+
+    test('並び替えが全件まとめて反映される（replaceItems）', () async {
+      final repo = repoFor('user-1');
+      await repo.saveTemplateWithItems(
+        template: makeTemplate(id: 'tpl-a'),
+        items: [
+          makeTemplateItem(
+            id: 'i1',
+            templateId: 'tpl-a',
+            name: 'A',
+            sortOrder: 0,
+          ),
+          makeTemplateItem(
+            id: 'i2',
+            templateId: 'tpl-a',
+            name: 'B',
+            sortOrder: 1,
+          ),
+          makeTemplateItem(
+            id: 'i3',
+            templateId: 'tpl-a',
+            name: 'C',
+            sortOrder: 2,
+          ),
+        ],
+      );
+
+      // C, A, B の順へ並び替え（sortOrder を全件付け直して一括保存）。
+      await repo.saveTemplateWithItems(
+        template: makeTemplate(id: 'tpl-a'),
+        items: [
+          makeTemplateItem(
+            id: 'i3',
+            templateId: 'tpl-a',
+            name: 'C',
+            sortOrder: 0,
+          ),
+          makeTemplateItem(
+            id: 'i1',
+            templateId: 'tpl-a',
+            name: 'A',
+            sortOrder: 1,
+          ),
+          makeTemplateItem(
+            id: 'i2',
+            templateId: 'tpl-a',
+            name: 'B',
+            sortOrder: 2,
+          ),
+        ],
+      );
+
+      final all = await repo.watchAll().first;
+      expect(all.single.sortedItems.map((i) => i.name), ['C', 'A', 'B']);
+      // 件数は変わらず3件のまま（重複追加も欠落もない）。
+      expect(all.single.items, hasLength(3));
+    });
   });
 }

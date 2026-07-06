@@ -63,7 +63,10 @@ void main() {
     final c = await container(db);
     await c.read(genbaRepositoryProvider).upsertGenba(
           makeGenba(
-              id: genbaId, ownerId: ownerId, eventDate: DateTime(2026, 8, 1)),
+            id: genbaId,
+            ownerId: ownerId,
+            eventDate: DateTime(2026, 8, 1),
+          ),
         );
 
     final preset = TemplateOption.fromPreset(kLiveBelongingPreset);
@@ -93,7 +96,10 @@ void main() {
     final c = await container(db);
     await c.read(genbaRepositoryProvider).upsertGenba(
           makeGenba(
-              id: genbaId, ownerId: ownerId, eventDate: DateTime(2026, 8, 1)),
+            id: genbaId,
+            ownerId: ownerId,
+            eventDate: DateTime(2026, 8, 1),
+          ),
         );
     final preset = TemplateOption.fromPreset(kLiveBelongingPreset);
     final actions = c.read(templateActionsProvider);
@@ -161,6 +167,8 @@ void main() {
     final options = c.read(templateOptionsProvider(TodoItemType.todo));
     expect(options.where((o) => o.isPreset), hasLength(1));
     expect(
-        options.where((o) => !o.isPreset && o.name == '定番Todo'), hasLength(1));
+      options.where((o) => !o.isPreset && o.name == '定番Todo'),
+      hasLength(1),
+    );
   });
 }

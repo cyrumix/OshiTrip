@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:oshi_trip/core/error/failure.dart';
 import 'package:oshi_trip/core/error/result.dart';
 import 'package:oshi_trip/features/genba/domain/genba.dart';
@@ -92,8 +94,23 @@ class FakeGenbaRepository implements GenbaRepository {
   /// 一度使うと自動的に false へ戻る（Todo楽観更新のロールバック回帰テスト用）。
   bool failNextUpsertTodo = false;
 
+  /// 次回の [upsertTodo] を明示的に「停止」できるゲート。設定すると、次の
+  /// upsertTodo 呼び出しは委譲せずこの Completer の future を返し、テストが
+  /// complete するまで未完了のまま留まる。これにより楽観更新の途中状態を
+  /// 安定して観測でき、保存結果（成功/失敗）を実時間 delay に依存せず注入できる。
+  Completer<Result<void>>? nextUpsertTodoGate;
+
   @override
   Future<Result<void>> upsertTodo(GenbaTodo todo) async {
+    final gate = nextUpsertTodoGate;
+    if (gate != null) {
+      nextUpsertTodoGate = null;
+      // テストが gate.complete(...) するまで保存は完了しない（微小遅延にも
+      // 依存しない）。成功で complete された場合のみ実データへ委譲する。
+      final result = await gate.future;
+      if (result.isOk) return _inner.upsertTodo(todo);
+      return result;
+    }
     if (failNextUpsertTodo) {
       failNextUpsertTodo = false;
       return const Err(StorageFailure(message: 'テスト用のTodo保存失敗'));

@@ -399,8 +399,12 @@ class _TemplateEditBody extends ConsumerWidget {
       final res = await repo.upsertTemplate(
         template.copyWith(name: name, updatedAt: now),
       );
-      if (context.mounted)
-        _snack(context, res.isOk ? '名称を変更しました' : res.failureOrNull!.message);
+      if (context.mounted) {
+        _snack(
+          context,
+          res.isOk ? '名称を変更しました' : res.failureOrNull!.message,
+        );
+      }
     }
 
     Future<void> deleteTemplate() async {
@@ -749,15 +753,54 @@ Future<String?> _promptText(
   required String initial,
   required String label,
 }) {
-  final controller = TextEditingController(text: initial);
   return showDialog<String>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
+    builder: (context) => _TextPromptDialog(
+      title: title,
+      initial: initial,
+      label: label,
+    ),
+  );
+}
+
+/// 名前入力ダイアログ。TextEditingController をダイアログ自身のライフサイクルで
+/// 所有・破棄する（showDialog の Future 完了＝pop 呼び出し時点であり、退場
+/// アニメーション中はまだ TextField が生存しているため、呼び出し元で
+/// `whenComplete(controller.dispose)` すると「disposed 後の Controller 使用」で
+/// 描画中に例外が出る。genba_form_screen の _NamePromptDialog と同じ構造）。
+class _TextPromptDialog extends StatefulWidget {
+  const _TextPromptDialog({
+    required this.title,
+    required this.initial,
+    required this.label,
+  });
+
+  final String title;
+  final String initial;
+  final String label;
+
+  @override
+  State<_TextPromptDialog> createState() => _TextPromptDialogState();
+}
+
+class _TextPromptDialogState extends State<_TextPromptDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         autofocus: true,
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(labelText: widget.label),
         onSubmitted: (v) => Navigator.pop(context, v.trim()),
       ),
       actions: [
@@ -766,10 +809,10 @@ Future<String?> _promptText(
           child: const Text('キャンセル'),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, controller.text.trim()),
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
           child: const Text('変更する'),
         ),
       ],
-    ),
-  ).whenComplete(controller.dispose);
+    );
+  }
 }

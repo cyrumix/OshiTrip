@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oshi_trip/app/app.dart';
 import 'package:oshi_trip/core/db/app_database.dart';
+import 'package:oshi_trip/core/error/failure.dart';
+import 'package:oshi_trip/core/error/result.dart';
 import 'package:oshi_trip/core/providers.dart';
 import 'package:oshi_trip/core/storage/kv_store.dart';
 import 'package:oshi_trip/core/time/clock.dart';
@@ -122,19 +125,30 @@ void main() {
     final checkbox = find.widgetWithText(CheckboxListTile, '銀テを持参する');
     expect(tester.widget<CheckboxListTile>(checkbox).value, isFalse);
 
-    // 次回の Todo 保存を失敗させておき、チェックをタップする。
-    fakeRepo.failNextUpsertTodo = true;
+    // 次回の Todo 保存を「停止」させておく（実時間 delay に依存せず、保存を
+    // 未完了のまま保持して楽観更新の途中状態を安定して観測するため）。
+    final gate = Completer<Result<void>>();
+    fakeRepo.nextUpsertTodoGate = gate;
+
+    // 1) チェックをタップ。
     await tester.tap(checkbox);
-    // タップ直後（保存完了前）は楽観更新で即座にチェック済み表示になる。
+    // 2) 保存の Future は未完了のまま。
+    // 3) pump して、タップ直後の楽観的なチェック済み表示を確認する。
     await tester.pump();
     expect(tester.widget<CheckboxListTile>(checkbox).value, isTrue);
+    expect(gate.isCompleted, isFalse);
 
-    // 保存の失敗が返り、成功表示されず、楽観表示が元（未完了）へ戻る。
+    // 4) テスト側から保存失敗を明示的に完了させる。
+    gate.complete(const Err(StorageFailure(message: 'テスト用のTodo保存失敗')));
+    // 5) 反映を待つ。
     await tester.pumpAndSettle();
+
+    // 6) 未完了へ戻る（成功表示されない）。
     expect(tester.widget<CheckboxListTile>(checkbox).value, isFalse);
+    // 7) エラー SnackBar が出る。
     expect(find.text('テスト用のTodo保存失敗'), findsOneWidget);
 
-    // 実データも変更されていない（本当にロールバックされている）ことを確認。
+    // 8) 実データも変更されていない（本当にロールバックされている）。
     final reloaded = await container
         .read(genbaRepositoryProvider)
         .watchById('g-failtest')

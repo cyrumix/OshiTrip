@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -45,6 +46,12 @@ class TemplateRepositoryImpl implements TemplateRepository {
   static const _uuid = Uuid();
 
   DateTime get _now => _clock.now().toUtc();
+
+  /// テスト用 seam（実時間 delay に依存せず失敗を注入するため）。
+  /// [saveTemplateWithItems] の各項目書き込みの直前に呼ばれ、例外を投げると
+  /// その項目の書き込みで失敗し、トランザクション全体がロールバックされる。
+  @visibleForTesting
+  void Function(TodoTemplateItem item)? debugBeforeItemWrite;
 
   @override
   Stream<List<TodoTemplateWithItems>> watchAll() async* {
@@ -210,34 +217,141 @@ class TemplateRepositoryImpl implements TemplateRepository {
     required List<TodoTemplateItem> items,
     bool replaceItems = true,
   }) async {
-    // テンプレート本体を先に保存する（項目の親所有権検証が通るように）。
-    final templateResult = await upsertTemplate(template);
-    if (!templateResult.isOk) return templateResult;
-
-    if (replaceItems) {
-      final owner = _ownerId();
-      if (owner != null) {
-        final keepIds = items.map((i) => i.id).toSet();
-        final existing = await (_db.select(_db.todoTemplateItems)
-              ..where(
-                (t) =>
-                    t.templateId.equals(template.id) & t.ownerId.equals(owner),
-              ))
-            .get();
-        for (final row in existing) {
-          if (!keepIds.contains(row.id)) {
-            final del = await deleteItem(row.id);
-            if (!del.isOk) return del;
-          }
-        }
+    // --- owner 認証・親所有権をトランザクション前に検証する（C-01）---------
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    if (template.ownerId != owner) {
+      return const Err(AuthFailure(message: '所有者が一致しません'));
+    }
+    for (final item in items) {
+      if (item.ownerId != owner) {
+        return const Err(AuthFailure(message: '所有者が一致しません'));
+      }
+      // 項目の親が保存対象テンプレートと一致すること（迂回防止）。
+      if (item.templateId != template.id) {
+        return const Err(
+          ValidationFailure('項目の親テンプレートが一致しません'),
+        );
       }
     }
 
-    for (final item in items) {
-      final res = await upsertItem(item);
-      if (!res.isOk) return res;
+    final now = _now;
+    final stampedTemplate = template.copyWith(updatedAt: now);
+    final stampedItems = [for (final i in items) i.copyWith(updatedAt: now)];
+
+    // --- テンプレート本体・項目・Outbox を単一トランザクションで保存する。
+    // 途中で1件でも失敗したら Drift が全体をロールバックし、ローカルDBも
+    // Outbox も残らない（原子性の担保）。------------------------------------
+    try {
+      await _db.transaction(() async {
+        // 別owner の既存行の乗っ取り防止（テンプレート本体）。
+        if (await _db.existsForOtherOwner(
+          SyncEntity.todoTemplates,
+          stampedTemplate.id,
+          owner,
+        )) {
+          throw const _OwnerConflictException();
+        }
+        // テンプレート本体を先に書く（項目の親所有権検証が通るように）。
+        await _db
+            .into(_db.todoTemplates)
+            .insertOnConflictUpdate(templateToCompanion(stampedTemplate));
+        await _enqueueInTx(
+          owner: owner,
+          entityTable: SyncEntity.todoTemplates,
+          entityId: stampedTemplate.id,
+          opType: OutboxOpType.upsert,
+          payload: stampedTemplate.toJson(),
+          now: now,
+        );
+
+        // replaceItems: 保存対象に含まれない既存項目を削除し、delete op も積む。
+        if (replaceItems) {
+          final keepIds = stampedItems.map((i) => i.id).toSet();
+          final existing = await (_db.select(_db.todoTemplateItems)
+                ..where(
+                  (t) =>
+                      t.templateId.equals(stampedTemplate.id) &
+                      t.ownerId.equals(owner),
+                ))
+              .get();
+          for (final row in existing) {
+            if (keepIds.contains(row.id)) continue;
+            await (_db.delete(_db.todoTemplateItems)
+                  ..where(
+                    (t) => t.id.equals(row.id) & t.ownerId.equals(owner),
+                  ))
+                .go();
+            await _enqueueInTx(
+              owner: owner,
+              entityTable: SyncEntity.todoTemplateItems,
+              entityId: row.id,
+              opType: OutboxOpType.delete,
+              payload: const {},
+              now: now,
+            );
+          }
+        }
+
+        // 各項目を書き、upsert op を積む。
+        for (final item in stampedItems) {
+          if (await _db.existsForOtherOwner(
+            SyncEntity.todoTemplateItems,
+            item.id,
+            owner,
+          )) {
+            throw const _OwnerConflictException();
+          }
+          // テスト用 seam: 例外で全体がロールバックされる（実時間非依存）。
+          debugBeforeItemWrite?.call(item);
+          await _db
+              .into(_db.todoTemplateItems)
+              .insertOnConflictUpdate(templateItemToCompanion(item));
+          await _enqueueInTx(
+            owner: owner,
+            entityTable: SyncEntity.todoTemplateItems,
+            entityId: item.id,
+            opType: OutboxOpType.upsert,
+            payload: item.toJson(),
+            now: now,
+          );
+        }
+      });
+    } on _OwnerConflictException {
+      return const Err(AuthFailure(message: '既存の別ユーザーのデータは操作できません'));
+    } catch (e) {
+      return Err(StorageFailure(cause: e));
     }
+    // コミット成功後に1回だけ同期を促す。
+    _syncEngine.poke();
     return const Ok(null);
+  }
+
+  /// トランザクション内で Outbox へ1件積む（[_localWrite] を使うと別
+  /// トランザクションを開いてしまうため、[saveTemplateWithItems] 専用に
+  /// 同一トランザクションへ enqueue するヘルパー）。
+  Future<void> _enqueueInTx({
+    required String owner,
+    required String entityTable,
+    required String entityId,
+    required OutboxOpType opType,
+    required Map<String, dynamic> payload,
+    required DateTime now,
+  }) {
+    return _outbox.enqueue(
+      OutboxOperation(
+        mutationId: _uuid.v4(),
+        ownerId: owner,
+        entityTable: entityTable,
+        entityId: entityId,
+        opType: opType,
+        payload: payload,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 
   @override
@@ -364,4 +478,11 @@ class TemplateRepositoryImpl implements TemplateRepository {
       forceEntityIds: {entityId},
     );
   }
+}
+
+/// トランザクション内で別owner行の乗っ取りを検出したときに投げる番兵例外。
+/// Drift のトランザクションをロールバックさせ、呼び出し側で AuthFailure へ
+/// 変換する（[saveTemplateWithItems] 用）。
+class _OwnerConflictException implements Exception {
+  const _OwnerConflictException();
 }
