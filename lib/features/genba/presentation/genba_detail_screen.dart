@@ -7,6 +7,7 @@ import '../../../core/images/image_status_provider.dart';
 import '../../../core/images/image_store.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
+import '../../itinerary/presentation/plan_tab.dart';
 import '../application/genba_actions_controller.dart';
 import '../application/genba_providers.dart';
 import '../domain/genba.dart';
@@ -25,7 +26,7 @@ class GenbaDetailScreen extends ConsumerWidget {
 
   final String genbaId;
 
-  static const _tabs = ['概要', 'Todo・持ち物', 'チケット', '交通', '宿泊', 'メモ'];
+  static const _tabs = ['概要', 'Todo・持ち物', '計画', 'チケット', '交通', '宿泊', 'メモ'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -132,6 +133,7 @@ class GenbaDetailScreen extends ConsumerWidget {
                 children: [
                   GenbaOverviewTab(aggregate: a, now: now),
                   TodoTab(aggregate: a),
+                  PlanTab(genbaAggregate: a),
                   TicketTab(aggregate: a),
                   TransportTab(aggregate: a),
                   LodgingTab(aggregate: a),

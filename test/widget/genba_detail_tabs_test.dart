@@ -30,7 +30,7 @@ void main() {
         );
   }
 
-  testWidgets('ヒーローに公演情報が重なり、6タブを横断できる（§7.1/§7.2）', (tester) async {
+  testWidgets('ヒーローに公演情報が重なり、7タブを横断できる（§7.1/§7.2）', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -51,8 +51,16 @@ void main() {
     expect(find.text('タブ検証公演'), findsWidgets);
     expect(find.textContaining('開演 18:00'), findsWidgets);
 
-    // 6タブ。
-    for (final label in ['概要', 'Todo・持ち物', 'チケット', '交通', '宿泊', 'メモ']) {
+    // 7タブ（計画タブを含む）。
+    for (final label in [
+      '概要',
+      'Todo・持ち物',
+      '計画',
+      'チケット',
+      '交通',
+      '宿泊',
+      'メモ',
+    ]) {
       expect(
         find.descendant(of: find.byType(TabBar), matching: find.text(label)),
         findsOneWidget,
@@ -60,16 +68,19 @@ void main() {
     }
 
     // チケットタブへ移動 → 追加ボタンと空状態文言。
-    await tester.tap(
-      find.descendant(of: find.byType(TabBar), matching: find.text('チケット')),
-    );
+    final ticketTab =
+        find.descendant(of: find.byType(TabBar), matching: find.text('チケット'));
+    await tester.ensureVisible(ticketTab);
+    await tester.tap(ticketTab);
     await tester.pumpAndSettle();
     expect(find.textContaining('未登録。取得状況を記録'), findsOneWidget);
 
-    // メモタブ → 区分ごとの行。
-    await tester.tap(
-      find.descendant(of: find.byType(TabBar), matching: find.text('メモ')),
-    );
+    // メモタブ → 区分ごとの行（7タブでスクロール域に入るため可視化してからタップ）。
+    final memoTab =
+        find.descendant(of: find.byType(TabBar), matching: find.text('メモ'));
+    await tester.ensureVisible(memoTab);
+    await tester.pumpAndSettle();
+    await tester.tap(memoTab);
     await tester.pumpAndSettle();
     expect(find.text('集合場所'), findsOneWidget);
     await unmountApp(tester);

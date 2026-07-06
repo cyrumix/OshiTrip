@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -54,6 +55,16 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
   static const _uuid = Uuid();
 
   DateTime get _now => _clock.now().toUtc();
+
+  /// テスト用 seam（実時間 delay に依存せず各段階で失敗を注入する）。
+  /// [saveSpotBundle] の 'spot'/'link'/'entry' 各書き込み直前に呼ばれ、例外を
+  /// 投げると transaction 全体が rollback される。
+  @visibleForTesting
+  void Function(String stage)? debugBeforeBundleStage;
+
+  /// テスト用 seam。[reorderEntries] の各 entry 書き込み直前に index で呼ばれる。
+  @visibleForTesting
+  void Function(int index)? debugBeforeReorderWrite;
 
   // ---- 監視 -----------------------------------------------------------------
 
@@ -242,10 +253,44 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
     } on _ReferenceValidationException catch (e) {
       return Err(e.failure);
     } catch (e) {
+      if (_isUniqueViolation(e)) {
+        return const Err(
+          ConflictFailure(message: '既にこの項目は計画に追加されています'),
+        );
+      }
       return Err(StorageFailure(cause: e));
     }
     _syncEngine.poke();
     return const Ok(null);
+  }
+
+  /// SQLite の UNIQUE 制約違反（交通/宿泊の二重追加防止インデックス等）を
+  /// 判定する。型付き [ConflictFailure] へ変換して部分ユニークを守る。
+  static bool _isUniqueViolation(Object e) =>
+      e.toString().contains('UNIQUE constraint failed');
+
+  /// トランザクション内で Outbox へ1件積む（[_localWrite] は別トランザクションを
+  /// 開くため、複合保存では同一トランザクションへ積むこのヘルパーを使う）。
+  Future<void> _enqueueInTx({
+    required String owner,
+    required String entityTable,
+    required String entityId,
+    required OutboxOpType opType,
+    required DateTime now,
+    Map<String, dynamic> payload = const {},
+  }) {
+    return _outbox.enqueue(
+      OutboxOperation(
+        mutationId: _uuid.v4(),
+        ownerId: owner,
+        entityTable: entityTable,
+        entityId: entityId,
+        opType: opType,
+        payload: payload,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 
   /// 参照整合性エラーは常に同一の型付き [ValidationFailure] へ正規化する。
@@ -281,7 +326,19 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
               t.ownerId.equals(owner) &
               t.genbaId.equals(genbaId),
         );
-        return ok ? null : _referenceFailure;
+        if (!ok) return _referenceFailure;
+        // 同一計画に同じ交通を二重追加しない（DB一意制約の前段防御）。
+        final dupT = await _existsForOwner(
+          _db.itineraryEntries,
+          (t) =>
+              t.planId.equals(entry.planId) &
+              t.ownerId.equals(owner) &
+              t.transportId.equals(entry.transportId!) &
+              t.id.isNotValue(entry.id),
+        );
+        return dupT
+            ? const ConflictFailure(message: '既にこの交通は計画に追加されています')
+            : null;
       case ItineraryEntryKind.lodging:
         final genbaId = await _planGenbaId(entry.planId, owner);
         if (genbaId == null) return _referenceFailure;
@@ -292,7 +349,18 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
               t.ownerId.equals(owner) &
               t.genbaId.equals(genbaId),
         );
-        return ok ? null : _referenceFailure;
+        if (!ok) return _referenceFailure;
+        final dupL = await _existsForOwner(
+          _db.itineraryEntries,
+          (t) =>
+              t.planId.equals(entry.planId) &
+              t.ownerId.equals(owner) &
+              t.lodgingId.equals(entry.lodgingId!) &
+              t.id.isNotValue(entry.id),
+        );
+        return dupL
+            ? const ConflictFailure(message: '既にこの宿泊は計画に追加されています')
+            : null;
       case ItineraryEntryKind.note:
         return null;
     }
@@ -409,6 +477,158 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
   }
 
   @override
+  Future<Result<void>> saveSpotBundle({
+    required ItinerarySpot spot,
+    required ItineraryEntry entry,
+    required List<ItinerarySpotLink> links,
+    List<String> removedLinkIds = const [],
+  }) async {
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    if (spot.ownerId != owner ||
+        entry.ownerId != owner ||
+        links.any((l) => l.ownerId != owner)) {
+      return const Err(AuthFailure(message: '所有者が一致しません'));
+    }
+    if (entry.spotId != spot.id || entry.planId != spot.planId) {
+      return const Err(ValidationFailure('訪問項目とスポットの対応が一致しません'));
+    }
+    if (links.any((l) => l.spotId != spot.id)) {
+      return const Err(ValidationFailure('リンクの所属スポットが一致しません'));
+    }
+    final spotInvalid = validateItinerarySpot(spot);
+    if (spotInvalid != null) return Err(spotInvalid);
+    final entryInvalid = validateItineraryEntry(entry);
+    if (entryInvalid != null) return Err(entryInvalid);
+    for (final l in links) {
+      final f = validateItinerarySpotLink(l);
+      if (f != null) return Err(f);
+    }
+
+    final now = _now;
+    final stampedSpot = spot.copyWith(updatedAt: now);
+    final stampedEntry = entry.copyWith(updatedAt: now);
+    final stampedLinks = [for (final l in links) l.copyWith(updatedAt: now)];
+
+    try {
+      await _db.transaction(() async {
+        if (!await _db.parentBelongsToOwner(
+          SyncEntity.itineraryPlans,
+          stampedSpot.planId,
+          owner,
+        )) {
+          throw ParentOwnershipException(
+            SyncEntity.itineraryPlans,
+            stampedSpot.planId,
+          );
+        }
+        // spot 保存。
+        if (await _db.existsForOtherOwner(
+          SyncEntity.itinerarySpots,
+          stampedSpot.id,
+          owner,
+        )) {
+          throw const _ReferenceValidationException(
+            AuthFailure(message: '既存の別ユーザーのデータは操作できません'),
+          );
+        }
+        debugBeforeBundleStage?.call('spot');
+        await _db
+            .into(_db.itinerarySpots)
+            .insertOnConflictUpdate(spotToCompanion(stampedSpot));
+        await _enqueueInTx(
+          owner: owner,
+          entityTable: SyncEntity.itinerarySpots,
+          entityId: stampedSpot.id,
+          opType: OutboxOpType.upsert,
+          payload: stampedSpot.toJson()..remove('user_image_local_path'),
+          now: now,
+        );
+        // 削除リンク（無視しない）。
+        for (final id in removedLinkIds) {
+          await (_db.delete(_db.itinerarySpotLinks)
+                ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
+              .go();
+          await _enqueueInTx(
+            owner: owner,
+            entityTable: SyncEntity.itinerarySpotLinks,
+            entityId: id,
+            opType: OutboxOpType.delete,
+            now: now,
+          );
+        }
+        // リンク upsert。
+        for (final l in stampedLinks) {
+          if (await _db.existsForOtherOwner(
+            SyncEntity.itinerarySpotLinks,
+            l.id,
+            owner,
+          )) {
+            throw const _ReferenceValidationException(
+              AuthFailure(message: '既存の別ユーザーのデータは操作できません'),
+            );
+          }
+          debugBeforeBundleStage?.call('link');
+          await _db
+              .into(_db.itinerarySpotLinks)
+              .insertOnConflictUpdate(spotLinkToCompanion(l));
+          await _enqueueInTx(
+            owner: owner,
+            entityTable: SyncEntity.itinerarySpotLinks,
+            entityId: l.id,
+            opType: OutboxOpType.upsert,
+            payload: l.toJson(),
+            now: now,
+          );
+        }
+        // 訪問項目 upsert（乗っ取り防止＋参照整合）。
+        if (await _db.existsForOtherOwner(
+          SyncEntity.itineraryEntries,
+          stampedEntry.id,
+          owner,
+        )) {
+          throw const _ReferenceValidationException(
+            AuthFailure(message: '既存の別ユーザーのデータは操作できません'),
+          );
+        }
+        final refFailure = await _validateEntryReferences(stampedEntry, owner);
+        if (refFailure != null) {
+          throw _ReferenceValidationException(refFailure);
+        }
+        debugBeforeBundleStage?.call('entry');
+        await _db
+            .into(_db.itineraryEntries)
+            .insertOnConflictUpdate(entryToCompanion(stampedEntry));
+        await _enqueueInTx(
+          owner: owner,
+          entityTable: SyncEntity.itineraryEntries,
+          entityId: stampedEntry.id,
+          opType: OutboxOpType.upsert,
+          payload: stampedEntry.toJson(),
+          now: now,
+        );
+      });
+    } on ParentOwnershipException {
+      return const Err(
+        ValidationFailure('親データが存在しないか、アクセス権がありません'),
+      );
+    } on _ReferenceValidationException catch (e) {
+      return Err(e.failure);
+    } catch (e) {
+      if (_isUniqueViolation(e)) {
+        return const Err(
+          ConflictFailure(message: '既にこの項目は計画に追加されています'),
+        );
+      }
+      return Err(StorageFailure(cause: e));
+    }
+    _syncEngine.poke();
+    return const Ok(null);
+  }
+
+  @override
   Future<Result<void>> deleteSpot(String id) => _localWrite(
         (owner) async {
           // このスポットを参照する訪問項目IDを収集（leg の cascade 用）。
@@ -490,6 +710,55 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
       parentId: stamped.planId,
       validateReferences: (owner) => _validateEntryReferences(stamped, owner),
     );
+  }
+
+  @override
+  Future<Result<void>> reorderEntries(
+      List<ItineraryEntry> orderedEntries,) async {
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    if (orderedEntries.any((e) => e.ownerId != owner)) {
+      return const Err(AuthFailure(message: '所有者が一致しません'));
+    }
+    final now = _now;
+    try {
+      await _db.transaction(() async {
+        for (var i = 0; i < orderedEntries.length; i++) {
+          final e = orderedEntries[i];
+          if (e.sortOrder == i) continue;
+          if (await _db.existsForOtherOwner(
+            SyncEntity.itineraryEntries,
+            e.id,
+            owner,
+          )) {
+            throw const _ReferenceValidationException(
+              AuthFailure(message: '既存の別ユーザーのデータは操作できません'),
+            );
+          }
+          debugBeforeReorderWrite?.call(i);
+          final updated = e.copyWith(sortOrder: i, updatedAt: now);
+          await _db
+              .into(_db.itineraryEntries)
+              .insertOnConflictUpdate(entryToCompanion(updated));
+          await _enqueueInTx(
+            owner: owner,
+            entityTable: SyncEntity.itineraryEntries,
+            entityId: e.id,
+            opType: OutboxOpType.upsert,
+            payload: updated.toJson(),
+            now: now,
+          );
+        }
+      });
+    } on _ReferenceValidationException catch (e) {
+      return Err(e.failure);
+    } catch (e) {
+      return Err(StorageFailure(cause: e));
+    }
+    _syncEngine.poke();
+    return const Ok(null);
   }
 
   @override

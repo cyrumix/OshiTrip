@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 
 import '../../genba/domain/genba.dart';
 import '../domain/itinerary_entry.dart';
+import '../domain/itinerary_leg.dart';
 import '../domain/itinerary_plan_aggregate.dart';
 import '../domain/itinerary_spot.dart';
 
@@ -34,6 +35,20 @@ extension ItineraryAnchorKindLabel on ItineraryAnchorKind {
         ItineraryAnchorKind.showStart => '開演',
         ItineraryAnchorKind.showEnd => '終演',
       };
+}
+
+/// 会場情報（[Genba] から導出。時刻を持たない固定ヘッダ, §5.1）。
+class ItineraryVenue {
+  const ItineraryVenue({required this.name, this.address});
+  final String name;
+  final String? address;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ItineraryVenue && other.name == name && other.address == address;
+
+  @override
+  int get hashCode => Object.hash(name, address);
 }
 
 /// 交通・宿泊など外部参照の解決状態（§5.3/§13）。
@@ -232,6 +247,34 @@ int compareItineraryEntriesInDay(ItineraryEntry a, ItineraryEntry b) {
   return a.id.compareTo(b.id);
 }
 
+/// 日内の隣接する時刻付き項目間で「間に合わない可能性」がある後続項目の
+/// entryId を返す（§5.4）。前項目の終了(なければ開始)＋出発後余裕＋（区間が
+/// あればその所要分）＋次項目の到着前余裕 が 次項目の開始 を超える場合に警告。
+Set<String> itineraryTightConnections({
+  required List<ItineraryTimelineEntry> dayEntries,
+  required List<ItineraryLeg> legs,
+}) {
+  final warned = <String>{};
+  for (var i = 0; i + 1 < dayEntries.length; i++) {
+    final a = dayEntries[i].entry;
+    final b = dayEntries[i + 1].entry;
+    final aEnd = a.endAt ?? a.startAt;
+    final bStart = b.startAt;
+    if (aEnd == null || bStart == null) continue;
+    final leg = legs.firstWhereOrNull(
+      (l) => l.originEntryId == a.id && l.destinationEntryId == b.id,
+    );
+    final travel = leg?.durationMinutes ?? 0;
+    final needed = aEnd.add(
+      Duration(
+        minutes: a.bufferAfterMinutes + travel + b.bufferBeforeMinutes,
+      ),
+    );
+    if (needed.isAfter(bStart)) warned.add(b.id);
+  }
+  return warned;
+}
+
 DateTime _dateKey(DateTime d) => DateTime(d.year, d.month, d.day);
 
 /// タイムライン全体を組み立てる（§5.2）。
@@ -289,4 +332,143 @@ ItineraryTimeline buildItineraryTimeline({
   ];
 
   return ItineraryTimeline(days: days, candidates: candidates);
+}
+
+// ---------------------------------------------------------------------------
+// 融合タイムライン（§5.1: 会場・アンカー・項目を1本の時刻順の列にまとめる）
+// ---------------------------------------------------------------------------
+
+/// 融合タイムラインの1行（会場ヘッダ／公演アンカー／旅程項目）。
+/// 単一TZ前提の国内MVPでは entry の startAt（UTCで保持した現地壁時計）と
+/// アンカーの会場現地 minuteOfDay を同一軸で比較する（§2.6 注記）。
+sealed class ItineraryRow {
+  const ItineraryRow();
+}
+
+/// 会場ヘッダ（その日の先頭に固定表示。時刻を持たない）。
+class ItineraryVenueRow extends ItineraryRow {
+  const ItineraryVenueRow(this.venue);
+  final ItineraryVenue venue;
+}
+
+/// 公演アンカー行（開場・開演・終演）。
+class ItineraryAnchorRow extends ItineraryRow {
+  const ItineraryAnchorRow(this.anchor);
+  final ItineraryAnchor anchor;
+}
+
+/// 旅程項目行（スポット・交通・宿泊・メモ）。
+class ItineraryEntryRow extends ItineraryRow {
+  const ItineraryEntryRow(this.item, {required this.timeUndetermined});
+  final ItineraryTimelineEntry item;
+
+  /// 時刻未定（startAt=null）でその日の末尾へ置かれた項目か。
+  final bool timeUndetermined;
+}
+
+/// 1日の会場・アンカー・項目を時刻順に融合した行列を作る（§5.1/§5.2）。
+/// - [venue] が非nullなら先頭に会場ヘッダを置く（公演日のみ）。
+/// - 時刻付き（アンカー／startAtあり）は分で昇順、同分はアンカー→項目の順。
+/// - 時刻未定の項目は末尾（day.entries の決定的順序を保つ）。
+/// - 日跨ぎ（アンカーの date で既に翌日へ振り分け済み）はそのまま尊重する。
+List<ItineraryRow> buildItineraryDayRows(
+  ItineraryTimelineDay day, {
+  ItineraryVenue? venue,
+}) {
+  final rows = <ItineraryRow>[];
+  if (venue != null) rows.add(ItineraryVenueRow(venue));
+
+  final timed = <({int minute, int tiebreak, ItineraryRow row})>[];
+  final untimed = <ItineraryRow>[];
+
+  for (final a in day.anchors) {
+    timed.add((minute: a.minuteOfDay, tiebreak: 0, row: ItineraryAnchorRow(a)));
+  }
+  for (final e in day.entries) {
+    final at = e.entry.startAt;
+    if (at != null) {
+      timed.add(
+        (
+          minute: at.hour * 60 + at.minute,
+          tiebreak: 1,
+          row: ItineraryEntryRow(e, timeUndetermined: false),
+        ),
+      );
+    } else {
+      untimed.add(ItineraryEntryRow(e, timeUndetermined: true));
+    }
+  }
+
+  // 安定ソート: 分昇順 → 同分はアンカー(0)を項目(1)より前。入力順は既に決定的
+  // （anchors: minuteOfDay 昇順 / entries: compareItineraryEntriesInDay）なので
+  // mergeSort（安定）で崩さない。
+  mergeSort<({int minute, int tiebreak, ItineraryRow row})>(
+    timed,
+    compare: (a, b) {
+      final byMin = a.minute.compareTo(b.minute);
+      if (byMin != 0) return byMin;
+      return a.tiebreak.compareTo(b.tiebreak);
+    },
+  );
+
+  rows.addAll(timed.map((t) => t.row));
+  rows.addAll(untimed);
+  return rows;
+}
+
+/// 移動区間の表示配置（§6.2 / Phase 2レビュー点3）。
+class ItineraryLegPlacement {
+  const ItineraryLegPlacement({
+    required this.leg,
+    required this.adjacent,
+    required this.originLabel,
+    required this.destinationLabel,
+    this.afterEntryId,
+  });
+
+  final ItineraryLeg leg;
+
+  /// 出発項目と到着項目が表示順で隣接しているか。
+  final bool adjacent;
+
+  /// [adjacent] のとき、この entryId の直後に区間を表示する。
+  final String? afterEntryId;
+
+  /// 端点が見つからない場合も分かる文言に落とす（参照切れ／別日など）。
+  final String originLabel;
+  final String destinationLabel;
+}
+
+/// 全日通しの表示順（[orderedEntries]）に対して各 leg の配置を決める。
+/// 端点が隣接していれば出発項目の直後に差し込み、そうでなければ
+/// （別日・順序が離れている・端点削除）落とさずに孤立区間として返す（点3）。
+List<ItineraryLegPlacement> placeItineraryLegs({
+  required List<ItineraryTimelineEntry> orderedEntries,
+  required List<ItineraryLeg> legs,
+  required String Function(ItineraryTimelineEntry) labelOf,
+}) {
+  final indexById = <String, int>{};
+  final labelById = <String, String>{};
+  for (var i = 0; i < orderedEntries.length; i++) {
+    final e = orderedEntries[i];
+    indexById[e.entry.id] = i;
+    labelById[e.entry.id] = labelOf(e);
+  }
+  return [
+    for (final leg in legs)
+      ItineraryLegPlacement(
+        leg: leg,
+        adjacent: indexById[leg.originEntryId] != null &&
+            indexById[leg.destinationEntryId] != null &&
+            indexById[leg.destinationEntryId] ==
+                indexById[leg.originEntryId]! + 1,
+        afterEntryId: (indexById[leg.originEntryId] != null &&
+                indexById[leg.destinationEntryId] ==
+                    (indexById[leg.originEntryId] ?? -2) + 1)
+            ? leg.originEntryId
+            : null,
+        originLabel: labelById[leg.originEntryId] ?? '不明な項目',
+        destinationLabel: labelById[leg.destinationEntryId] ?? '不明な項目',
+      ),
+  ];
 }

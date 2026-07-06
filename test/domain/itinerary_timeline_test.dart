@@ -296,4 +296,88 @@ void main() {
       expect(timeline.days.single.entries.single.isReferenceMissing, isFalse);
     });
   });
+
+  group('間に合わない可能性（余裕不足）の判定', () {
+    ItineraryTimelineEntry noteAt(
+      String id,
+      DateTime start,
+      DateTime end, {
+      int bufferAfter = 0,
+      int bufferBefore = 0,
+    }) {
+      return resolveItineraryEntry(
+        makeItineraryEntry(
+          id: id,
+          kind: ItineraryEntryKind.note,
+          localDate: DateTime(start.year, start.month, start.day),
+          bufferAfterMinutes: bufferAfter,
+          bufferBeforeMinutes: bufferBefore,
+        ).copyWith(startAt: start, endAt: end),
+        spots: const [],
+        transports: const [],
+        lodgings: const [],
+      );
+    }
+
+    test('前の終了＋余裕＋（区間の所要）が次の開始を超えると次項目を警告', () {
+      final a = noteAt(
+        'a',
+        DateTime.utc(2026, 8, 1, 10),
+        DateTime.utc(2026, 8, 1, 11),
+        bufferAfter: 15,
+      );
+      final b = noteAt(
+        'b',
+        DateTime.utc(2026, 8, 1, 11, 10),
+        DateTime.utc(2026, 8, 1, 12),
+        bufferBefore: 0,
+      );
+      // 11:00 + 15分 = 11:15 > 11:10 → b は間に合わない可能性。
+      final warned = itineraryTightConnections(
+        dayEntries: [a, b],
+        legs: const [],
+      );
+      expect(warned, {'b'});
+    });
+
+    test('十分な余裕があれば警告しない', () {
+      final a = noteAt(
+        'a',
+        DateTime.utc(2026, 8, 1, 10),
+        DateTime.utc(2026, 8, 1, 11),
+      );
+      final b = noteAt(
+        'b',
+        DateTime.utc(2026, 8, 1, 13),
+        DateTime.utc(2026, 8, 1, 14),
+      );
+      expect(
+        itineraryTightConnections(dayEntries: [a, b], legs: const []),
+        isEmpty,
+      );
+    });
+
+    test('区間の所要時間も考慮する', () {
+      final a = noteAt(
+        'a',
+        DateTime.utc(2026, 8, 1, 10),
+        DateTime.utc(2026, 8, 1, 11),
+      );
+      final b = noteAt(
+        'b',
+        DateTime.utc(2026, 8, 1, 11, 20),
+        DateTime.utc(2026, 8, 1, 12),
+      );
+      // 余裕0でも 11:00→11:20 は20分空きだが、移動30分の区間があると足りない。
+      final leg = makeItineraryLeg(
+        originEntryId: 'a',
+        destinationEntryId: 'b',
+        durationMinutes: 30,
+      );
+      expect(
+        itineraryTightConnections(dayEntries: [a, b], legs: [leg]),
+        {'b'},
+      );
+    });
+  });
 }

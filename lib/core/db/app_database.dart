@@ -807,6 +807,19 @@ class AppDatabase extends _$AppDatabase {
       'idx_itinerary_legs_destination',
       'ON itinerary_legs (destination_entry_id)',
     );
+    // 同一計画に同じ交通/宿泊を二重追加させない部分ユニーク（§5.3 / DB境界）。
+    await m.database.customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_itinerary_entries_plan_transport '
+      'ON itinerary_entries (plan_id, transport_id) '
+      'WHERE transport_id IS NOT NULL',
+    );
+    await m.database.customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_itinerary_entries_plan_lodging '
+      'ON itinerary_entries (plan_id, lodging_id) '
+      'WHERE lodging_id IS NOT NULL',
+    );
     await idx(
       'idx_outbox_ops_owner_status',
       'ON outbox_ops (owner_id, status)',

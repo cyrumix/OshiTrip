@@ -4,7 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 /// 画像の用途区分（H-04）。用途別ディレクトリへ分離し、機密度も区別する。
-enum ImageCategory { memoryPhoto, genbaHero, oshiImage, ticket }
+enum ImageCategory { memoryPhoto, genbaHero, oshiImage, ticket, itinerarySpot }
 
 extension ImageCategoryX on ImageCategory {
   String get dirName => switch (this) {
@@ -12,6 +12,7 @@ extension ImageCategoryX on ImageCategory {
         ImageCategory.genbaHero => 'hero',
         ImageCategory.oshiImage => 'oshi',
         ImageCategory.ticket => 'ticket',
+        ImageCategory.itinerarySpot => 'itinerary_spot',
       };
 
   /// 最も機密度の高い区分（チケット画像）。バックアップ除外・ログ除外・

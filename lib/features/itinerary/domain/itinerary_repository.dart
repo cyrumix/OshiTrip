@@ -28,6 +28,18 @@ abstract interface class ItineraryRepository {
 
   Future<Result<void>> upsertSpot(ItinerarySpot spot);
 
+  /// スポット・その訪問項目(entry)・リンクの差分を**単一トランザクション**で
+  /// 保存する（原子性）。spot upsert・[removedLinkIds] の削除・[links] の upsert・
+  /// entry upsert とそれぞれの Outbox enqueue を同一 transaction で行い、
+  /// いずれか失敗したら全体を rollback する（spot だけ残す等の部分適用をしない）。
+  /// 成功後に一度だけ同期を促す。
+  Future<Result<void>> saveSpotBundle({
+    required ItinerarySpot spot,
+    required ItineraryEntry entry,
+    required List<ItinerarySpotLink> links,
+    List<String> removedLinkIds = const [],
+  });
+
   /// スポットを削除する（配下のリンクと、このスポットを参照する旅程項目・
   /// その項目を始点/終点とする移動区間も削除する）。
   Future<Result<void>> deleteSpot(String id);
@@ -36,6 +48,10 @@ abstract interface class ItineraryRepository {
   Future<Result<void>> deleteSpotLink(String id);
 
   Future<Result<void>> upsertEntry(ItineraryEntry entry);
+
+  /// 同一計画内の項目の並び替えを**単一トランザクション**で保存する
+  /// （sortOrder を [orderedEntries] の順に振り直す。途中失敗で全件 rollback）。
+  Future<Result<void>> reorderEntries(List<ItineraryEntry> orderedEntries);
 
   /// 旅程項目を削除する（この項目を始点/終点とする移動区間も削除する）。
   Future<Result<void>> deleteEntry(String id);
