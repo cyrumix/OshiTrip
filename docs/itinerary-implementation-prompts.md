@@ -1,0 +1,519 @@
+# 「計画」タブ・旅程機能 フェーズ別実装プロンプト
+
+> 作成日: 2026-07-06  
+> 対象ブランチの最新状態を確認してから使用する。各Phaseは前Phaseの完了・レビュー後に実行する。  
+> 仕様の単一の真実: [itinerary-plan-spec.md](itinerary-plan-spec.md)
+
+## 0. モデル選択
+
+| Phase | 推奨Claudeモデル | 理由 |
+|---|---|---|
+| 1. データ基盤 | Claude Opus 4.8 | DB移行、RLS、Outbox、親子owner整合が中心 |
+| 2. 手動旅程・フォールバックUI | Claude Sonnet 5 | UI実装量が多く、仕様境界はPhase 1で固定済み |
+| 3. Maps／Places | Claude Opus 4.8 | APIキー、課金、規約、障害縮退を横断する |
+| 4. Routes | Claude Opus 4.8 | 公共交通、日時、キャッシュ、費用制御が複雑 |
+| 5. 共有・通知・品質 | Claude Opus 4.8 | RLS共同編集、競合、通知、プライバシー監査が必要 |
+
+**旅程のリリースMVPはPhase 1〜4をすべて完了した状態**とする。Phase 2はGoogleを外した完成版ではなく、Google障害時にも使える基礎UIとフォールバックを先に作る工程である。
+
+## 共通指示
+
+各Phaseのプロンプトへ次を含めた状態で実行する。
+
+```text
+作業前に、git status、現在ブランチ、最新コミット、既存の未コミット変更を確認してください。ユーザーの既存変更を上書き・破棄しないでください。
+
+必ず次を読んでから実装してください。
+
+- docs/itinerary-plan-spec.md
+- docs/requirements.md §7.9
+- docs/design-spec.md §7.3
+- docs/architecture.md
+- docs/adr/0010-google-maps-platform.md
+- docs/decisions.mdの最新決定
+
+既存のFlutter／Riverpod／go_router／Drift／Supabase／Outbox／Result型／owner分離のパターンへ合わせてください。generatedファイルは手編集せずbuild_runnerで生成してください。
+
+このPhaseより後の機能を先行実装しないでください。押せない見せかけUI、常に成功するstub、固定ダミーデータを完成機能として追加しないでください。
+
+住所、座標、予約URL、旅程内容をログ・分析イベント・通知本文へ出さないでください。クライアントの権限判定はUX補助に留め、強制はSupabase RLS／Storage policyで行ってください。
+
+変更後はdart format、flutter analyze、flutter testを実行してください。Supabase変更があるPhaseではpgTAPも実行し、実行不能なら理由を明記して成功扱いにしないでください。
+
+最後に変更ファイル、設計判断、マイグレーション、テスト結果、未実装の次Phase範囲、残るリスクを報告してください。
+```
+
+---
+
+## Phase 1：旅程ドメイン・DB・同期基盤
+
+推奨モデル: **Claude Opus 4.8**
+
+```text
+Phase 1として、現場詳細「計画」タブの土台となる旅程ドメイン、ローカルDB、Repository、同期、Supabase認可を実装してください。このPhaseでは本番UI、Google API、経路自動取得、共有、通知は実装しません。
+
+目的は、Google APIなしでも成立する手動旅程を安全に永続化できる境界を完成させることです。
+
+実装対象:
+
+1. features/itineraryをfeature-firstで追加する。
+   - domain: entity、enum、値検証、Repository抽象
+   - application: 後続UIが利用する操作境界
+   - data: Drift／Supabase／Outbox対応Repository
+
+2. 次のモデルを仕様書どおり実装する。
+   - ItineraryPlan
+   - ItinerarySpot
+   - ItinerarySpotLink
+   - ItineraryEntry
+   - ItineraryLeg
+
+3. enumを型安全に定義する。
+   - spot source: manual / googlePlaces
+   - spot category: 仕様書§4.4
+   - link kind: 仕様書§4.5
+   - entry kind: spot / transport / lodging / note
+   - leg source: manual / googleRoutes
+   - travel mode: walking / transit / driving / bicycling / taxi / flight / other
+
+4. ドメイン不変条件を純粋関数で実装する。
+   - 緯度と経度は両方nullまたは両方有効値
+   - 緯度-90〜90、経度-180〜180
+   - 終了日時は開始日時以後。日跨ぎを許可
+   - bufferは0以上で合理的な上限を設ける
+   - URLは許可スキームだけ
+   - entry kindに対応する参照IDだけを許可
+   - legのoriginとdestinationは同じにしない
+   - fareは通貨と金額を組で扱う
+   - Google由来nullableフィールドを必須扱いしない
+
+5. Driftへ次のテーブルを追加する。
+   - itinerary_plans
+   - itinerary_spots
+   - itinerary_spot_links
+   - itinerary_entries
+   - itinerary_legs
+
+   最新schemaVersionと未使用のmigration番号を確認して、安全な追加マイグレーションを作ること。既存テーブルやデータを作り直さないこと。
+
+6. Supabaseへ同等テーブルを追加する。
+   - UUID主キー
+   - owner_id
+   - version、created_at、updated_at
+   - 親削除時の適切なCASCADE
+   - 既存transport／lodging参照の削除方針
+   - owner index、plan/date/order用index
+   - RLS
+   - 子ownerと親owner一致トリガー
+   - apply_mutation許可リストへ追加
+
+   apply_mutationを再定義する場合、既存の全許可テーブルを落とさない回帰テストを追加すること。
+
+7. Repositoryを既存のローカル先行方式で実装する。
+   - owner限定watch／取得
+   - upsert／delete
+   - 複数行操作はDB更新とOutboxを同一トランザクションにする
+   - syncEngine.pokeはcommit後
+   - remote pullは認証切替のisStaleを尊重
+   - 競合解決のserver/local採用へ接続
+   - アカウント削除時のlocal purgeへ追加
+
+8. 旅程タイムラインを組み立てる純粋関数を実装する。
+   - localDate→startAt→sortOrder→createdAtの決定的順序
+   - 日付未定と時刻未定を失わない
+   - 公演アンカーはGenbaから導出し、DBへ重複保存しない
+   - 交通・宿泊は既存IDを参照し、複製しない
+   - 参照切れを状態として返す
+
+必須テスト:
+
+- 全enum JSON／DB round-trip
+- バリデーション境界値
+- 日跨ぎ、時刻未定、日付未定、タイムゾーン
+- owner Aの全データをowner Bが取得・更新・削除できない
+- 子ownerと親owner不一致の拒否
+- 親削除cascade
+- transport／lodging参照切れ
+- DB migrationで既存データを失わない
+- ローカル書込みとOutboxの原子性
+- offline→再起動→同期
+- apply_mutationの既存entityを壊さないpgTAP
+
+完了条件:
+
+- Google設定なしで全Repositoryテストが通る
+- presentationへGoogle型が漏れない
+- Web Service用キーや架空のAPIレスポンスを追加しない
+- docs/requirements-traceability.mdへ「Phase 1基盤、UI未実装」と正確に追記する
+```
+
+---
+
+## Phase 2：現場詳細「計画」タブ・手動旅程フォールバック
+
+推奨モデル: **Claude Sonnet 5**
+
+```text
+Phase 2として、Phase 1の旅程基盤を使い、現場詳細「計画」タブのタイムラインと手動旅程を実装してください。これはGoogle APIを切ったMVP完成版ではなく、Phase 3・4でGoogle Maps／Places／Routesを接続するための基礎UIであり、同時にAPI障害・上限到達時の必須フォールバックになります。このPhaseではGoogle API接続、共同編集、通知はまだ実装しません。
+
+1. 現場詳細タブを次の順にする。
+
+   概要 / Todo・持ち物 / 計画 / チケット / 交通 / 宿泊 / メモ
+
+   横スクロール、選択状態、PageStorage、Dynamic Type、既存タブindex参照を更新し、全routing／widgetテストを修正する。
+
+2. 計画タブを実装する。
+   - 日付ごとのタイムライン
+   - 日付未定の候補リスト
+   - 公演会場・開場・開演・終演の固定アンカー
+   - 空状態、loading、error、offline、data
+   - スクロール位置保持
+   - 追加FABまたは明確な追加ボタン
+
+3. 手動スポットCRUDを実装する。
+   - 施設名、カテゴリ、住所
+   - 訪問日、開始・終了時間
+   - 緯度・経度
+   - メモ
+   - 複数の種別つきURL
+   - 前後の余裕時間
+   - ユーザー画像
+
+   「自分で入力」を常に主要導線として表示する。Google検索ボタンはまだ表示しない。
+
+4. URL管理を実装する。
+   - 参考、予約、Google Maps、SNS、チケット、公式、その他
+   - 複数追加、編集、削除、並び替え
+   - 不正スキーム拒否
+   - 外部遷移前にドメインを確認できる表示
+
+5. 交通・宿泊取り込みを実装する。
+   - 「登録済みの交通を追加」
+   - 「登録済みの宿泊を追加」
+   - 追加済み表示と重複防止
+   - 元データ編集の即時反映
+   - 元データ削除時に参照切れを明示し、手動項目へ変換／旅程から削除を選択
+
+6. 手動移動区間を実装する。
+   - 出発・到着項目
+   - 移動手段
+   - 出発・到着時刻
+   - 所要時間、距離、運賃、通貨、経路概要
+   - Google Mapsで開くURL
+   - すべて手動編集可能
+
+7. タイムラインUXを実装する。
+   - 時刻とカテゴリを色だけでなく文字・アイコンで表示
+   - 日付内の並び替え
+   - 時刻順との矛盾時に確認
+   - 日跨ぎ表示
+   - 時刻未定ブロック
+   - 移動時間＋余裕時間で次の予定に間に合わない可能性を警告
+   - 会場到着余裕の推奨値を提示するが強制しない
+
+8. ユーザー画像は既存ImageStore／Storage契約を再利用する。
+   - owner分離
+   - 失敗を成功表示しない
+   - missing／inaccessible／upload failedを区別
+   - スポットカードの代替テキスト
+   - Google写真用フィールドは使用しない
+
+9. オフラインを完成させる。
+   - 保存済み計画を閲覧可能
+   - CRUD／並び替えをOutboxへ保存
+   - 接続復旧後に同期
+   - 外部地図を開けない場合も住所と座標を表示
+
+必須テスト:
+
+- 計画タブのroutingとタブindex
+- 空→手動登録→タイムライン表示→編集→削除
+- 日別、候補、時刻未定、日跨ぎ
+- 交通・宿泊の追加、重複防止、元更新、参照切れ
+- 手動移動区間と余裕不足判定
+- URLスキームと外部遷移
+- 画像状態
+- 失敗ロールバック、二重タップ防止
+- 320pt幅、横向き、文字200%、VoiceOver用Semantics
+- offline→編集→再起動→同期
+
+完了条件:
+
+- Google APIキーなしで旅程を最初から最後まで作れる
+- 既存の交通・宿泊と二重データにならない
+- Google／AI／プレミアムの見せかけUIを出さない
+- integration_testへ「現場作成→計画→手動スポット→交通宿泊追加→再起動復元」を追加する
+- このPhaseだけで「旅程MVP完成」と記録しない。Phase 3・4が未完了であることをimplementation-statusとtraceabilityへ明記する
+```
+
+---
+
+## Phase 3：旅程MVPのアプリ内地図・Google Places・施設写真
+
+推奨モデル: **Claude Opus 4.8**
+
+```text
+Phase 3として、手動旅程フォールバックを維持したまま、旅程MVPの主要機能であるGoogle Maps Platformの地図、施設検索、Place Details、施設写真を実装してください。Google連携はMVP前提であり、単なる将来オプション扱いにしないでください。ただし未設定・障害・上限到達時の手動縮退は必須です。作業前にGoogle公式ドキュメントの現行仕様、料金SKU、帰属要件を確認し、確認日と採用Field Maskをdocs/decisions.mdへ記録してください。
+
+1. 外部API境界を実装する。
+   - PlacesGateway抽象をdomain/application側へ置く
+   - Places RESTは認証済みSupabase Edge Function等から呼ぶ
+   - Web Service用キーをFlutterアプリへ入れない
+   - 地図SDKキーは環境別、iOS bundle ID制限、API制限
+   - development/staging/productionの利用量を分離
+   - Google未設定時は型付きUnavailableFailure
+
+2. Edge Functionで次を強制する。
+   - Supabase認証
+   - ユーザー別レート制限
+   - 許可Field Maskのallowlist
+   - `*` Field Mask拒否
+   - リクエストtimeout
+   - Googleエラーの型付き変換
+   - 機能kill switch
+   - ログから検索文、住所、座標、Place IDを除外または不可逆化
+
+3. Autocomplete (New)を実装する。
+   - 3文字以上
+   - 400〜500ms debounce
+   - 古いレスポンスを破棄
+   - 1検索セッション1 UUIDv4 token
+   - 候補選択のPlace Detailsまで同じtoken
+   - session token再利用禁止
+   - 会場周辺location bias
+   - 結果なし／中断／timeoutから手動入力へ移動
+
+4. Place Detailsを段階取得する。
+   - 基本Field Mask: Place ID、名称、住所、座標、Google Maps URL、primary type
+   - 電話、Webサイト、営業時間等は「詳細も取得」の明示操作
+   - 高いSKUのフィールドを基本検索へ混ぜない
+   - 最終取得日時を保存
+   - 欠落値は手動編集可能
+   - place typeをアプリカテゴリへ安全に変換
+
+5. 計画タブへ地図モードを追加する。
+   - 選択日のスポットと会場を表示
+   - 未座標スポットを一覧で知らせる
+   - ピンタップでスポット概要
+   - 地図が失敗してもタイムラインを隠さない
+   - Google Mapsアプリ／ブラウザで開く
+   - 地図表示だけでPlace DetailsやRoutesを呼ばない
+
+6. Google Place写真を実装する。
+   - ユーザー画像と別のsourceとして扱う
+   - 最初のサムネイル1件を必要時だけ取得
+   - max sizeをカード用途に制限
+   - authorAttributionsを写真付近に表示
+   - photo nameの期限切れを扱う
+   - Google写真をSupabase Storageや思い出へ自動複製しない
+   - 取得不可時はカテゴリ別プレースホルダー
+
+7. 費用制御を実装する。
+   - API呼び出し件数をサービス／SKU相当／環境／日単位で集計
+   - 個人の検索内容は保存しない
+   - Google Cloudの日次クォータと予算通知の設定手順をdocs/setup.mdへ追記
+   - 利用量閾値で自動取得を止め、手動登録は止めない
+   - 料金額をコードへ固定しない
+
+必須テスト:
+
+- debounce、キャンセル、古い応答の破棄
+- session tokenの開始／完了／放棄／再利用禁止
+- Field Mask allowlistとワイルドカード拒否
+- 未認証、別owner、上限、kill switch、timeout
+- Google未設定／オフライン／候補なし→手動入力
+- nullable詳細とカテゴリ変換
+- 写真帰属、写真なし、期限切れ
+- 地図失敗時もタイムライン利用可能
+- API秘密がログ・生成物・git差分へ入っていない
+
+完了条件:
+
+- Google連携を無効化してPhase 2の全フローがそのまま通る
+- 検索画面を開いただけでは課金APIを呼ばない
+- 公式帰属表示を目視・Widgetテストで確認する
+- iOS実機検証ができない場合はmacOS実機確認項目を明記する
+- RoutesがPhase 4未完了の間は旅程MVP全体を完成扱いにしない
+```
+
+---
+
+## Phase 4：旅程MVPのGoogle Routes・移動経路・余裕時間
+
+推奨モデル: **Claude Opus 4.8**
+
+```text
+Phase 4として、旅程MVPの主要機能である登録スポット間のGoogle Routes自動取得を実装してください。手動移動区間を置き換えず、自動取得できない場合のフォールバックとして維持してください。作業前にRoutes APIの公共交通、時刻範囲、運賃、field mask、料金SKUの現行仕様を公式資料で確認してください。このPhaseの完了をもって、Phase 1〜4の受入条件がすべて満たされた場合に限り旅程MVP完成と判定します。
+
+1. RoutesGatewayを実装する。
+   - Edge Function経由
+   - 認証、owner、レート制限、kill switch
+   - origin／destination／mode／日時の検証
+   - 許可Field Mask固定
+   - timeout、retry、Googleエラーの型付き変換
+
+2. 対応経路を実装する。
+   - 徒歩
+   - 公共交通
+   - 車
+   - 自転車
+   - taxi／flight／otherは手動入力のまま
+
+3. 保存・表示する。
+   - 所要時間、距離
+   - 出発・到着
+   - 公共交通の路線、停留所、乗換、徒歩区間
+   - 運賃と通貨（取得できる場合だけ）
+   - 経路概要
+   - Google Mapsで開くURL
+   - 最終取得日時
+   - 手動値とGoogle値の区別
+
+4. 公共交通の制約を正しく扱う。
+   - transitで中間waypointを前提にしない
+   - APIが対応する過去／未来時刻範囲外では自動取得せず説明する
+   - 遠い未来の時刻表は変わり得ると表示する
+   - 全ステップの運賃が算定できない場合はfareを未取得として手動入力可能にする
+   - preferred modeが必ず採用されるとは表示しない
+
+5. 再計算とキャッシュを実装する。
+   - origin、destination、mode、時刻帯からcache key生成
+   - 位置、順番、日時、mode変更でisStale=true
+   - ドラッグごとにAPIを呼ばない
+   - 「経路を更新」で未計算／古い区間だけ計算
+   - 同じ条件の重複リクエストをsingle-flight化
+   - 公共交通と非公共交通で妥当なTTLを分ける
+   - 古い保存結果はオフライン閲覧可能
+
+6. タイムラインへ移動区間を表示する。
+   - スポット間に所要時間と手段を挿入
+   - 展開時に乗換詳細
+   - 出発推奨時刻
+   - 移動＋bufferで開場／次予定に間に合わない可能性
+   - 色だけでなく文言とアイコン
+   - 手動修正と再取得の優先関係を明示
+
+7. 費用制御を実装する。
+   - 初期表示で全区間を自動計算しない
+   - 明示選択した区間のみ
+   - ユーザー別日次回数
+   - キャッシュヒット時はAPIを呼ばない
+   - 上限時は手動入力へ縮退
+   - ルート最適化はこのPhaseでは実装しない
+
+必須テスト:
+
+- 各modeのrequest／mapping
+- transitの時刻範囲、運賃なし、乗換、徒歩区間
+- cache key、TTL、single-flight、stale判定
+- 並び替え時に自動呼出ししない
+- 一部区間失敗でも他区間と手動データを失わない
+- 上限、kill switch、timeout、offline→手動入力
+- 余裕不足と出発推奨時刻
+- 保存経路のoffline表示
+- APIレスポンスに欠落フィールドがあってもクラッシュしない
+
+完了条件:
+
+- API取得不能でも手動経路で旅程を完成できる
+- 画面再描画や並び替えだけでAPI件数が増えない
+- 運賃・公共交通が取得できない地域を正常状態として扱う
+- ルート最適化とAI提案を先行実装しない
+```
+
+---
+
+## Phase 5：共有・共同編集・通知・リリース品質
+
+推奨モデル: **Claude Opus 4.8**
+
+```text
+Phase 5として、既存の現場共有と通知基盤が完成していることを確認したうえで、旅程の共有・共同編集・通知・最終品質を実装してください。前提基盤が未完成なら見せかけUIを作らず、依存不足を報告して先に必要な基盤を完成させてください。
+
+1. 共有・共同編集を実装する。
+   - 初期は本人のみ
+   - owner / editor / viewer
+   - ownerだけが共有設定、権限変更、旅程削除可能
+   - editorは許可された旅程項目を編集可能
+   - viewerは閲覧のみ
+   - RLSとStorage policyで強制
+   - 共有解除直後にキャッシュ、画像URL、画面履歴から到達不能にする
+
+2. 項目単位共有を実装する。
+   - 個人メモ
+   - 正確な住所・座標
+   - 予約URL・チケットURL
+   - ユーザー画像
+   - 交通／宿泊の予約情報
+
+   安全側を既定値とし、Google由来の帰属表示は共有先でも維持する。
+
+3. 共同編集競合を実装する。
+   - version CAS
+   - 項目単位の競合表示
+   - server／local採用
+   - 並び替え競合
+   - 削除対編集
+   - 同時追加
+   - 黙ったlast-write-winsを禁止
+
+4. 通知を実装する。
+   - 出発時刻
+   - スポット開始
+   - チェックイン
+   - 会場へ向かう推奨時刻
+   - 余裕不足
+   - 共有旅程更新
+
+   通知価値を説明してからOS権限を要求する。拒否後も利用可能。同一旅程／項目／種別で冪等化し、同日通知を集約する。通知本文へ住所、座標、予約番号を入れない。
+
+5. 思い出連携を実装する。
+   - 訪問済みスポットを思い出へ選択追加
+   - ユーザー画像だけを明示操作でアルバムへ追加
+   - Google Place写真をアルバムへ複製しない
+   - 計画と実際に訪れた場所を区別
+   - 旅程削除で既存思い出を消さない
+
+6. 品質を収束させる。
+   - 一覧ページング
+   - 低速通信、timeout、retry
+   - offline→再起動→同期
+   - タイムゾーン変更、日程変更、公演中止
+   - Dynamic Type 200%、VoiceOver、横向き、320pt幅
+   - Google API上限、kill switch、キー無効
+   - 画像権限喪失、Storage失敗
+   - アカウント削除と共有データ
+
+7. 運用監視を実装する。
+   - API種別ごとの匿名件数、成功率、cache hit率、上限到達率
+   - 住所、座標、検索語、旅程本文を分析へ送らない
+   - 予算通知とkill switch手順
+   - Google規約・料金・帰属の四半期確認チェックリスト
+
+8. プレミアムは機能フラグ境界だけ用意する。
+   - 手動登録、基本旅程、メモ、URL、ユーザー画像、日別表示を制限しない
+   - 課金画面や購入処理は実装しない
+   - Places、Routes、最適化、AI等を将来制御できるUseCase境界に置く
+   - クライアント表示だけでなくサーバー側でも将来制御可能にする
+
+必須テスト:
+
+- 全権限の正負RLS／Storageテスト
+- 項目単位非共有
+- 共有解除後のキャッシュ到達不能
+- 同時編集、削除対編集、並び替え競合
+- 通知冪等、同日集約、権限拒否、ディープリンク
+- 通知・ログ・分析の禁止フィールド
+- 思い出追加とGoogle写真非複製
+- API上限／停止中も手動フロー成功
+- アカウント削除、owner移譲、共有解除
+- iOS実機で地図、外部URL、写真、通知、VoiceOver
+
+完了条件:
+
+- Critical／Highの未解決レビュー指摘が0件
+- flutter analyze／全unit・widget・integration・pgTAP・iOS無署名buildが成功
+- 手動のみ、Google有効、Google停止、offline、共有の主要E2Eが成功
+- docs/requirements-traceability.mdとimplementation-status.mdが実装事実と一致
+- AI旅程、ルート最適化、本課金は未実装としてバックログへ残す
+```

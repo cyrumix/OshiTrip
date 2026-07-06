@@ -62,6 +62,7 @@
 | §7.6 | Todo | ✅（テンプレート提案は未実装、follow-up-work.mdフェーズE） | `child_editors.dart`、`genba_actions_controller.dart` | `test/notifier/genba_actions_controller_test.dart` |
 | §7.7 | メモ（5区分） | ✅ | `child_editors.dart`（`_MemoEditor`） | `test/widget/genba_detail_tabs_test.dart` |
 | §7.8 | 共有（owner/editor/viewer） | 🟡 境界のみ | `lib/features/sharing/domain/share.dart`（型のみ、data層未実装・未配線） | follow-up-work.mdフェーズC |
+| §7.9 | 計画・推し活遠征旅程 | ⬜ 仕様策定済み・未実装 | `docs/itinerary-plan-spec.md`、`docs/adr/0010-google-maps-platform.md` | `docs/itinerary-implementation-prompts.md` Phase 1〜5 |
 
 ## §8 思い出
 
