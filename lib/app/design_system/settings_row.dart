@@ -30,12 +30,28 @@ class SettingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final tokens = AppTokens.of(context);
-    final fg =
-        destructive ? theme.colorScheme.error : theme.colorScheme.onSurface;
+    final fg = destructive ? scheme.error : scheme.onSurface;
     return ListTile(
-      leading: Icon(icon, color: destructive ? theme.colorScheme.error : null),
-      title: Text(title, style: TextStyle(color: fg)),
+      // アイコンは淡い円形の面に載せる（デザイン刷新: カード型の統一感）。
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: destructive ? scheme.errorContainer : tokens.primarySoft,
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: destructive ? scheme.error : scheme.primary,
+        ),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 14),
+      ),
       subtitle: subtitle == null ? null : Text(subtitle!),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

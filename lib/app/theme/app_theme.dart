@@ -10,14 +10,14 @@ import 'app_tokens.dart';
 /// - ダークは色反転ではなく、同じ情報階層を暗色面へ変換する（§2）。
 /// - タップ領域は Material 既定の 48dp を最低として維持する（§3）。
 class AppTheme {
-  /// Primary（HOME刷新: 夜明け前の空の「明るい菫」#6A56D9）。
-  static const primary = Color(0xFF6A56D9);
+  /// Primary（デザイン刷新: 明るく澄んだ菫 #7461E6）。
+  static const primary = Color(0xFF7461E6);
 
   /// ライトテーマの画面背景（Background = backgroundBottom）。
-  static const lightBackground = Color(0xFFF8F6F1);
+  static const lightBackground = Color(0xFFFAF9FE);
 
   /// 見出し・本文の主テキスト（藍墨のインク）。
-  static const lightTextPrimary = Color(0xFF251F36);
+  static const lightTextPrimary = Color(0xFF29233E);
 
   static ThemeData light() {
     const tokens = AppTokens.light;
@@ -28,13 +28,13 @@ class AppTheme {
       primary: primary,
       onPrimary: Colors.white,
       primaryContainer: tokens.primarySoft,
-      onPrimaryContainer: const Color(0xFF2C2070),
+      onPrimaryContainer: const Color(0xFF34277E),
       surface: Colors.white,
       onSurface: lightTextPrimary,
       onSurfaceVariant: tokens.textSecondary,
       outlineVariant: tokens.divider,
-      surfaceContainerHighest: const Color(0xFFF1EDF7),
-      surfaceContainerHigh: const Color(0xFFF4F1FA),
+      surfaceContainerHighest: const Color(0xFFF2EFFA),
+      surfaceContainerHigh: const Color(0xFFF5F2FB),
       surfaceContainerLow: const Color(0xFFFBFAFE),
     );
     return _base(scheme, tokens, scaffoldBackground: lightBackground);
@@ -137,11 +137,33 @@ class AppTheme {
           ),
         ),
       ),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
+      // 入力欄は枠線ではなく淡い面で示す（柔らかいカード型の世界観に合わせる）。
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.primary, width: 1.6),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.error, width: 1.6),
+        ),
         isDense: false,
       ),
-      // 影は控えめにし、境界は背景差＋1px相当の境界で表現する（§4）。
+      // 面は白カード＋やわらかい影（境界線は引かない）。
       cardTheme: CardThemeData(
         clipBehavior: Clip.antiAlias,
         elevation: 0,
@@ -149,17 +171,86 @@ class AppTheme {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.card),
-          side: BorderSide(color: tokens.divider),
         ),
       ),
       chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.chip),
-          side: BorderSide(color: tokens.divider),
+        shape: StadiumBorder(side: BorderSide(color: tokens.divider)),
+        backgroundColor: scheme.surface,
+        selectedColor: tokens.primarySoft,
+        checkmarkColor: scheme.primary,
+        labelStyle: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: scheme.onSurface,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      // 現場詳細などのタブ: 選択中を淡紫のピルで示す。
+      tabBarTheme: TabBarThemeData(
+        indicator: BoxDecoration(
+          color: tokens.primarySoft,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelColor: scheme.brightness == Brightness.light
+            ? scheme.primary
+            : scheme.onPrimaryContainer,
+        unselectedLabelColor: tokens.textSecondary,
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+        unselectedLabelStyle:
+            const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: const StadiumBorder(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
-      snackBarTheme: const SnackBarThemeData(
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: const StadiumBorder(),
+          side: BorderSide(color: scheme.primary.withValues(alpha: .45)),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        side: BorderSide(color: tokens.textSecondary, width: 1.6),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: scheme.primary,

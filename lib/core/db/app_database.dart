@@ -145,6 +145,9 @@ class Todos extends Table {
   TextColumn get genbaId => text()();
   TextColumn get ownerId => text()();
   TextColumn get name => text()();
+
+  /// 項目種別（'todo'/'belonging', schema v6）。既存データは 'todo' 扱い。
+  TextColumn get type => text().withDefault(const Constant('todo'))();
   TextColumn get dueDate => text().nullable()();
   BoolColumn get isDone => boolean().withDefault(const Constant(false))();
   TextColumn get assignee => text().nullable()();
@@ -311,6 +314,42 @@ class OshiMembers extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Todo・持ち物のテンプレート（owner 単位, schema v7）。マイ推しと同じく
+/// 現場に属さず owner に属する。item_type で Todo/持ち物の種別が固定される。
+@DataClassName('TodoTemplateRow')
+class TodoTemplates extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get name => text()();
+
+  /// 種別（'todo'/'belonging'）。テンプレート内の全項目がこの種別。
+  TextColumn get itemType => text()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// テンプレートに含まれる項目（schema v7）。適用時に現場の Todo/持ち物へ複製。
+/// priority は Todo テンプレートのみ（持ち物は null）。期限・担当・完了状態は
+/// 現場固有情報なので保存しない。
+@DataClassName('TodoTemplateItemRow')
+class TodoTemplateItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get templateId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get name => text()();
+  TextColumn get priority => text().nullable()();
+  TextColumn get memo => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// ユーザー定義の記念日（design-spec §10/§12.1, schema v5）。グループに属し、
 /// 任意でメンバーへ紐づく。誕生日・推し始めた日とは別に自由登録する。
 @DataClassName('OshiAnniversaryRow')
@@ -410,6 +449,8 @@ class FormDrafts extends Table {
     OshiGroups,
     OshiMembers,
     OshiAnniversaries,
+    TodoTemplates,
+    TodoTemplateItems,
     OutboxOps,
     AppKvs,
     FormDrafts,
@@ -428,8 +469,12 @@ class AppDatabase extends _$AppDatabase {
   /// 思い出isFavorite・推しグループ画像/alt/favorite・推しメンalt・
   /// 記念日テーブル・cover一意インデックス。既存データは安全な既定値へ移行し、
   /// is_canceled=true は attendance_status=canceled へ明示移行する。
+  /// v6: todos.type（Todo/持ち物の種別）。既存行は既定値 'todo' のまま扱う
+  /// （後方互換, nullable にせず安全な既定値を持つ列として追加）。
+  /// v7: todo_templates / todo_template_items（Todo・持ち物のテンプレート）。
+  /// 新規テーブルの追加のみで、既存データには一切触れない。
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -475,6 +520,15 @@ class AppDatabase extends _$AppDatabase {
             // 決定的に1件へ整理する（複数 cover でも migration が失敗しない,
             // R6独立レビュー#5）。既存写真は削除せず is_cover のみ修正する。
             await m.database.customStatement(dedupeMemoryCoversSql);
+          }
+          if (from < 6) {
+            // 既存Todoはすべて 'todo' 種別として扱う（後方互換）。
+            await m.addColumn(todos, todos.type);
+          }
+          if (from < 7) {
+            // 新規テーブルの追加のみ（既存データには触れない）。
+            await m.createTable(todoTemplates);
+            await m.createTable(todoTemplateItems);
           }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
@@ -534,6 +588,15 @@ class AppDatabase extends _$AppDatabase {
     await idx(
       'idx_oshi_anniversaries_group',
       'ON oshi_anniversaries (group_id)',
+    );
+    await idx('idx_todo_templates_owner', 'ON todo_templates (owner_id)');
+    await idx(
+      'idx_todo_template_items_owner',
+      'ON todo_template_items (owner_id)',
+    );
+    await idx(
+      'idx_todo_template_items_template',
+      'ON todo_template_items (template_id)',
     );
     await idx(
       'idx_genbas_owner_oshi_group',

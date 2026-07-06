@@ -114,8 +114,8 @@ void main() {
     await tester.tap(find.text('失敗ロールバック検証現場'));
     await tester.pumpAndSettle();
 
-    // R7: Todo は詳細タブへ移動したため、Todoタブを開く。
-    await tester.tap(find.text('Todo'));
+    // R7: Todo は詳細タブへ移動したため、Todo・持ち物タブを開く。
+    await tester.tap(find.text('Todo・持ち物'));
     await tester.pumpAndSettle();
 
     // 保存前: 未完了。

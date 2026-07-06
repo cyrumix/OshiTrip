@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oshi_trip/core/providers.dart';
 import 'package:oshi_trip/core/time/clock.dart';
+import 'package:oshi_trip/features/genba/domain/genba.dart';
 import 'package:oshi_trip/features/home/presentation/home_screen.dart';
 
 import '../helpers/fixtures.dart';
@@ -48,21 +49,34 @@ void main() {
         eventDate: DateTime(2026, 9, 1),
       ),
     );
+    await repo.upsertTodo(
+      makeTodo(
+        id: 'belonging-1',
+        genbaId: 'g-near',
+        ownerId: ownerId,
+        name: 'ペンライト',
+        type: TodoItemType.belonging,
+      ),
+    );
     await tester.pumpAndSettle();
 
     // ヒーロー: 残日数（7/2→7/12 = 10日）と「次の現場まで」。
     expect(find.text('次の現場まで'), findsOneWidget);
-    // 残日数は Text.rich（'あと 10 日'）として描画される。
-    expect(find.textContaining('あと 10 日'), findsOneWidget);
+    // 残日数は円形バッジ（'あと' + '10日'）として描画される。
+    expect(find.text('あと'), findsOneWidget);
+    expect(find.text('10日'), findsOneWidget);
     expect(find.text('一番近い公演'), findsOneWidget);
 
-    // 4分割の状態ショートカット（§6.2）。
+    // 5分割の状態ショートカット（ヒーロー直下の白タイル）。
+    // 持ち物はTodoとは別項目（対応状況）として独立表示される。
     expect(find.text('Todo'), findsOneWidget);
+    expect(find.text('持ち物'), findsOneWidget);
     expect(find.text('交通'), findsOneWidget);
     expect(find.text('宿泊'), findsOneWidget);
     expect(find.text('チケット'), findsOneWidget);
-    // チケット未登録が実データから導出されている。
+    // チケット未登録・持ち物未対応が実データから導出されている。
     expect(find.bySemanticsLabel('チケット: 未登録'), findsOneWidget);
+    expect(find.bySemanticsLabel('持ち物: 未対応'), findsOneWidget);
 
     // 今後の現場: ヒーローと同一現場を重複表示しない（§6.3）。
     expect(find.text('今後の現場'), findsOneWidget);

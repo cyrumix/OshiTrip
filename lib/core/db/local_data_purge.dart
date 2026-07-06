@@ -40,6 +40,11 @@ Future<void> purgeLocalDataForOwner(
         .go();
     await (db.delete(db.oshiGroups)..where((t) => t.ownerId.equals(ownerId)))
         .go();
+    await (db.delete(db.todoTemplateItems)
+          ..where((t) => t.ownerId.equals(ownerId)))
+        .go();
+    await (db.delete(db.todoTemplates)..where((t) => t.ownerId.equals(ownerId)))
+        .go();
     await (db.delete(db.genbas)..where((t) => t.ownerId.equals(ownerId))).go();
     await (db.delete(db.outboxOps)..where((t) => t.ownerId.equals(ownerId)))
         .go();

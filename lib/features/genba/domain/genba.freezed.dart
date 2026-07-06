@@ -2337,6 +2337,7 @@ mixin _$GenbaTodo {
   String get genbaId => throw _privateConstructorUsedError;
   String get ownerId => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
+  TodoItemType get type => throw _privateConstructorUsedError;
   @NullableDateOnlyConverter()
   DateTime? get dueDate => throw _privateConstructorUsedError;
   bool get isDone => throw _privateConstructorUsedError;
@@ -2369,6 +2370,7 @@ abstract class $GenbaTodoCopyWith<$Res> {
       String genbaId,
       String ownerId,
       String name,
+      TodoItemType type,
       @NullableDateOnlyConverter() DateTime? dueDate,
       bool isDone,
       String? assignee,
@@ -2398,6 +2400,7 @@ class _$GenbaTodoCopyWithImpl<$Res, $Val extends GenbaTodo>
     Object? genbaId = null,
     Object? ownerId = null,
     Object? name = null,
+    Object? type = null,
     Object? dueDate = freezed,
     Object? isDone = null,
     Object? assignee = freezed,
@@ -2424,6 +2427,10 @@ class _$GenbaTodoCopyWithImpl<$Res, $Val extends GenbaTodo>
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
+      type: null == type
+          ? _value.type
+          : type // ignore: cast_nullable_to_non_nullable
+              as TodoItemType,
       dueDate: freezed == dueDate
           ? _value.dueDate
           : dueDate // ignore: cast_nullable_to_non_nullable
@@ -2473,6 +2480,7 @@ abstract class _$$GenbaTodoImplCopyWith<$Res>
       String genbaId,
       String ownerId,
       String name,
+      TodoItemType type,
       @NullableDateOnlyConverter() DateTime? dueDate,
       bool isDone,
       String? assignee,
@@ -2500,6 +2508,7 @@ class __$$GenbaTodoImplCopyWithImpl<$Res>
     Object? genbaId = null,
     Object? ownerId = null,
     Object? name = null,
+    Object? type = null,
     Object? dueDate = freezed,
     Object? isDone = null,
     Object? assignee = freezed,
@@ -2526,6 +2535,10 @@ class __$$GenbaTodoImplCopyWithImpl<$Res>
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
+      type: null == type
+          ? _value.type
+          : type // ignore: cast_nullable_to_non_nullable
+              as TodoItemType,
       dueDate: freezed == dueDate
           ? _value.dueDate
           : dueDate // ignore: cast_nullable_to_non_nullable
@@ -2571,6 +2584,7 @@ class _$GenbaTodoImpl implements _GenbaTodo {
       required this.genbaId,
       required this.ownerId,
       required this.name,
+      this.type = TodoItemType.todo,
       @NullableDateOnlyConverter() this.dueDate,
       this.isDone = false,
       this.assignee,
@@ -2591,6 +2605,9 @@ class _$GenbaTodoImpl implements _GenbaTodo {
   final String ownerId;
   @override
   final String name;
+  @override
+  @JsonKey()
+  final TodoItemType type;
   @override
   @NullableDateOnlyConverter()
   final DateTime? dueDate;
@@ -2616,7 +2633,7 @@ class _$GenbaTodoImpl implements _GenbaTodo {
 
   @override
   String toString() {
-    return 'GenbaTodo(id: $id, genbaId: $genbaId, ownerId: $ownerId, name: $name, dueDate: $dueDate, isDone: $isDone, assignee: $assignee, priority: $priority, memo: $memo, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'GenbaTodo(id: $id, genbaId: $genbaId, ownerId: $ownerId, name: $name, type: $type, dueDate: $dueDate, isDone: $isDone, assignee: $assignee, priority: $priority, memo: $memo, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -2628,6 +2645,7 @@ class _$GenbaTodoImpl implements _GenbaTodo {
             (identical(other.genbaId, genbaId) || other.genbaId == genbaId) &&
             (identical(other.ownerId, ownerId) || other.ownerId == ownerId) &&
             (identical(other.name, name) || other.name == name) &&
+            (identical(other.type, type) || other.type == type) &&
             (identical(other.dueDate, dueDate) || other.dueDate == dueDate) &&
             (identical(other.isDone, isDone) || other.isDone == isDone) &&
             (identical(other.assignee, assignee) ||
@@ -2651,6 +2669,7 @@ class _$GenbaTodoImpl implements _GenbaTodo {
       genbaId,
       ownerId,
       name,
+      type,
       dueDate,
       isDone,
       assignee,
@@ -2682,6 +2701,7 @@ abstract class _GenbaTodo implements GenbaTodo {
           required final String genbaId,
           required final String ownerId,
           required final String name,
+          final TodoItemType type,
           @NullableDateOnlyConverter() final DateTime? dueDate,
           final bool isDone,
           final String? assignee,
@@ -2703,6 +2723,8 @@ abstract class _GenbaTodo implements GenbaTodo {
   String get ownerId;
   @override
   String get name;
+  @override
+  TodoItemType get type;
   @override
   @NullableDateOnlyConverter()
   DateTime? get dueDate;

@@ -3247,6 +3247,13 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, TodoRow> {
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
       'name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('todo'));
   static const VerificationMeta _dueDateMeta =
       const VerificationMeta('dueDate');
   @override
@@ -3307,6 +3314,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, TodoRow> {
         genbaId,
         ownerId,
         name,
+        type,
         dueDate,
         isDone,
         assignee,
@@ -3348,6 +3356,10 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, TodoRow> {
           _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
     } else if (isInserting) {
       context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
     }
     if (data.containsKey('due_date')) {
       context.handle(_dueDateMeta,
@@ -3402,6 +3414,8 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, TodoRow> {
           .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
       dueDate: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}due_date']),
       isDone: attachedDatabase.typeMapping
@@ -3432,6 +3446,9 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
   final String genbaId;
   final String ownerId;
   final String name;
+
+  /// 項目種別（'todo'/'belonging', schema v6）。既存データは 'todo' 扱い。
+  final String type;
   final String? dueDate;
   final bool isDone;
   final String? assignee;
@@ -3445,6 +3462,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
       required this.genbaId,
       required this.ownerId,
       required this.name,
+      required this.type,
       this.dueDate,
       required this.isDone,
       this.assignee,
@@ -3460,6 +3478,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
     map['genba_id'] = Variable<String>(genbaId);
     map['owner_id'] = Variable<String>(ownerId);
     map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
     if (!nullToAbsent || dueDate != null) {
       map['due_date'] = Variable<String>(dueDate);
     }
@@ -3483,6 +3502,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
       genbaId: Value(genbaId),
       ownerId: Value(ownerId),
       name: Value(name),
+      type: Value(type),
       dueDate: dueDate == null && nullToAbsent
           ? const Value.absent()
           : Value(dueDate),
@@ -3506,6 +3526,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
       genbaId: serializer.fromJson<String>(json['genbaId']),
       ownerId: serializer.fromJson<String>(json['ownerId']),
       name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
       dueDate: serializer.fromJson<String?>(json['dueDate']),
       isDone: serializer.fromJson<bool>(json['isDone']),
       assignee: serializer.fromJson<String?>(json['assignee']),
@@ -3524,6 +3545,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
       'genbaId': serializer.toJson<String>(genbaId),
       'ownerId': serializer.toJson<String>(ownerId),
       'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
       'dueDate': serializer.toJson<String?>(dueDate),
       'isDone': serializer.toJson<bool>(isDone),
       'assignee': serializer.toJson<String?>(assignee),
@@ -3540,6 +3562,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
           String? genbaId,
           String? ownerId,
           String? name,
+          String? type,
           Value<String?> dueDate = const Value.absent(),
           bool? isDone,
           Value<String?> assignee = const Value.absent(),
@@ -3553,6 +3576,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
         genbaId: genbaId ?? this.genbaId,
         ownerId: ownerId ?? this.ownerId,
         name: name ?? this.name,
+        type: type ?? this.type,
         dueDate: dueDate.present ? dueDate.value : this.dueDate,
         isDone: isDone ?? this.isDone,
         assignee: assignee.present ? assignee.value : this.assignee,
@@ -3568,6 +3592,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
       genbaId: data.genbaId.present ? data.genbaId.value : this.genbaId,
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       isDone: data.isDone.present ? data.isDone.value : this.isDone,
       assignee: data.assignee.present ? data.assignee.value : this.assignee,
@@ -3586,6 +3611,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
           ..write('genbaId: $genbaId, ')
           ..write('ownerId: $ownerId, ')
           ..write('name: $name, ')
+          ..write('type: $type, ')
           ..write('dueDate: $dueDate, ')
           ..write('isDone: $isDone, ')
           ..write('assignee: $assignee, ')
@@ -3599,8 +3625,8 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
   }
 
   @override
-  int get hashCode => Object.hash(id, genbaId, ownerId, name, dueDate, isDone,
-      assignee, priority, memo, sortOrder, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, genbaId, ownerId, name, type, dueDate,
+      isDone, assignee, priority, memo, sortOrder, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3609,6 +3635,7 @@ class TodoRow extends DataClass implements Insertable<TodoRow> {
           other.genbaId == this.genbaId &&
           other.ownerId == this.ownerId &&
           other.name == this.name &&
+          other.type == this.type &&
           other.dueDate == this.dueDate &&
           other.isDone == this.isDone &&
           other.assignee == this.assignee &&
@@ -3624,6 +3651,7 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
   final Value<String> genbaId;
   final Value<String> ownerId;
   final Value<String> name;
+  final Value<String> type;
   final Value<String?> dueDate;
   final Value<bool> isDone;
   final Value<String?> assignee;
@@ -3638,6 +3666,7 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
     this.genbaId = const Value.absent(),
     this.ownerId = const Value.absent(),
     this.name = const Value.absent(),
+    this.type = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.isDone = const Value.absent(),
     this.assignee = const Value.absent(),
@@ -3653,6 +3682,7 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
     required String genbaId,
     required String ownerId,
     required String name,
+    this.type = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.isDone = const Value.absent(),
     this.assignee = const Value.absent(),
@@ -3673,6 +3703,7 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
     Expression<String>? genbaId,
     Expression<String>? ownerId,
     Expression<String>? name,
+    Expression<String>? type,
     Expression<String>? dueDate,
     Expression<bool>? isDone,
     Expression<String>? assignee,
@@ -3688,6 +3719,7 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
       if (genbaId != null) 'genba_id': genbaId,
       if (ownerId != null) 'owner_id': ownerId,
       if (name != null) 'name': name,
+      if (type != null) 'type': type,
       if (dueDate != null) 'due_date': dueDate,
       if (isDone != null) 'is_done': isDone,
       if (assignee != null) 'assignee': assignee,
@@ -3705,6 +3737,7 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
       Value<String>? genbaId,
       Value<String>? ownerId,
       Value<String>? name,
+      Value<String>? type,
       Value<String?>? dueDate,
       Value<bool>? isDone,
       Value<String?>? assignee,
@@ -3719,6 +3752,7 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
       genbaId: genbaId ?? this.genbaId,
       ownerId: ownerId ?? this.ownerId,
       name: name ?? this.name,
+      type: type ?? this.type,
       dueDate: dueDate ?? this.dueDate,
       isDone: isDone ?? this.isDone,
       assignee: assignee ?? this.assignee,
@@ -3745,6 +3779,9 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
     }
     if (dueDate.present) {
       map['due_date'] = Variable<String>(dueDate.value);
@@ -3783,6 +3820,7 @@ class TodosCompanion extends UpdateCompanion<TodoRow> {
           ..write('genbaId: $genbaId, ')
           ..write('ownerId: $ownerId, ')
           ..write('name: $name, ')
+          ..write('type: $type, ')
           ..write('dueDate: $dueDate, ')
           ..write('isDone: $isDone, ')
           ..write('assignee: $assignee, ')
@@ -8250,6 +8288,823 @@ class OshiAnniversariesCompanion extends UpdateCompanion<OshiAnniversaryRow> {
   }
 }
 
+class $TodoTemplatesTable extends TodoTemplates
+    with TableInfo<$TodoTemplatesTable, TodoTemplateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TodoTemplatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _itemTypeMeta =
+      const VerificationMeta('itemType');
+  @override
+  late final GeneratedColumn<String> itemType = GeneratedColumn<String>(
+      'item_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, ownerId, name, itemType, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'todo_templates';
+  @override
+  VerificationContext validateIntegrity(Insertable<TodoTemplateRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('item_type')) {
+      context.handle(_itemTypeMeta,
+          itemType.isAcceptableOrUnknown(data['item_type']!, _itemTypeMeta));
+    } else if (isInserting) {
+      context.missing(_itemTypeMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TodoTemplateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TodoTemplateRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      itemType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}item_type'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TodoTemplatesTable createAlias(String alias) {
+    return $TodoTemplatesTable(attachedDatabase, alias);
+  }
+}
+
+class TodoTemplateRow extends DataClass implements Insertable<TodoTemplateRow> {
+  final String id;
+  final String ownerId;
+  final String name;
+
+  /// 種別（'todo'/'belonging'）。テンプレート内の全項目がこの種別。
+  final String itemType;
+  final String createdAt;
+  final String updatedAt;
+  const TodoTemplateRow(
+      {required this.id,
+      required this.ownerId,
+      required this.name,
+      required this.itemType,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['name'] = Variable<String>(name);
+    map['item_type'] = Variable<String>(itemType);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  TodoTemplatesCompanion toCompanion(bool nullToAbsent) {
+    return TodoTemplatesCompanion(
+      id: Value(id),
+      ownerId: Value(ownerId),
+      name: Value(name),
+      itemType: Value(itemType),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TodoTemplateRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TodoTemplateRow(
+      id: serializer.fromJson<String>(json['id']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      name: serializer.fromJson<String>(json['name']),
+      itemType: serializer.fromJson<String>(json['itemType']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'name': serializer.toJson<String>(name),
+      'itemType': serializer.toJson<String>(itemType),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  TodoTemplateRow copyWith(
+          {String? id,
+          String? ownerId,
+          String? name,
+          String? itemType,
+          String? createdAt,
+          String? updatedAt}) =>
+      TodoTemplateRow(
+        id: id ?? this.id,
+        ownerId: ownerId ?? this.ownerId,
+        name: name ?? this.name,
+        itemType: itemType ?? this.itemType,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TodoTemplateRow copyWithCompanion(TodoTemplatesCompanion data) {
+    return TodoTemplateRow(
+      id: data.id.present ? data.id.value : this.id,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      name: data.name.present ? data.name.value : this.name,
+      itemType: data.itemType.present ? data.itemType.value : this.itemType,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TodoTemplateRow(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('name: $name, ')
+          ..write('itemType: $itemType, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, ownerId, name, itemType, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TodoTemplateRow &&
+          other.id == this.id &&
+          other.ownerId == this.ownerId &&
+          other.name == this.name &&
+          other.itemType == this.itemType &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TodoTemplatesCompanion extends UpdateCompanion<TodoTemplateRow> {
+  final Value<String> id;
+  final Value<String> ownerId;
+  final Value<String> name;
+  final Value<String> itemType;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const TodoTemplatesCompanion({
+    this.id = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.itemType = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TodoTemplatesCompanion.insert({
+    required String id,
+    required String ownerId,
+    required String name,
+    required String itemType,
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        ownerId = Value(ownerId),
+        name = Value(name),
+        itemType = Value(itemType),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<TodoTemplateRow> custom({
+    Expression<String>? id,
+    Expression<String>? ownerId,
+    Expression<String>? name,
+    Expression<String>? itemType,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (name != null) 'name': name,
+      if (itemType != null) 'item_type': itemType,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TodoTemplatesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? ownerId,
+      Value<String>? name,
+      Value<String>? itemType,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return TodoTemplatesCompanion(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      name: name ?? this.name,
+      itemType: itemType ?? this.itemType,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (itemType.present) {
+      map['item_type'] = Variable<String>(itemType.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TodoTemplatesCompanion(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('name: $name, ')
+          ..write('itemType: $itemType, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TodoTemplateItemsTable extends TodoTemplateItems
+    with TableInfo<$TodoTemplateItemsTable, TodoTemplateItemRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TodoTemplateItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _templateIdMeta =
+      const VerificationMeta('templateId');
+  @override
+  late final GeneratedColumn<String> templateId = GeneratedColumn<String>(
+      'template_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _priorityMeta =
+      const VerificationMeta('priority');
+  @override
+  late final GeneratedColumn<String> priority = GeneratedColumn<String>(
+      'priority', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _memoMeta = const VerificationMeta('memo');
+  @override
+  late final GeneratedColumn<String> memo = GeneratedColumn<String>(
+      'memo', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        templateId,
+        ownerId,
+        name,
+        priority,
+        memo,
+        sortOrder,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'todo_template_items';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<TodoTemplateItemRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('template_id')) {
+      context.handle(
+          _templateIdMeta,
+          templateId.isAcceptableOrUnknown(
+              data['template_id']!, _templateIdMeta));
+    } else if (isInserting) {
+      context.missing(_templateIdMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('priority')) {
+      context.handle(_priorityMeta,
+          priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta));
+    }
+    if (data.containsKey('memo')) {
+      context.handle(
+          _memoMeta, memo.isAcceptableOrUnknown(data['memo']!, _memoMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TodoTemplateItemRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TodoTemplateItemRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      templateId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}template_id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      priority: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}priority']),
+      memo: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}memo']),
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $TodoTemplateItemsTable createAlias(String alias) {
+    return $TodoTemplateItemsTable(attachedDatabase, alias);
+  }
+}
+
+class TodoTemplateItemRow extends DataClass
+    implements Insertable<TodoTemplateItemRow> {
+  final String id;
+  final String templateId;
+  final String ownerId;
+  final String name;
+  final String? priority;
+  final String? memo;
+  final int sortOrder;
+  final String createdAt;
+  final String updatedAt;
+  const TodoTemplateItemRow(
+      {required this.id,
+      required this.templateId,
+      required this.ownerId,
+      required this.name,
+      this.priority,
+      this.memo,
+      required this.sortOrder,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['template_id'] = Variable<String>(templateId);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || priority != null) {
+      map['priority'] = Variable<String>(priority);
+    }
+    if (!nullToAbsent || memo != null) {
+      map['memo'] = Variable<String>(memo);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  TodoTemplateItemsCompanion toCompanion(bool nullToAbsent) {
+    return TodoTemplateItemsCompanion(
+      id: Value(id),
+      templateId: Value(templateId),
+      ownerId: Value(ownerId),
+      name: Value(name),
+      priority: priority == null && nullToAbsent
+          ? const Value.absent()
+          : Value(priority),
+      memo: memo == null && nullToAbsent ? const Value.absent() : Value(memo),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TodoTemplateItemRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TodoTemplateItemRow(
+      id: serializer.fromJson<String>(json['id']),
+      templateId: serializer.fromJson<String>(json['templateId']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      name: serializer.fromJson<String>(json['name']),
+      priority: serializer.fromJson<String?>(json['priority']),
+      memo: serializer.fromJson<String?>(json['memo']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'templateId': serializer.toJson<String>(templateId),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'name': serializer.toJson<String>(name),
+      'priority': serializer.toJson<String?>(priority),
+      'memo': serializer.toJson<String?>(memo),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  TodoTemplateItemRow copyWith(
+          {String? id,
+          String? templateId,
+          String? ownerId,
+          String? name,
+          Value<String?> priority = const Value.absent(),
+          Value<String?> memo = const Value.absent(),
+          int? sortOrder,
+          String? createdAt,
+          String? updatedAt}) =>
+      TodoTemplateItemRow(
+        id: id ?? this.id,
+        templateId: templateId ?? this.templateId,
+        ownerId: ownerId ?? this.ownerId,
+        name: name ?? this.name,
+        priority: priority.present ? priority.value : this.priority,
+        memo: memo.present ? memo.value : this.memo,
+        sortOrder: sortOrder ?? this.sortOrder,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  TodoTemplateItemRow copyWithCompanion(TodoTemplateItemsCompanion data) {
+    return TodoTemplateItemRow(
+      id: data.id.present ? data.id.value : this.id,
+      templateId:
+          data.templateId.present ? data.templateId.value : this.templateId,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      name: data.name.present ? data.name.value : this.name,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      memo: data.memo.present ? data.memo.value : this.memo,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TodoTemplateItemRow(')
+          ..write('id: $id, ')
+          ..write('templateId: $templateId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('name: $name, ')
+          ..write('priority: $priority, ')
+          ..write('memo: $memo, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, templateId, ownerId, name, priority, memo,
+      sortOrder, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TodoTemplateItemRow &&
+          other.id == this.id &&
+          other.templateId == this.templateId &&
+          other.ownerId == this.ownerId &&
+          other.name == this.name &&
+          other.priority == this.priority &&
+          other.memo == this.memo &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TodoTemplateItemsCompanion extends UpdateCompanion<TodoTemplateItemRow> {
+  final Value<String> id;
+  final Value<String> templateId;
+  final Value<String> ownerId;
+  final Value<String> name;
+  final Value<String?> priority;
+  final Value<String?> memo;
+  final Value<int> sortOrder;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const TodoTemplateItemsCompanion({
+    this.id = const Value.absent(),
+    this.templateId = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.memo = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TodoTemplateItemsCompanion.insert({
+    required String id,
+    required String templateId,
+    required String ownerId,
+    required String name,
+    this.priority = const Value.absent(),
+    this.memo = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        templateId = Value(templateId),
+        ownerId = Value(ownerId),
+        name = Value(name),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<TodoTemplateItemRow> custom({
+    Expression<String>? id,
+    Expression<String>? templateId,
+    Expression<String>? ownerId,
+    Expression<String>? name,
+    Expression<String>? priority,
+    Expression<String>? memo,
+    Expression<int>? sortOrder,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (templateId != null) 'template_id': templateId,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (name != null) 'name': name,
+      if (priority != null) 'priority': priority,
+      if (memo != null) 'memo': memo,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TodoTemplateItemsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? templateId,
+      Value<String>? ownerId,
+      Value<String>? name,
+      Value<String?>? priority,
+      Value<String?>? memo,
+      Value<int>? sortOrder,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return TodoTemplateItemsCompanion(
+      id: id ?? this.id,
+      templateId: templateId ?? this.templateId,
+      ownerId: ownerId ?? this.ownerId,
+      name: name ?? this.name,
+      priority: priority ?? this.priority,
+      memo: memo ?? this.memo,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (templateId.present) {
+      map['template_id'] = Variable<String>(templateId.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<String>(priority.value);
+    }
+    if (memo.present) {
+      map['memo'] = Variable<String>(memo.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TodoTemplateItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('templateId: $templateId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('name: $name, ')
+          ..write('priority: $priority, ')
+          ..write('memo: $memo, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $OutboxOpsTable extends OutboxOps
     with TableInfo<$OutboxOpsTable, OutboxOpRow> {
   @override
@@ -9605,6 +10460,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $OshiMembersTable oshiMembers = $OshiMembersTable(this);
   late final $OshiAnniversariesTable oshiAnniversaries =
       $OshiAnniversariesTable(this);
+  late final $TodoTemplatesTable todoTemplates = $TodoTemplatesTable(this);
+  late final $TodoTemplateItemsTable todoTemplateItems =
+      $TodoTemplateItemsTable(this);
   late final $OutboxOpsTable outboxOps = $OutboxOpsTable(this);
   late final $AppKvsTable appKvs = $AppKvsTable(this);
   late final $FormDraftsTable formDrafts = $FormDraftsTable(this);
@@ -9628,6 +10486,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         oshiGroups,
         oshiMembers,
         oshiAnniversaries,
+        todoTemplates,
+        todoTemplateItems,
         outboxOps,
         appKvs,
         formDrafts,
@@ -11034,6 +11894,7 @@ typedef $$TodosTableCreateCompanionBuilder = TodosCompanion Function({
   required String genbaId,
   required String ownerId,
   required String name,
+  Value<String> type,
   Value<String?> dueDate,
   Value<bool> isDone,
   Value<String?> assignee,
@@ -11049,6 +11910,7 @@ typedef $$TodosTableUpdateCompanionBuilder = TodosCompanion Function({
   Value<String> genbaId,
   Value<String> ownerId,
   Value<String> name,
+  Value<String> type,
   Value<String?> dueDate,
   Value<bool> isDone,
   Value<String?> assignee,
@@ -11079,6 +11941,9 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get dueDate => $composableBuilder(
       column: $table.dueDate, builder: (column) => ColumnFilters(column));
@@ -11126,6 +11991,9 @@ class $$TodosTableOrderingComposer
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get dueDate => $composableBuilder(
       column: $table.dueDate, builder: (column) => ColumnOrderings(column));
 
@@ -11171,6 +12039,9 @@ class $$TodosTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
 
   GeneratedColumn<String> get dueDate =>
       $composableBuilder(column: $table.dueDate, builder: (column) => column);
@@ -11224,6 +12095,7 @@ class $$TodosTableTableManager extends RootTableManager<
             Value<String> genbaId = const Value.absent(),
             Value<String> ownerId = const Value.absent(),
             Value<String> name = const Value.absent(),
+            Value<String> type = const Value.absent(),
             Value<String?> dueDate = const Value.absent(),
             Value<bool> isDone = const Value.absent(),
             Value<String?> assignee = const Value.absent(),
@@ -11239,6 +12111,7 @@ class $$TodosTableTableManager extends RootTableManager<
             genbaId: genbaId,
             ownerId: ownerId,
             name: name,
+            type: type,
             dueDate: dueDate,
             isDone: isDone,
             assignee: assignee,
@@ -11254,6 +12127,7 @@ class $$TodosTableTableManager extends RootTableManager<
             required String genbaId,
             required String ownerId,
             required String name,
+            Value<String> type = const Value.absent(),
             Value<String?> dueDate = const Value.absent(),
             Value<bool> isDone = const Value.absent(),
             Value<String?> assignee = const Value.absent(),
@@ -11269,6 +12143,7 @@ class $$TodosTableTableManager extends RootTableManager<
             genbaId: genbaId,
             ownerId: ownerId,
             name: name,
+            type: type,
             dueDate: dueDate,
             isDone: isDone,
             assignee: assignee,
@@ -13490,6 +14365,431 @@ typedef $$OshiAnniversariesTableProcessedTableManager = ProcessedTableManager<
     ),
     OshiAnniversaryRow,
     PrefetchHooks Function()>;
+typedef $$TodoTemplatesTableCreateCompanionBuilder = TodoTemplatesCompanion
+    Function({
+  required String id,
+  required String ownerId,
+  required String name,
+  required String itemType,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$TodoTemplatesTableUpdateCompanionBuilder = TodoTemplatesCompanion
+    Function({
+  Value<String> id,
+  Value<String> ownerId,
+  Value<String> name,
+  Value<String> itemType,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TodoTemplatesTableFilterComposer
+    extends Composer<_$AppDatabase, $TodoTemplatesTable> {
+  $$TodoTemplatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get itemType => $composableBuilder(
+      column: $table.itemType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TodoTemplatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TodoTemplatesTable> {
+  $$TodoTemplatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get itemType => $composableBuilder(
+      column: $table.itemType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TodoTemplatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TodoTemplatesTable> {
+  $$TodoTemplatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get itemType =>
+      $composableBuilder(column: $table.itemType, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TodoTemplatesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TodoTemplatesTable,
+    TodoTemplateRow,
+    $$TodoTemplatesTableFilterComposer,
+    $$TodoTemplatesTableOrderingComposer,
+    $$TodoTemplatesTableAnnotationComposer,
+    $$TodoTemplatesTableCreateCompanionBuilder,
+    $$TodoTemplatesTableUpdateCompanionBuilder,
+    (
+      TodoTemplateRow,
+      BaseReferences<_$AppDatabase, $TodoTemplatesTable, TodoTemplateRow>
+    ),
+    TodoTemplateRow,
+    PrefetchHooks Function()> {
+  $$TodoTemplatesTableTableManager(_$AppDatabase db, $TodoTemplatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TodoTemplatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TodoTemplatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TodoTemplatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> itemType = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TodoTemplatesCompanion(
+            id: id,
+            ownerId: ownerId,
+            name: name,
+            itemType: itemType,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String ownerId,
+            required String name,
+            required String itemType,
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TodoTemplatesCompanion.insert(
+            id: id,
+            ownerId: ownerId,
+            name: name,
+            itemType: itemType,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TodoTemplatesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $TodoTemplatesTable,
+    TodoTemplateRow,
+    $$TodoTemplatesTableFilterComposer,
+    $$TodoTemplatesTableOrderingComposer,
+    $$TodoTemplatesTableAnnotationComposer,
+    $$TodoTemplatesTableCreateCompanionBuilder,
+    $$TodoTemplatesTableUpdateCompanionBuilder,
+    (
+      TodoTemplateRow,
+      BaseReferences<_$AppDatabase, $TodoTemplatesTable, TodoTemplateRow>
+    ),
+    TodoTemplateRow,
+    PrefetchHooks Function()>;
+typedef $$TodoTemplateItemsTableCreateCompanionBuilder
+    = TodoTemplateItemsCompanion Function({
+  required String id,
+  required String templateId,
+  required String ownerId,
+  required String name,
+  Value<String?> priority,
+  Value<String?> memo,
+  Value<int> sortOrder,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$TodoTemplateItemsTableUpdateCompanionBuilder
+    = TodoTemplateItemsCompanion Function({
+  Value<String> id,
+  Value<String> templateId,
+  Value<String> ownerId,
+  Value<String> name,
+  Value<String?> priority,
+  Value<String?> memo,
+  Value<int> sortOrder,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$TodoTemplateItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $TodoTemplateItemsTable> {
+  $$TodoTemplateItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get templateId => $composableBuilder(
+      column: $table.templateId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get priority => $composableBuilder(
+      column: $table.priority, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get memo => $composableBuilder(
+      column: $table.memo, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$TodoTemplateItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TodoTemplateItemsTable> {
+  $$TodoTemplateItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get templateId => $composableBuilder(
+      column: $table.templateId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get priority => $composableBuilder(
+      column: $table.priority, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get memo => $composableBuilder(
+      column: $table.memo, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$TodoTemplateItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TodoTemplateItemsTable> {
+  $$TodoTemplateItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get templateId => $composableBuilder(
+      column: $table.templateId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<String> get memo =>
+      $composableBuilder(column: $table.memo, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TodoTemplateItemsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $TodoTemplateItemsTable,
+    TodoTemplateItemRow,
+    $$TodoTemplateItemsTableFilterComposer,
+    $$TodoTemplateItemsTableOrderingComposer,
+    $$TodoTemplateItemsTableAnnotationComposer,
+    $$TodoTemplateItemsTableCreateCompanionBuilder,
+    $$TodoTemplateItemsTableUpdateCompanionBuilder,
+    (
+      TodoTemplateItemRow,
+      BaseReferences<_$AppDatabase, $TodoTemplateItemsTable,
+          TodoTemplateItemRow>
+    ),
+    TodoTemplateItemRow,
+    PrefetchHooks Function()> {
+  $$TodoTemplateItemsTableTableManager(
+      _$AppDatabase db, $TodoTemplateItemsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TodoTemplateItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TodoTemplateItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TodoTemplateItemsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> templateId = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String?> priority = const Value.absent(),
+            Value<String?> memo = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TodoTemplateItemsCompanion(
+            id: id,
+            templateId: templateId,
+            ownerId: ownerId,
+            name: name,
+            priority: priority,
+            memo: memo,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String templateId,
+            required String ownerId,
+            required String name,
+            Value<String?> priority = const Value.absent(),
+            Value<String?> memo = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              TodoTemplateItemsCompanion.insert(
+            id: id,
+            templateId: templateId,
+            ownerId: ownerId,
+            name: name,
+            priority: priority,
+            memo: memo,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$TodoTemplateItemsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $TodoTemplateItemsTable,
+    TodoTemplateItemRow,
+    $$TodoTemplateItemsTableFilterComposer,
+    $$TodoTemplateItemsTableOrderingComposer,
+    $$TodoTemplateItemsTableAnnotationComposer,
+    $$TodoTemplateItemsTableCreateCompanionBuilder,
+    $$TodoTemplateItemsTableUpdateCompanionBuilder,
+    (
+      TodoTemplateItemRow,
+      BaseReferences<_$AppDatabase, $TodoTemplateItemsTable,
+          TodoTemplateItemRow>
+    ),
+    TodoTemplateItemRow,
+    PrefetchHooks Function()>;
 typedef $$OutboxOpsTableCreateCompanionBuilder = OutboxOpsCompanion Function({
   required String mutationId,
   required String ownerId,
@@ -14227,6 +15527,10 @@ class $AppDatabaseManager {
       $$OshiMembersTableTableManager(_db, _db.oshiMembers);
   $$OshiAnniversariesTableTableManager get oshiAnniversaries =>
       $$OshiAnniversariesTableTableManager(_db, _db.oshiAnniversaries);
+  $$TodoTemplatesTableTableManager get todoTemplates =>
+      $$TodoTemplatesTableTableManager(_db, _db.todoTemplates);
+  $$TodoTemplateItemsTableTableManager get todoTemplateItems =>
+      $$TodoTemplateItemsTableTableManager(_db, _db.todoTemplateItems);
   $$OutboxOpsTableTableManager get outboxOps =>
       $$OutboxOpsTableTableManager(_db, _db.outboxOps);
   $$AppKvsTableTableManager get appKvs =>

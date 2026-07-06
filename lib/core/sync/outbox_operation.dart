@@ -22,6 +22,8 @@ class SyncEntity {
   static const oshiGroups = 'oshi_groups';
   static const oshiMembers = 'oshi_members';
   static const oshiAnniversaries = 'oshi_anniversaries';
+  static const todoTemplates = 'todo_templates';
+  static const todoTemplateItems = 'todo_template_items';
 
   static const all = [
     genbas,
@@ -38,6 +40,8 @@ class SyncEntity {
     oshiGroups,
     oshiMembers,
     oshiAnniversaries,
+    todoTemplates,
+    todoTemplateItems,
   ];
 
   /// 競合解決UI等でエンティティ種別を日本語表示するためのラベル。
@@ -56,6 +60,8 @@ class SyncEntity {
         oshiGroups => '推しグループ',
         oshiMembers => '推しメンバー',
         oshiAnniversaries => '記念日',
+        todoTemplates => 'テンプレート',
+        todoTemplateItems => 'テンプレート項目',
         _ => 'データ',
       };
 }

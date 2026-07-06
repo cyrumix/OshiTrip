@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/design_system/design_system.dart';
 import '../../../../core/widgets/async_view.dart';
+import '../../../templates/presentation/template_sheets.dart';
 import '../../application/genba_actions_controller.dart';
 import '../../domain/genba.dart';
 import 'action_feedback.dart';
@@ -336,8 +337,10 @@ class RequirementSelector extends StatelessWidget {
   }
 }
 
-/// Todoタブ。タップ即座に見た目を切り替え（楽観更新）、保存に失敗したら
-/// 実際の値（変更されていない）に自然に戻り、理由を SnackBar で示す
+/// Todo・持ち物タブ。両方とも [GenbaTodo] を同じ仕組みで扱い、[GenbaTodo.type]
+/// によってセクション分けだけを行う（入力項目・保存処理は共通）。
+/// タップ即座に見た目を切り替え（楽観更新）、保存に失敗したら実際の値
+/// （変更されていない）に自然に戻り、理由を SnackBar で示す
 /// （H-07/M-01: 失敗を成功表示しない・ロールバック）。
 class TodoTab extends ConsumerStatefulWidget {
   const TodoTab({super.key, required this.aggregate});
@@ -366,60 +369,186 @@ class _TodoTabState extends ConsumerState<TodoTab> {
     if (failure != null) handleActionResult(context, failure);
   }
 
+  // sortOrder は Repository のクエリで既に昇順ソート済み（§7.6）。
+  // ここでは種別ごとに絞り込むだけで、その順序を保つ（再ソートしない）。
+  Widget _row(GenbaTodo todo) {
+    final genbaId = widget.aggregate.genba.id;
+    return CheckboxListTile(
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.leading,
+      value: _optimistic[todo.id] ?? todo.isDone,
+      onChanged: (checked) => _toggle(todo, checked ?? false),
+      title: Text(
+        todo.name,
+        style: todo.isDone
+            ? const TextStyle(decoration: TextDecoration.lineThrough)
+            : null,
+        semanticsLabel: '${todo.name}、${todo.isDone ? '完了済み' : '未完了'}',
+      ),
+      subtitle: (todo.dueDate != null || todo.priority == TodoPriority.high)
+          ? Text(
+              [
+                if (todo.priority == TodoPriority.high) '重要',
+                if (todo.dueDate != null)
+                  '期限 ${todo.dueDate!.month}/${todo.dueDate!.day}',
+              ].join(' / '),
+            )
+          : null,
+      secondary: IconButton(
+        tooltip: '${todo.type.label}を編集',
+        icon: const Icon(Icons.edit_outlined),
+        onPressed: () => showTodoEditor(
+          context,
+          ref,
+          genbaId: genbaId,
+          existing: todo,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final genbaId = widget.aggregate.genba.id;
+    final todos = widget.aggregate.todos
+        .where((t) => t.type == TodoItemType.todo)
+        .toList(growable: false);
+    final belongings = widget.aggregate.todos
+        .where((t) => t.type == TodoItemType.belonging)
+        .toList(growable: false);
+    final tokens = AppTokens.of(context);
     return GenbaTabList(
       storageKey: 'genba_tab_todo_$genbaId',
       children: [
+        // タブ全体で「Todo・持ち物」をまとめて管理していることが分かる見出し
+        // （下の2セクションは同じ仕組み=GenbaTodoの種別違いであることを示す）。
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpace.md),
+          child: Row(
+            children: [
+              Icon(Icons.checklist_rtl, size: 18, color: tokens.textSecondary),
+              const SizedBox(width: AppSpace.xs),
+              Text(
+                'Todo・持ち物',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: tokens.textSecondary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .4,
+                    ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => openTemplateManager(context),
+                icon: const Icon(Icons.tune, size: 18),
+                label: const Text('テンプレートを管理'),
+              ),
+            ],
+          ),
+        ),
         SectionHeader(
           title: 'Todo（残り${widget.aggregate.incompleteTodoCount}）',
           padding: const EdgeInsets.only(bottom: AppSpace.sm),
           action: TextButton.icon(
-            onPressed: () => showTodoEditor(context, ref, genbaId: genbaId),
+            onPressed: () => showTodoEditor(
+              context,
+              ref,
+              genbaId: genbaId,
+              initialType: TodoItemType.todo,
+            ),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('追加'),
+            label: const Text('Todoを追加'),
           ),
         ),
-        if (widget.aggregate.todos.isEmpty)
+        _TemplateSectionActions(
+          itemType: TodoItemType.todo,
+          genbaId: genbaId,
+          allTodos: widget.aggregate.todos,
+          sectionTodos: todos,
+        ),
+        if (todos.isEmpty)
           const AppCard(
-            child: Text('Todoはまだありません。「追加」から準備リストを作りましょう。'),
-          ),
-        for (final todo in widget.aggregate.todos)
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            value: _optimistic[todo.id] ?? todo.isDone,
-            onChanged: (checked) => _toggle(todo, checked ?? false),
-            title: Text(
-              todo.name,
-              style: todo.isDone
-                  ? const TextStyle(decoration: TextDecoration.lineThrough)
-                  : null,
-              semanticsLabel: '${todo.name}、${todo.isDone ? '完了済み' : '未完了'}',
+            child: Text('Todoはまだありません。「Todoを追加」やテンプレートから準備リストを作りましょう。'),
+          )
+        else
+          for (final todo in todos) _row(todo),
+        SectionHeader(
+          title: '持ち物（残り${widget.aggregate.incompleteBelongingCount}）',
+          padding: const EdgeInsets.only(top: AppSpace.xl, bottom: AppSpace.sm),
+          action: TextButton.icon(
+            onPressed: () => showTodoEditor(
+              context,
+              ref,
+              genbaId: genbaId,
+              initialType: TodoItemType.belonging,
             ),
-            subtitle:
-                (todo.dueDate != null || todo.priority == TodoPriority.high)
-                    ? Text(
-                        [
-                          if (todo.priority == TodoPriority.high) '重要',
-                          if (todo.dueDate != null)
-                            '期限 ${todo.dueDate!.month}/${todo.dueDate!.day}',
-                        ].join(' / '),
-                      )
-                    : null,
-            secondary: IconButton(
-              tooltip: 'Todoを編集',
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () => showTodoEditor(
-                context,
-                ref,
-                genbaId: genbaId,
-                existing: todo,
-              ),
-            ),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('持ち物を追加'),
           ),
+        ),
+        _TemplateSectionActions(
+          itemType: TodoItemType.belonging,
+          genbaId: genbaId,
+          allTodos: widget.aggregate.todos,
+          sectionTodos: belongings,
+        ),
+        if (belongings.isEmpty)
+          const AppCard(
+            child: Text('持ち物はまだありません。「持ち物を追加」やテンプレートから準備リストを作りましょう。'),
+          )
+        else
+          for (final item in belongings) _row(item),
       ],
+    );
+  }
+}
+
+/// 各セクション（Todo/持ち物）のテンプレート操作（追加・保存）ボタン。
+class _TemplateSectionActions extends StatelessWidget {
+  const _TemplateSectionActions({
+    required this.itemType,
+    required this.genbaId,
+    required this.allTodos,
+    required this.sectionTodos,
+  });
+
+  final TodoItemType itemType;
+  final String genbaId;
+
+  /// 重複判定用の現場の全項目（種別は問わず、純関数側で絞り込む）。
+  final List<GenbaTodo> allTodos;
+
+  /// このセクションの項目（「現在の内容を保存」の対象）。
+  final List<GenbaTodo> sectionTodos;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.xs),
+      child: Wrap(
+        spacing: AppSpace.sm,
+        children: [
+          TextButton.icon(
+            onPressed: () => showApplyTemplateSheet(
+              context,
+              genbaId: genbaId,
+              itemType: itemType,
+              existing: allTodos,
+            ),
+            icon: const Icon(Icons.library_add_outlined, size: 18),
+            label: const Text('テンプレートから追加'),
+          ),
+          if (sectionTodos.isNotEmpty)
+            TextButton.icon(
+              onPressed: () => showSaveTemplateSheet(
+                context,
+                itemType: itemType,
+                items: sectionTodos,
+              ),
+              icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+              label: const Text('現在の内容をテンプレートに保存'),
+            ),
+        ],
+      ),
     );
   }
 }

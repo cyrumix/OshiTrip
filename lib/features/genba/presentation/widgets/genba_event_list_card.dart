@@ -79,15 +79,16 @@ class GenbaEventListCard extends ConsumerWidget {
       statusChips: [
         if (alwaysShowStatus || status == GenbaStatus.canceled)
           GenbaStatusChip(status: status),
-        PrepChip(label: 'チケット', state: prep.ticket),
-        PrepChip(label: '交通', state: prep.transport),
-        PrepChip(label: '宿泊', state: prep.lodging),
         if (aggregate.incompleteTodoCount > 0)
           Chip(
             avatar: const Icon(Icons.check_box_outlined, size: 16),
             label: Text('Todo残り${aggregate.incompleteTodoCount}'),
             visualDensity: VisualDensity.compact,
           ),
+        BelongingPrepChip(state: prep.belonging),
+        PrepChip(label: 'チケット', state: prep.ticket),
+        PrepChip(label: '交通', state: prep.transport),
+        PrepChip(label: '宿泊', state: prep.lodging),
       ],
       footer: nextAction == null
           ? null

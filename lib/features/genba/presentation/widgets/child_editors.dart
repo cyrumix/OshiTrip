@@ -54,10 +54,16 @@ Future<void> showTodoEditor(
   WidgetRef ref, {
   required String genbaId,
   GenbaTodo? existing,
+  // 新規登録時の初期種別（省略時はTodo）。既存編集時は existing.type を使う。
+  TodoItemType initialType = TodoItemType.todo,
 }) =>
     _showEditorSheet(
       context,
-      _TodoEditor(genbaId: genbaId, existing: existing),
+      _TodoEditor(
+        genbaId: genbaId,
+        existing: existing,
+        initialType: initialType,
+      ),
     );
 
 Future<void> showMemoEditor(
@@ -668,10 +674,15 @@ class _LodgingEditorState extends ConsumerState<_LodgingEditor> {
 // ---------------------------------------------------------------------------
 
 class _TodoEditor extends ConsumerStatefulWidget {
-  const _TodoEditor({required this.genbaId, this.existing});
+  const _TodoEditor({
+    required this.genbaId,
+    this.existing,
+    this.initialType = TodoItemType.todo,
+  });
 
   final String genbaId;
   final GenbaTodo? existing;
+  final TodoItemType initialType;
 
   @override
   ConsumerState<_TodoEditor> createState() => _TodoEditorState();
@@ -681,6 +692,7 @@ class _TodoEditorState extends ConsumerState<_TodoEditor> {
   late final TextEditingController _name;
   late final TextEditingController _assignee;
   late final TextEditingController _memo;
+  late TodoItemType _type;
   late TodoPriority _priority;
   DateTime? _due;
 
@@ -691,6 +703,7 @@ class _TodoEditorState extends ConsumerState<_TodoEditor> {
     _name = TextEditingController(text: t?.name ?? '');
     _assignee = TextEditingController(text: t?.assignee ?? '');
     _memo = TextEditingController(text: t?.memo ?? '');
+    _type = t?.type ?? widget.initialType;
     _priority = t?.priority ?? TodoPriority.normal;
     _due = t?.dueDate;
   }
@@ -706,20 +719,24 @@ class _TodoEditorState extends ConsumerState<_TodoEditor> {
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Todo名を入力してください')));
+          .showSnackBar(const SnackBar(content: Text('名前を入力してください')));
       return;
     }
     final now = ref.read(clockProvider).now().toUtc();
     final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
+    // 持ち物は期限・重要度を使わない（§持ち物の入力仕様）。UI側で切替時に
+    // リセットしているが、保存時にも二重に防御し、古い値を残さない。
+    final isBelonging = _type == TodoItemType.belonging;
     final todo = GenbaTodo(
       id: widget.existing?.id ?? const Uuid().v4(),
       genbaId: widget.genbaId,
       ownerId: widget.existing?.ownerId ?? owner,
       name: _name.text.trim(),
-      dueDate: _due,
+      type: _type,
+      dueDate: isBelonging ? null : _due,
       isDone: widget.existing?.isDone ?? false,
       assignee: _assignee.text.trim().isEmpty ? null : _assignee.text.trim(),
-      priority: _priority,
+      priority: isBelonging ? TodoPriority.normal : _priority,
       memo: _memo.text.trim().isEmpty ? null : _memo.text.trim(),
       sortOrder: widget.existing?.sortOrder ?? 0,
       createdAt: widget.existing?.createdAt ?? now,
@@ -728,42 +745,63 @@ class _TodoEditorState extends ConsumerState<_TodoEditor> {
     final result = await ref.read(genbaRepositoryProvider).upsertTodo(todo);
     if (!mounted) return;
     Navigator.of(context).pop();
-    _showResult(context, result, 'Todoを保存しました');
+    _showResult(context, result, '${_type.label}を保存しました');
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.existing != null;
     return _EditorScaffold(
-      title: widget.existing == null ? 'Todoを追加' : 'Todoを編集',
+      title: isEdit ? '${_type.label}を編集' : '${_type.label}を追加',
       onSave: _save,
       children: [
+        // 種別（Todo/持ち物）。入力項目・保存処理は種別によらず共通で、
+        // ここで選んだ値がそのまま GenbaTodo.type に入るだけ（別実装にしない）。
+        _EnumSelector<TodoItemType>(
+          label: '種別',
+          values: TodoItemType.values,
+          selected: _type,
+          labelOf: (v) => v.label,
+          onChanged: (v) => setState(() {
+            _type = v;
+            // Todo→持ち物では期限・重要度を使わないため、切替時にリセットし
+            // 古い値を表示・保存に残さない（§持ち物の入力仕様）。
+            if (v == TodoItemType.belonging) {
+              _due = null;
+              _priority = TodoPriority.normal;
+            }
+          }),
+        ),
         TextField(
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Todo名 *'),
+          decoration: const InputDecoration(labelText: '名前 *'),
           autofocus: widget.existing == null,
         ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('期限'),
-          subtitle: Text(_due == null ? '未設定' : formatDateOnly(_due!)),
-          trailing: const Icon(Icons.calendar_month),
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _due ?? ref.read(clockProvider).now(),
-              firstDate: DateTime(2000),
-              lastDate: DateTime(2100),
-            );
-            if (picked != null) setState(() => _due = picked);
-          },
-        ),
-        _EnumSelector<TodoPriority>(
-          label: '重要度',
-          values: TodoPriority.values,
-          selected: _priority,
-          labelOf: (v) => v.label,
-          onChanged: (v) => setState(() => _priority = v),
-        ),
+        // 持ち物では期限・重要度の入力欄を出さない（§持ち物の入力仕様）。
+        if (_type == TodoItemType.todo) ...[
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('期限'),
+            subtitle: Text(_due == null ? '未設定' : formatDateOnly(_due!)),
+            trailing: const Icon(Icons.calendar_month),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _due ?? ref.read(clockProvider).now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2100),
+              );
+              if (picked != null) setState(() => _due = picked);
+            },
+          ),
+          _EnumSelector<TodoPriority>(
+            label: '重要度',
+            values: TodoPriority.values,
+            selected: _priority,
+            labelOf: (v) => v.label,
+            onChanged: (v) => setState(() => _priority = v),
+          ),
+        ],
         TextField(
           controller: _assignee,
           decoration: const InputDecoration(labelText: '担当'),

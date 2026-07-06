@@ -17,19 +17,19 @@ void main() {
       return (hi + 0.05) / (lo + 0.05);
     }
 
-    test('ライト: 基準トークンが HOME刷新デザイン案「朝靄」の値である', () {
+    test('ライト: 基準トークンがデザイン刷新（明るいラベンダー×白カード）の値である', () {
       final theme = AppTheme.light();
       final tokens = theme.extension<AppTokens>()!;
-      expect(theme.colorScheme.primary, const Color(0xFF6A56D9));
-      expect(theme.scaffoldBackgroundColor, const Color(0xFFF8F6F1));
+      expect(theme.colorScheme.primary, const Color(0xFF7461E6));
+      expect(theme.scaffoldBackgroundColor, const Color(0xFFFAF9FE));
       expect(theme.colorScheme.surface, const Color(0xFFFFFFFF));
-      expect(theme.colorScheme.onSurface, const Color(0xFF251F36));
+      expect(theme.colorScheme.onSurface, const Color(0xFF29233E));
       // 白面で AA（4.5:1）以上を満たす値（app_tokens.dart のコメント参照）。
-      expect(tokens.textSecondary, const Color(0xFF6E6787));
-      expect(tokens.divider, const Color(0xFFE7E3F0));
-      expect(tokens.primarySoft, const Color(0xFFEEE9FF));
-      // 「夜明け前の空」と暁（HOME刷新の署名色）。
-      expect(tokens.heroGradientStart, const Color(0xFF2B2350));
+      expect(tokens.textSecondary, const Color(0xFF716B8A));
+      expect(tokens.divider, const Color(0xFFEDEAF6));
+      expect(tokens.primarySoft, const Color(0xFFEFEBFD));
+      // ヒーローの菫グラデーションと暁アクセント。
+      expect(tokens.heroGradientStart, const Color(0xFF9180F0));
       expect(tokens.dawn, const Color(0xFFF2A98F));
     });
 
@@ -95,7 +95,8 @@ void main() {
   });
 
   group('SegmentTabs', () {
-    testWidgets('選択状態が Semantics(selected) と下線で示され、タップで切替できる', (tester) async {
+    testWidgets('選択状態が Semantics(selected) とピルの塗りで示され、タップで切替できる',
+        (tester) async {
       var selected = 0;
       await pumpComponent(
         tester,

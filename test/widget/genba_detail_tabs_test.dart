@@ -52,7 +52,7 @@ void main() {
     expect(find.textContaining('開演 18:00'), findsWidgets);
 
     // 6タブ。
-    for (final label in ['概要', 'Todo', 'チケット', '交通', '宿泊', 'メモ']) {
+    for (final label in ['概要', 'Todo・持ち物', 'チケット', '交通', '宿泊', 'メモ']) {
       expect(
         find.descendant(of: find.byType(TabBar), matching: find.text(label)),
         findsOneWidget,
@@ -122,12 +122,15 @@ void main() {
     await seed(container);
     await tester.pumpAndSettle();
 
-    // Todo タブ → 追加でエディタ（Bottom Sheet）を開く。
+    // Todo・持ち物タブ → 「Todoを追加」でエディタ（Bottom Sheet）を開く。
     await tester.tap(
-      find.descendant(of: find.byType(TabBar), matching: find.text('Todo')),
+      find.descendant(
+        of: find.byType(TabBar),
+        matching: find.text('Todo・持ち物'),
+      ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('追加'));
+    await tester.tap(find.text('Todoを追加'));
     await tester.pumpAndSettle();
 
     // キーボード相当の viewInsets（論理 400px）を与える。

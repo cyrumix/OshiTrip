@@ -347,32 +347,11 @@ class _OshiSection extends ConsumerWidget {
   Future<String?> _promptName(
     BuildContext context, {
     required String title,
-  }) async {
-    final nameController = TextEditingController();
-    final name = await showDialog<String>(
+  }) {
+    return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: '名前 *'),
-          onSubmitted: (v) => Navigator.pop(context, v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, nameController.text.trim()),
-            child: const Text('登録'),
-          ),
-        ],
-      ),
+      builder: (context) => _NamePromptDialog(title: title),
     );
-    nameController.dispose();
-    return name;
   }
 
   @override
@@ -455,6 +434,52 @@ class _OshiSection extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// 名前入力用の汎用ダイアログ。コントローラーはダイアログ自身のライフサイクルで
+/// 破棄する（`showDialog` の Future 完了＝pop 呼び出し時点であり、退場アニメーション
+/// 中はまだ TextField が生存しているため、呼び出し元で即座に dispose すると
+/// 「disposed 後の TextEditingController 使用」で描画中に例外が出る）。
+class _NamePromptDialog extends StatefulWidget {
+  const _NamePromptDialog({required this.title});
+
+  final String title;
+
+  @override
+  State<_NamePromptDialog> createState() => _NamePromptDialogState();
+}
+
+class _NamePromptDialogState extends State<_NamePromptDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: const InputDecoration(labelText: '名前 *'),
+        onSubmitted: (v) => Navigator.pop(context, v.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('キャンセル'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          child: const Text('登録'),
+        ),
+      ],
     );
   }
 }

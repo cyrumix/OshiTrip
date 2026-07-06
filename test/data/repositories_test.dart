@@ -6,8 +6,10 @@ import 'package:oshi_trip/core/logging/app_logger.dart';
 import 'package:oshi_trip/core/network/connectivity.dart';
 import 'package:oshi_trip/core/sync/outbox_operation.dart';
 import 'package:oshi_trip/core/sync/outbox_store.dart';
+import 'package:oshi_trip/core/sync/remote_pull.dart';
 import 'package:oshi_trip/core/sync/sync_engine.dart';
 import 'package:oshi_trip/core/time/clock.dart';
+import 'package:oshi_trip/features/genba/data/genba_mappers.dart';
 import 'package:oshi_trip/features/genba/data/genba_repository_impl.dart';
 import 'package:oshi_trip/features/genba/domain/genba.dart';
 import 'package:oshi_trip/features/memory/data/memory_repository_impl.dart';
@@ -98,6 +100,69 @@ void main() {
 
     final ops = await outbox.pendingOps(ownerId: 'user-1');
     expect(ops.where((o) => o.entityTable == SyncEntity.todos), hasLength(2));
+  });
+
+  test('持ち物として保存・再読み込みしても種別が維持され、Outbox payloadにも含まれる', () async {
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 8, 1)));
+    await genbaRepo.upsertTodo(makeTodo(type: TodoItemType.belonging));
+
+    final aggregate = (await genbaRepo.watchAll().first).first;
+    expect(aggregate.todos.single.type, TodoItemType.belonging);
+    expect(aggregate.incompleteTodoCount, 0);
+    expect(aggregate.incompleteBelongingCount, 1);
+
+    final ops = await outbox.pendingOps(ownerId: 'user-1');
+    final todoOp = ops.singleWhere((o) => o.entityTable == SyncEntity.todos);
+    expect(todoOp.payload['type'], 'belonging');
+  });
+
+  test('リモートからpullした行の種別がローカルへ反映される（種別欠落時はtodoへ後方互換）', () async {
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 8, 1)));
+
+    final rows = <Map<String, dynamic>>[
+      {
+        'id': 'todo-remote-1',
+        'genba_id': 'genba-1',
+        'owner_id': 'user-1',
+        'name': 'リモートの持ち物',
+        'type': 'belonging',
+        'is_done': false,
+        'priority': 'normal',
+        'sort_order': 0,
+        'created_at': fixedCreatedAt.toIso8601String(),
+        'updated_at': fixedCreatedAt.toIso8601String(),
+      },
+      {
+        // 種別キー自体が無い古い形式のサーバー行（移行前）でも todo として扱う。
+        'id': 'todo-remote-2',
+        'genba_id': 'genba-1',
+        'owner_id': 'user-1',
+        'name': 'リモートの旧形式Todo',
+        'is_done': false,
+        'priority': 'normal',
+        'sort_order': 1,
+        'created_at': fixedCreatedAt.toIso8601String(),
+        'updated_at': fixedCreatedAt.toIso8601String(),
+      },
+    ];
+    await applyPulledRowsInto(
+      db: db,
+      outbox: outbox,
+      owner: 'user-1',
+      tableName: SyncEntity.todos,
+      rows: rows,
+      toCompanion: (json) => todoToCompanion(GenbaTodo.fromJson(json)),
+      table: db.todos,
+      idColumn: (t) => t.id,
+      ownerColumn: (t) => t.ownerId,
+      idOf: (r) => r.id,
+    );
+
+    final aggregate = (await genbaRepo.watchAll().first).first;
+    final remote1 = aggregate.todos.firstWhere((t) => t.id == 'todo-remote-1');
+    final remote2 = aggregate.todos.firstWhere((t) => t.id == 'todo-remote-2');
+    expect(remote1.type, TodoItemType.belonging);
+    expect(remote2.type, TodoItemType.todo);
   });
 
   test('メモは区分ごとに1件が維持される（upsert）', () async {

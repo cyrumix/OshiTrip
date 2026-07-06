@@ -91,10 +91,10 @@ void main() {
     await tester.tap(find.text('登録する'));
     await tester.pumpAndSettle();
 
-    // 詳細画面へ遷移している（R7: AppBarタイトルに加えヒーロー領域にも
-    // 公演名が表示されるため、タイトルの存在とタブ構成で判定する）
+    // 詳細画面へ遷移している（デザイン刷新: 「概要」はタブと概要カードの
+    // 見出しの2箇所に出るため、公演名とあわせて存在で判定する）
     expect(find.text('全国ツアー東京公演'), findsWidgets);
-    expect(find.text('概要'), findsOneWidget);
+    expect(find.text('概要'), findsWidgets);
 
     // ホームへ戻ると当日モードのカードが最上部に出る
     await tester.tap(

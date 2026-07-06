@@ -24,13 +24,16 @@ class SessionRefresher {
     required ScopedRefresh refreshGenba,
     required ScopedRefresh refreshMemory,
     required ScopedRefresh refreshOshi,
+    required ScopedRefresh refreshTemplate,
   })  : _refreshGenba = refreshGenba,
         _refreshMemory = refreshMemory,
-        _refreshOshi = refreshOshi;
+        _refreshOshi = refreshOshi,
+        _refreshTemplate = refreshTemplate;
 
   final ScopedRefresh _refreshGenba;
   final ScopedRefresh _refreshMemory;
   final ScopedRefresh _refreshOshi;
+  final ScopedRefresh _refreshTemplate;
 
   int _generation = 0;
   String? _activeOwner;
@@ -119,6 +122,7 @@ class SessionRefresher {
     final rest = await Future.wait([
       _refreshMemory(isStale),
       _refreshOshi(isStale),
+      _refreshTemplate(isStale),
     ]);
     lastResults.addAll(rest);
     // 完了時点でも current なら「この owner は pull 済み」と記録する。

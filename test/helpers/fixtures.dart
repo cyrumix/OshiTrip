@@ -1,5 +1,6 @@
 import 'package:oshi_trip/core/config/env.dart';
 import 'package:oshi_trip/features/genba/domain/genba.dart';
+import 'package:oshi_trip/features/templates/domain/todo_template.dart';
 
 /// development + Supabase未設定 = デモモードの環境設定。
 const demoEnv = AppEnv(
@@ -74,8 +75,12 @@ GenbaTodo makeTodo({
   String genbaId = 'genba-1',
   String ownerId = 'user-1',
   String name = '銀テを拾う',
+  TodoItemType type = TodoItemType.todo,
   bool isDone = false,
   DateTime? dueDate,
+  String? assignee,
+  String? memo,
+  int sortOrder = 0,
   TodoPriority priority = TodoPriority.normal,
 }) {
   return GenbaTodo(
@@ -83,9 +88,51 @@ GenbaTodo makeTodo({
     genbaId: genbaId,
     ownerId: ownerId,
     name: name,
+    type: type,
     isDone: isDone,
     dueDate: dueDate,
+    assignee: assignee,
+    memo: memo,
+    sortOrder: sortOrder,
     priority: priority,
+    createdAt: fixedCreatedAt,
+    updatedAt: fixedCreatedAt,
+  );
+}
+
+TodoTemplate makeTemplate({
+  String id = 'tpl-1',
+  String ownerId = 'user-1',
+  String name = 'マイテンプレート',
+  TodoItemType itemType = TodoItemType.todo,
+}) {
+  return TodoTemplate(
+    id: id,
+    ownerId: ownerId,
+    name: name,
+    itemType: itemType,
+    createdAt: fixedCreatedAt,
+    updatedAt: fixedCreatedAt,
+  );
+}
+
+TodoTemplateItem makeTemplateItem({
+  String id = 'tpl-item-1',
+  String templateId = 'tpl-1',
+  String ownerId = 'user-1',
+  String name = '項目',
+  TodoPriority? priority,
+  String? memo,
+  int sortOrder = 0,
+}) {
+  return TodoTemplateItem(
+    id: id,
+    templateId: templateId,
+    ownerId: ownerId,
+    name: name,
+    priority: priority,
+    memo: memo,
+    sortOrder: sortOrder,
     createdAt: fixedCreatedAt,
     updatedAt: fixedCreatedAt,
   );
