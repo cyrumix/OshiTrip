@@ -11,6 +11,7 @@ import '../../../../core/error/result.dart';
 import '../../../../core/images/image_store.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/time/date_only.dart';
+import '../../../../core/widgets/async_view.dart';
 import '../../domain/genba.dart';
 
 /// 現場詳細の子データ編集ボトムシート群（§7.3〜§7.7）。
@@ -748,12 +749,33 @@ class _TodoEditorState extends ConsumerState<_TodoEditor> {
     _showResult(context, result, '${_type.label}を保存しました');
   }
 
+  Future<void> _delete() async {
+    final existing = widget.existing;
+    if (existing == null) return;
+    // 種別ラベルは保存中の編集で切り替わっていても、削除対象は既存項目そのもの
+    // なので existing.type のラベルで確認する。
+    final label = existing.type.label;
+    final confirmed = await confirmDangerAction(
+      context,
+      title: '$labelを削除',
+      message: '「${existing.name}」を削除します。この操作は取り消せません。',
+    );
+    if (!confirmed || !mounted) return;
+    final result =
+        await ref.read(genbaRepositoryProvider).deleteTodo(existing.id);
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    _showResult(context, result, '$labelを削除しました');
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
     return _EditorScaffold(
       title: isEdit ? '${_type.label}を編集' : '${_type.label}を追加',
       onSave: _save,
+      // 既存項目の編集時のみ削除ボタンを出す（新規追加時は出さない）。
+      onDelete: isEdit ? _delete : null,
       children: [
         // 種別（Todo/持ち物）。入力項目・保存処理は種別によらず共通で、
         // ここで選んだ値がそのまま GenbaTodo.type に入るだけ（別実装にしない）。
@@ -895,16 +917,23 @@ class _MemoEditorState extends ConsumerState<_MemoEditor> {
 
 /// 子データ編集シートの共通枠。保存ボタンは二重タップで多重送信しないよう、
 /// 保存処理中は無効化しローディングを示す（H-07/M-01）。
+///
+/// [onDelete] を渡すと、ヘッダに削除ボタンを表示する（既存項目の編集時のみ）。
+/// 削除中は保存・削除とも無効化して二重実行を防ぐ。
 class _EditorScaffold extends StatefulWidget {
   const _EditorScaffold({
     required this.title,
     required this.onSave,
     required this.children,
+    this.onDelete,
   });
 
   final String title;
   final Future<void> Function() onSave;
   final List<Widget> children;
+
+  /// 非null のとき、ヘッダに削除ボタンを表示する。
+  final Future<void> Function()? onDelete;
 
   @override
   State<_EditorScaffold> createState() => _EditorScaffoldState();
@@ -912,9 +941,12 @@ class _EditorScaffold extends StatefulWidget {
 
 class _EditorScaffoldState extends State<_EditorScaffold> {
   bool _saving = false;
+  bool _deleting = false;
+
+  bool get _busy => _saving || _deleting;
 
   Future<void> _handleSave() async {
-    if (_saving) return; // 二重タップ: 保存処理中は再入を無視する。
+    if (_busy) return; // 二重タップ / 削除中は保存を無視する。
     setState(() => _saving = true);
     try {
       await widget.onSave();
@@ -923,6 +955,16 @@ class _EditorScaffoldState extends State<_EditorScaffold> {
       // まだ mounted の場合のみ解除する（保存失敗時など、シートが残る場合に
       // ボタンを再度押せるようにする）。
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _handleDelete() async {
+    if (_busy || widget.onDelete == null) return;
+    setState(() => _deleting = true);
+    try {
+      await widget.onDelete!();
+    } finally {
+      if (mounted) setState(() => _deleting = false);
     }
   }
 
@@ -944,6 +986,15 @@ class _EditorScaffoldState extends State<_EditorScaffold> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
+                if (widget.onDelete != null)
+                  // 削除は確認ダイアログ→即時削除で完結するため、進行中は
+                  // ボタンを無効化するだけにする（確認中に回るスピナーは出さない）。
+                  IconButton(
+                    onPressed: _busy ? null : _handleDelete,
+                    tooltip: '削除',
+                    color: Theme.of(context).colorScheme.error,
+                    icon: const Icon(Icons.delete_outline),
+                  ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   tooltip: '閉じる',
@@ -965,7 +1016,7 @@ class _EditorScaffoldState extends State<_EditorScaffold> {
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _saving ? null : _handleSave,
+                  onPressed: _busy ? null : _handleSave,
                   child: _saving
                       ? const SizedBox(
                           width: 20,

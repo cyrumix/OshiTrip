@@ -392,4 +392,150 @@ void main() {
 
     await unmountApp(tester);
   });
+
+  testWidgets('編集シートの削除ボタンでTodoを削除できる', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final db = await signedInTestDb();
+    addTearDown(db.close);
+    final container = await pumpScreen(
+      tester,
+      db: db,
+      clock: clock,
+      child: const GenbaDetailScreen(genbaId: genbaId),
+    );
+    final repo = container.read(genbaRepositoryProvider);
+    await repo.upsertGenba(
+      makeGenba(id: genbaId, ownerId: ownerId, eventDate: DateTime(2026, 8, 1)),
+    );
+    await repo.upsertTodo(
+      makeTodo(
+        id: 't-del',
+        genbaId: genbaId,
+        ownerId: ownerId,
+        name: '削除対象Todo',
+        type: TodoItemType.todo,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openTodoTab(tester);
+    expect(find.text('Todo（残り1）'), findsOneWidget);
+
+    // 項目の編集ボタンで編集シートを開く。
+    await tester.tap(
+      find.descendant(
+        of: find.widgetWithText(CheckboxListTile, '削除対象Todo'),
+        matching: find.byTooltip('Todoを編集'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 編集シートに削除ボタンがある。
+    expect(find.byTooltip('削除'), findsOneWidget);
+    await tester.tap(find.byTooltip('削除'));
+    await tester.pumpAndSettle();
+
+    // 危険操作の確認ダイアログ → 削除する。
+    expect(find.text('Todoを削除'), findsOneWidget);
+    await tester.tap(find.text('削除する'));
+    await tester.pumpAndSettle();
+
+    // 一覧から消え、残数も0になる。
+    expect(find.text('削除対象Todo'), findsNothing);
+    expect(find.text('Todo（残り0）'), findsOneWidget);
+    final aggregate = await repo.watchById(genbaId).first;
+    expect(aggregate!.todos, isEmpty);
+
+    await unmountApp(tester);
+  });
+
+  testWidgets('編集シートの削除ボタンで持ち物を削除できる', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final db = await signedInTestDb();
+    addTearDown(db.close);
+    final container = await pumpScreen(
+      tester,
+      db: db,
+      clock: clock,
+      child: const GenbaDetailScreen(genbaId: genbaId),
+    );
+    final repo = container.read(genbaRepositoryProvider);
+    await repo.upsertGenba(
+      makeGenba(id: genbaId, ownerId: ownerId, eventDate: DateTime(2026, 8, 1)),
+    );
+    await repo.upsertTodo(
+      makeTodo(
+        id: 'b-del',
+        genbaId: genbaId,
+        ownerId: ownerId,
+        name: '削除対象の持ち物',
+        type: TodoItemType.belonging,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openTodoTab(tester);
+    expect(find.text('持ち物（残り1）'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.widgetWithText(CheckboxListTile, '削除対象の持ち物'),
+        matching: find.byTooltip('持ち物を編集'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('削除'), findsOneWidget);
+    await tester.tap(find.byTooltip('削除'));
+    await tester.pumpAndSettle();
+    expect(find.text('持ち物を削除'), findsOneWidget);
+    await tester.tap(find.text('削除する'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('削除対象の持ち物'), findsNothing);
+    expect(find.text('持ち物（残り0）'), findsOneWidget);
+    final aggregate = await repo.watchById(genbaId).first;
+    expect(aggregate!.todos, isEmpty);
+
+    await unmountApp(tester);
+  });
+
+  testWidgets('新規追加シートには削除ボタンが出ない', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final db = await signedInTestDb();
+    addTearDown(db.close);
+    final container = await pumpScreen(
+      tester,
+      db: db,
+      clock: clock,
+      child: const GenbaDetailScreen(genbaId: genbaId),
+    );
+    await container.read(genbaRepositoryProvider).upsertGenba(
+          makeGenba(
+            id: genbaId,
+            ownerId: ownerId,
+            eventDate: DateTime(2026, 8, 1),
+          ),
+        );
+    await tester.pumpAndSettle();
+    await openTodoTab(tester);
+
+    await tester.tap(find.text('Todoを追加'));
+    await tester.pumpAndSettle();
+    // 新規追加では削除対象が無いため削除ボタンは表示しない。
+    expect(find.byTooltip('削除'), findsNothing);
+    expect(find.text('保存する'), findsOneWidget);
+
+    await unmountApp(tester);
+  });
 }
