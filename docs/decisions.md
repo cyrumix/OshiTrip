@@ -615,3 +615,19 @@ TimeoutHttpClient・「apply がハング→タイムアウトで op が pending
 - Docker 導入環境で `supabase db reset` → `supabase test db` を実行し、0005 pgTAP（43件）と0008マイグレーションの適用・既存0001〜0004の回帰を実機確認する。
 - R8-A/B/C完了により High 3件・Medium 3件（E-2/F-1/F-3）は解消。残 Medium（C-1: `child_editors.dart` 分割）と Low（A-1/A-2 のCI文書整合, D-1/D-2 の同日ソート二次キー, B-1 通知許可の後続実装）は保守セッションで対応する。
 - 本是正後にR8監査手順（`fable-post-implementation-review-prompt.md`）を再実施し、Critical/High 0件を独立確認してからリリース判定へ進む。
+## 旅程Google API低コスト・保存規約方針（2026-07-06）
+
+確認した公式資料:
+
+- [Places API policies and attributions](https://developers.google.com/maps/documentation/places/web-service/policies)（確認日: 2026-07-06）
+- [Place IDs](https://developers.google.com/maps/documentation/places/web-service/place-id)（確認日: 2026-07-06）
+- [Places API usage and billing](https://developers.google.com/maps/documentation/places/web-service/usage-and-billing)（確認日: 2026-07-06）
+- [Routes API Compute Routes](https://developers.google.com/maps/documentation/routes/compute_route_directions)（確認日: 2026-07-06）
+- [Google Maps Platform Service Specific Terms](https://cloud.google.com/maps-platform/terms/maps-service-terms)（確認日: 2026-07-06）
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-178 | Places MVPの取得Field MaskをPlace ID・名称・住所・表示に必要な帰属情報へ限定し、電話、Web、営業時間、写真、評価、レビュー、primary type、座標は取得しない。Place IDは永続保存・再利用し、名称・住所はGoogle応答のユーザー横断恒久キャッシュにしない | Places公式ポリシーは原則としてPlacesコンテンツの事前取得・キャッシュ・保存を禁じ、Place IDだけをキャッシュ制限の例外としている。Field Maskは要求中の最高SKUに課金されるため、最小allowlistが費用と規約の両面で安全 |
+| D-179 | 共有施設DBと共有概算経路DBは、ユーザー入力、施設提供、オープンデータ、契約データ等、保存・再利用権限を説明できるデータのみを正本とする。Google応答から名称・住所・経路内容を自動転記して共有キャッシュへ昇格させない。Place IDは照合キーとして利用可能 | 「誰かが一度取得したGoogle施設情報を全ユーザーで再利用する」構成はGoogle API呼び出しの代替となり、現行のキャッシュ制限に適合しない。出典・権利根拠を持つ独立データなら、API費用を抑えつつ共有再利用できる |
+| D-180 | Google Routesは、プレミアムユーザーが経路詳細を開くか`最新ルートを更新`を押した場合だけ呼ぶ。通常表示は権利確認済みの保存済み概算経路を優先する。Googleライブ応答は一時表示とし、書面許諾等が無い限り共有DBへ永続キャッシュしない | Routesの現行個別規約で明示されるキャッシュ許可は緯度・経度の最長30日であり、経路概要・所要時間・路線・運賃等を恒久DB化してAPIを代替する許可は確認できない。明示操作・single-flight・クォータ・kill switchで呼出しを抑える |
+| D-181 | Google由来の緯度・経度を一時保存する場合は、取得元・取得日時・失効日時を持ち、最長30日で自動削除する。無料／プレミアムにかかわらず同じ保存・帰属制約を適用し、規約確認をリリース前・四半期ごとに行う | Google Maps Platformの規約・料金・製品仕様は更新され得る。課金権限は保存権限を意味しないため、entitlementとcomplianceを分離して強制する |

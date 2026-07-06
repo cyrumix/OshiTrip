@@ -45,6 +45,21 @@ Future<void> purgeLocalDataForOwner(
         .go();
     await (db.delete(db.todoTemplates)..where((t) => t.ownerId.equals(ownerId)))
         .go();
+    // 旅程は子（leg/entry/link/spot）→ 親（plan）の順に削除する。
+    await (db.delete(db.itineraryLegs)..where((t) => t.ownerId.equals(ownerId)))
+        .go();
+    await (db.delete(db.itineraryEntries)
+          ..where((t) => t.ownerId.equals(ownerId)))
+        .go();
+    await (db.delete(db.itinerarySpotLinks)
+          ..where((t) => t.ownerId.equals(ownerId)))
+        .go();
+    await (db.delete(db.itinerarySpots)
+          ..where((t) => t.ownerId.equals(ownerId)))
+        .go();
+    await (db.delete(db.itineraryPlans)
+          ..where((t) => t.ownerId.equals(ownerId)))
+        .go();
     await (db.delete(db.genbas)..where((t) => t.ownerId.equals(ownerId))).go();
     await (db.delete(db.outboxOps)..where((t) => t.ownerId.equals(ownerId)))
         .go();

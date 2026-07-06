@@ -7,6 +7,8 @@ import '../features/auth/data/supabase_auth_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/genba/data/genba_repository_impl.dart';
 import '../features/genba/domain/genba_repository.dart';
+import '../features/itinerary/data/itinerary_repository_impl.dart';
+import '../features/itinerary/domain/itinerary_repository.dart';
 import '../features/memory/data/memory_repository_impl.dart';
 import '../features/memory/data/supabase_photo_uploader.dart';
 import '../features/memory/domain/memory_repository.dart';
@@ -253,6 +255,18 @@ final templateRepositoryProvider = Provider<TemplateRepository>((ref) {
   );
 });
 
+final itineraryRepositoryProvider = Provider<ItineraryRepository>((ref) {
+  final scope = ref.watch(localDataScopeProvider);
+  return ItineraryRepositoryImpl(
+    db: ref.watch(databaseProvider),
+    outbox: ref.watch(outboxStoreProvider),
+    syncEngine: ref.watch(syncEngineProvider),
+    clock: ref.watch(clockProvider),
+    ownerIdResolver: () => scope.ownerIdOrNull,
+    remoteResolver: () => _remoteClientOrNull(ref),
+  );
+});
+
 /// drain の駆動タイミング調停（H-02）。デモでは周期タイマーを作らない。
 final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   final env = ref.watch(envProvider);
@@ -276,6 +290,9 @@ final sessionRefresherProvider = Provider<SessionRefresher>((ref) {
         ref.read(oshiRepositoryProvider).refreshFromRemote(isStale: isStale),
     refreshTemplate: (isStale) => ref
         .read(templateRepositoryProvider)
+        .refreshFromRemote(isStale: isStale),
+    refreshItinerary: (isStale) => ref
+        .read(itineraryRepositoryProvider)
         .refreshFromRemote(isStale: isStale),
   );
 });
@@ -328,6 +345,11 @@ Future<Result<void>> _adoptServerEntityRouter(
         .read(templateRepositoryProvider)
         .adoptServerEntity(entityTable, entityId);
   }
+  if (_itineraryTables.contains(entityTable)) {
+    return ref
+        .read(itineraryRepositoryProvider)
+        .adoptServerEntity(entityTable, entityId);
+  }
   return Future.value(
     Err(UnknownFailure(message: '未知のテーブル $entityTable は採用できません')),
   );
@@ -350,6 +372,13 @@ const _memoryTables = {
 };
 const _oshiTables = {'oshi_groups', 'oshi_members', 'oshi_anniversaries'};
 const _templateTables = {'todo_templates', 'todo_template_items'};
+const _itineraryTables = {
+  'itinerary_plans',
+  'itinerary_spots',
+  'itinerary_spot_links',
+  'itinerary_entries',
+  'itinerary_legs',
+};
 
 /// 競合(conflict)状態の Outbox 操作をユーザー選択で解決する（E-1 / R8-A）。
 ///

@@ -62,7 +62,7 @@
 | §7.6 | Todo | ✅（テンプレート提案は未実装、follow-up-work.mdフェーズE） | `child_editors.dart`、`genba_actions_controller.dart` | `test/notifier/genba_actions_controller_test.dart` |
 | §7.7 | メモ（5区分） | ✅ | `child_editors.dart`（`_MemoEditor`） | `test/widget/genba_detail_tabs_test.dart` |
 | §7.8 | 共有（owner/editor/viewer） | 🟡 境界のみ | `lib/features/sharing/domain/share.dart`（型のみ、data層未実装・未配線） | follow-up-work.mdフェーズC |
-| §7.9 | 計画・推し活遠征旅程 | ⬜ 仕様策定済み・未実装 | `docs/itinerary-plan-spec.md`、`docs/adr/0010-google-maps-platform.md` | `docs/itinerary-implementation-prompts.md` Phase 1〜5 |
+| §7.9 | 計画・推し活遠征旅程 | 🟡 **Phase 1基盤のみ実装（UI未実装）**。ドメイン・ローカルDB・Repository・同期・Supabase認可の永続化境界が完成。計画タブUI・Google連携（Places/Maps/Routes）・共有・通知は未実装（Phase 2〜5） | ドメイン: `lib/features/itinerary/domain/`（plan/spot/spot_link/entry/leg、enum、`itinerary_validation.dart`）、タイムライン純関数: `lib/features/itinerary/application/itinerary_timeline.dart`、data: `lib/features/itinerary/data/itinerary_repository_impl.dart`＋`itinerary_mappers.dart`、Drift v8: `lib/core/db/app_database.dart`、Supabase: `supabase/migrations/0012_itinerary.sql` | `test/domain/itinerary_validation_test.dart`・`itinerary_json_test.dart`・`itinerary_timeline_test.dart`、`test/data/itinerary_mappers_test.dart`・`itinerary_repository_test.dart`・`itinerary_migration_test.dart`、pgTAP: `supabase/tests/0008_itinerary_rls.sql`（**未実行**: Docker未導入）。UI・integration・Google連携は `docs/itinerary-implementation-prompts.md` Phase 2〜5 |
 
 ## §8 思い出
 

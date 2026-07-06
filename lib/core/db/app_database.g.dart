@@ -9105,6 +9105,4487 @@ class TodoTemplateItemsCompanion extends UpdateCompanion<TodoTemplateItemRow> {
   }
 }
 
+class $ItineraryPlansTable extends ItineraryPlans
+    with TableInfo<$ItineraryPlansTable, ItineraryPlanRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ItineraryPlansTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _genbaIdMeta =
+      const VerificationMeta('genbaId');
+  @override
+  late final GeneratedColumn<String> genbaId = GeneratedColumn<String>(
+      'genba_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _memoMeta = const VerificationMeta('memo');
+  @override
+  late final GeneratedColumn<String> memo = GeneratedColumn<String>(
+      'memo', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _startDateMeta =
+      const VerificationMeta('startDate');
+  @override
+  late final GeneratedColumn<String> startDate = GeneratedColumn<String>(
+      'start_date', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _endDateMeta =
+      const VerificationMeta('endDate');
+  @override
+  late final GeneratedColumn<String> endDate = GeneratedColumn<String>(
+      'end_date', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _timeZoneIdMeta =
+      const VerificationMeta('timeZoneId');
+  @override
+  late final GeneratedColumn<String> timeZoneId = GeneratedColumn<String>(
+      'time_zone_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _coverImageLocalPathMeta =
+      const VerificationMeta('coverImageLocalPath');
+  @override
+  late final GeneratedColumn<String> coverImageLocalPath =
+      GeneratedColumn<String>('cover_image_local_path', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverImageStoragePathMeta =
+      const VerificationMeta('coverImageStoragePath');
+  @override
+  late final GeneratedColumn<String> coverImageStoragePath =
+      GeneratedColumn<String>('cover_image_storage_path', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverImageUploadStatusMeta =
+      const VerificationMeta('coverImageUploadStatus');
+  @override
+  late final GeneratedColumn<String> coverImageUploadStatus =
+      GeneratedColumn<String>('cover_image_upload_status', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('local_only'));
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        genbaId,
+        ownerId,
+        title,
+        memo,
+        startDate,
+        endDate,
+        timeZoneId,
+        coverImageLocalPath,
+        coverImageStoragePath,
+        coverImageUploadStatus,
+        sortOrder,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'itinerary_plans';
+  @override
+  VerificationContext validateIntegrity(Insertable<ItineraryPlanRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('genba_id')) {
+      context.handle(_genbaIdMeta,
+          genbaId.isAcceptableOrUnknown(data['genba_id']!, _genbaIdMeta));
+    } else if (isInserting) {
+      context.missing(_genbaIdMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('memo')) {
+      context.handle(
+          _memoMeta, memo.isAcceptableOrUnknown(data['memo']!, _memoMeta));
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(_startDateMeta,
+          startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta));
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(_endDateMeta,
+          endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta));
+    }
+    if (data.containsKey('time_zone_id')) {
+      context.handle(
+          _timeZoneIdMeta,
+          timeZoneId.isAcceptableOrUnknown(
+              data['time_zone_id']!, _timeZoneIdMeta));
+    } else if (isInserting) {
+      context.missing(_timeZoneIdMeta);
+    }
+    if (data.containsKey('cover_image_local_path')) {
+      context.handle(
+          _coverImageLocalPathMeta,
+          coverImageLocalPath.isAcceptableOrUnknown(
+              data['cover_image_local_path']!, _coverImageLocalPathMeta));
+    }
+    if (data.containsKey('cover_image_storage_path')) {
+      context.handle(
+          _coverImageStoragePathMeta,
+          coverImageStoragePath.isAcceptableOrUnknown(
+              data['cover_image_storage_path']!, _coverImageStoragePathMeta));
+    }
+    if (data.containsKey('cover_image_upload_status')) {
+      context.handle(
+          _coverImageUploadStatusMeta,
+          coverImageUploadStatus.isAcceptableOrUnknown(
+              data['cover_image_upload_status']!, _coverImageUploadStatusMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ItineraryPlanRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ItineraryPlanRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      genbaId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}genba_id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      memo: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}memo']),
+      startDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}start_date']),
+      endDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}end_date']),
+      timeZoneId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}time_zone_id'])!,
+      coverImageLocalPath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}cover_image_local_path']),
+      coverImageStoragePath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}cover_image_storage_path']),
+      coverImageUploadStatus: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}cover_image_upload_status'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ItineraryPlansTable createAlias(String alias) {
+    return $ItineraryPlansTable(attachedDatabase, alias);
+  }
+}
+
+class ItineraryPlanRow extends DataClass
+    implements Insertable<ItineraryPlanRow> {
+  final String id;
+  final String genbaId;
+  final String ownerId;
+  final String title;
+  final String? memo;
+  final String? startDate;
+  final String? endDate;
+  final String timeZoneId;
+  final String? coverImageLocalPath;
+  final String? coverImageStoragePath;
+  final String coverImageUploadStatus;
+  final int sortOrder;
+  final String createdAt;
+  final String updatedAt;
+  const ItineraryPlanRow(
+      {required this.id,
+      required this.genbaId,
+      required this.ownerId,
+      required this.title,
+      this.memo,
+      this.startDate,
+      this.endDate,
+      required this.timeZoneId,
+      this.coverImageLocalPath,
+      this.coverImageStoragePath,
+      required this.coverImageUploadStatus,
+      required this.sortOrder,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['genba_id'] = Variable<String>(genbaId);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || memo != null) {
+      map['memo'] = Variable<String>(memo);
+    }
+    if (!nullToAbsent || startDate != null) {
+      map['start_date'] = Variable<String>(startDate);
+    }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<String>(endDate);
+    }
+    map['time_zone_id'] = Variable<String>(timeZoneId);
+    if (!nullToAbsent || coverImageLocalPath != null) {
+      map['cover_image_local_path'] = Variable<String>(coverImageLocalPath);
+    }
+    if (!nullToAbsent || coverImageStoragePath != null) {
+      map['cover_image_storage_path'] = Variable<String>(coverImageStoragePath);
+    }
+    map['cover_image_upload_status'] = Variable<String>(coverImageUploadStatus);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  ItineraryPlansCompanion toCompanion(bool nullToAbsent) {
+    return ItineraryPlansCompanion(
+      id: Value(id),
+      genbaId: Value(genbaId),
+      ownerId: Value(ownerId),
+      title: Value(title),
+      memo: memo == null && nullToAbsent ? const Value.absent() : Value(memo),
+      startDate: startDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      timeZoneId: Value(timeZoneId),
+      coverImageLocalPath: coverImageLocalPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverImageLocalPath),
+      coverImageStoragePath: coverImageStoragePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverImageStoragePath),
+      coverImageUploadStatus: Value(coverImageUploadStatus),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ItineraryPlanRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ItineraryPlanRow(
+      id: serializer.fromJson<String>(json['id']),
+      genbaId: serializer.fromJson<String>(json['genbaId']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      title: serializer.fromJson<String>(json['title']),
+      memo: serializer.fromJson<String?>(json['memo']),
+      startDate: serializer.fromJson<String?>(json['startDate']),
+      endDate: serializer.fromJson<String?>(json['endDate']),
+      timeZoneId: serializer.fromJson<String>(json['timeZoneId']),
+      coverImageLocalPath:
+          serializer.fromJson<String?>(json['coverImageLocalPath']),
+      coverImageStoragePath:
+          serializer.fromJson<String?>(json['coverImageStoragePath']),
+      coverImageUploadStatus:
+          serializer.fromJson<String>(json['coverImageUploadStatus']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'genbaId': serializer.toJson<String>(genbaId),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'title': serializer.toJson<String>(title),
+      'memo': serializer.toJson<String?>(memo),
+      'startDate': serializer.toJson<String?>(startDate),
+      'endDate': serializer.toJson<String?>(endDate),
+      'timeZoneId': serializer.toJson<String>(timeZoneId),
+      'coverImageLocalPath': serializer.toJson<String?>(coverImageLocalPath),
+      'coverImageStoragePath':
+          serializer.toJson<String?>(coverImageStoragePath),
+      'coverImageUploadStatus':
+          serializer.toJson<String>(coverImageUploadStatus),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  ItineraryPlanRow copyWith(
+          {String? id,
+          String? genbaId,
+          String? ownerId,
+          String? title,
+          Value<String?> memo = const Value.absent(),
+          Value<String?> startDate = const Value.absent(),
+          Value<String?> endDate = const Value.absent(),
+          String? timeZoneId,
+          Value<String?> coverImageLocalPath = const Value.absent(),
+          Value<String?> coverImageStoragePath = const Value.absent(),
+          String? coverImageUploadStatus,
+          int? sortOrder,
+          String? createdAt,
+          String? updatedAt}) =>
+      ItineraryPlanRow(
+        id: id ?? this.id,
+        genbaId: genbaId ?? this.genbaId,
+        ownerId: ownerId ?? this.ownerId,
+        title: title ?? this.title,
+        memo: memo.present ? memo.value : this.memo,
+        startDate: startDate.present ? startDate.value : this.startDate,
+        endDate: endDate.present ? endDate.value : this.endDate,
+        timeZoneId: timeZoneId ?? this.timeZoneId,
+        coverImageLocalPath: coverImageLocalPath.present
+            ? coverImageLocalPath.value
+            : this.coverImageLocalPath,
+        coverImageStoragePath: coverImageStoragePath.present
+            ? coverImageStoragePath.value
+            : this.coverImageStoragePath,
+        coverImageUploadStatus:
+            coverImageUploadStatus ?? this.coverImageUploadStatus,
+        sortOrder: sortOrder ?? this.sortOrder,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  ItineraryPlanRow copyWithCompanion(ItineraryPlansCompanion data) {
+    return ItineraryPlanRow(
+      id: data.id.present ? data.id.value : this.id,
+      genbaId: data.genbaId.present ? data.genbaId.value : this.genbaId,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      title: data.title.present ? data.title.value : this.title,
+      memo: data.memo.present ? data.memo.value : this.memo,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      timeZoneId:
+          data.timeZoneId.present ? data.timeZoneId.value : this.timeZoneId,
+      coverImageLocalPath: data.coverImageLocalPath.present
+          ? data.coverImageLocalPath.value
+          : this.coverImageLocalPath,
+      coverImageStoragePath: data.coverImageStoragePath.present
+          ? data.coverImageStoragePath.value
+          : this.coverImageStoragePath,
+      coverImageUploadStatus: data.coverImageUploadStatus.present
+          ? data.coverImageUploadStatus.value
+          : this.coverImageUploadStatus,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItineraryPlanRow(')
+          ..write('id: $id, ')
+          ..write('genbaId: $genbaId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('title: $title, ')
+          ..write('memo: $memo, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('timeZoneId: $timeZoneId, ')
+          ..write('coverImageLocalPath: $coverImageLocalPath, ')
+          ..write('coverImageStoragePath: $coverImageStoragePath, ')
+          ..write('coverImageUploadStatus: $coverImageUploadStatus, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      genbaId,
+      ownerId,
+      title,
+      memo,
+      startDate,
+      endDate,
+      timeZoneId,
+      coverImageLocalPath,
+      coverImageStoragePath,
+      coverImageUploadStatus,
+      sortOrder,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ItineraryPlanRow &&
+          other.id == this.id &&
+          other.genbaId == this.genbaId &&
+          other.ownerId == this.ownerId &&
+          other.title == this.title &&
+          other.memo == this.memo &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.timeZoneId == this.timeZoneId &&
+          other.coverImageLocalPath == this.coverImageLocalPath &&
+          other.coverImageStoragePath == this.coverImageStoragePath &&
+          other.coverImageUploadStatus == this.coverImageUploadStatus &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ItineraryPlansCompanion extends UpdateCompanion<ItineraryPlanRow> {
+  final Value<String> id;
+  final Value<String> genbaId;
+  final Value<String> ownerId;
+  final Value<String> title;
+  final Value<String?> memo;
+  final Value<String?> startDate;
+  final Value<String?> endDate;
+  final Value<String> timeZoneId;
+  final Value<String?> coverImageLocalPath;
+  final Value<String?> coverImageStoragePath;
+  final Value<String> coverImageUploadStatus;
+  final Value<int> sortOrder;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const ItineraryPlansCompanion({
+    this.id = const Value.absent(),
+    this.genbaId = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.memo = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.timeZoneId = const Value.absent(),
+    this.coverImageLocalPath = const Value.absent(),
+    this.coverImageStoragePath = const Value.absent(),
+    this.coverImageUploadStatus = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ItineraryPlansCompanion.insert({
+    required String id,
+    required String genbaId,
+    required String ownerId,
+    required String title,
+    this.memo = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    required String timeZoneId,
+    this.coverImageLocalPath = const Value.absent(),
+    this.coverImageStoragePath = const Value.absent(),
+    this.coverImageUploadStatus = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        genbaId = Value(genbaId),
+        ownerId = Value(ownerId),
+        title = Value(title),
+        timeZoneId = Value(timeZoneId),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<ItineraryPlanRow> custom({
+    Expression<String>? id,
+    Expression<String>? genbaId,
+    Expression<String>? ownerId,
+    Expression<String>? title,
+    Expression<String>? memo,
+    Expression<String>? startDate,
+    Expression<String>? endDate,
+    Expression<String>? timeZoneId,
+    Expression<String>? coverImageLocalPath,
+    Expression<String>? coverImageStoragePath,
+    Expression<String>? coverImageUploadStatus,
+    Expression<int>? sortOrder,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (genbaId != null) 'genba_id': genbaId,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (title != null) 'title': title,
+      if (memo != null) 'memo': memo,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (timeZoneId != null) 'time_zone_id': timeZoneId,
+      if (coverImageLocalPath != null)
+        'cover_image_local_path': coverImageLocalPath,
+      if (coverImageStoragePath != null)
+        'cover_image_storage_path': coverImageStoragePath,
+      if (coverImageUploadStatus != null)
+        'cover_image_upload_status': coverImageUploadStatus,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ItineraryPlansCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? genbaId,
+      Value<String>? ownerId,
+      Value<String>? title,
+      Value<String?>? memo,
+      Value<String?>? startDate,
+      Value<String?>? endDate,
+      Value<String>? timeZoneId,
+      Value<String?>? coverImageLocalPath,
+      Value<String?>? coverImageStoragePath,
+      Value<String>? coverImageUploadStatus,
+      Value<int>? sortOrder,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return ItineraryPlansCompanion(
+      id: id ?? this.id,
+      genbaId: genbaId ?? this.genbaId,
+      ownerId: ownerId ?? this.ownerId,
+      title: title ?? this.title,
+      memo: memo ?? this.memo,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      timeZoneId: timeZoneId ?? this.timeZoneId,
+      coverImageLocalPath: coverImageLocalPath ?? this.coverImageLocalPath,
+      coverImageStoragePath:
+          coverImageStoragePath ?? this.coverImageStoragePath,
+      coverImageUploadStatus:
+          coverImageUploadStatus ?? this.coverImageUploadStatus,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (genbaId.present) {
+      map['genba_id'] = Variable<String>(genbaId.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (memo.present) {
+      map['memo'] = Variable<String>(memo.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<String>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<String>(endDate.value);
+    }
+    if (timeZoneId.present) {
+      map['time_zone_id'] = Variable<String>(timeZoneId.value);
+    }
+    if (coverImageLocalPath.present) {
+      map['cover_image_local_path'] =
+          Variable<String>(coverImageLocalPath.value);
+    }
+    if (coverImageStoragePath.present) {
+      map['cover_image_storage_path'] =
+          Variable<String>(coverImageStoragePath.value);
+    }
+    if (coverImageUploadStatus.present) {
+      map['cover_image_upload_status'] =
+          Variable<String>(coverImageUploadStatus.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItineraryPlansCompanion(')
+          ..write('id: $id, ')
+          ..write('genbaId: $genbaId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('title: $title, ')
+          ..write('memo: $memo, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('timeZoneId: $timeZoneId, ')
+          ..write('coverImageLocalPath: $coverImageLocalPath, ')
+          ..write('coverImageStoragePath: $coverImageStoragePath, ')
+          ..write('coverImageUploadStatus: $coverImageUploadStatus, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ItinerarySpotsTable extends ItinerarySpots
+    with TableInfo<$ItinerarySpotsTable, ItinerarySpotRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ItinerarySpotsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<String> planId = GeneratedColumn<String>(
+      'plan_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('manual'));
+  static const VerificationMeta _googlePlaceIdMeta =
+      const VerificationMeta('googlePlaceId');
+  @override
+  late final GeneratedColumn<String> googlePlaceId = GeneratedColumn<String>(
+      'google_place_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _categoryMeta =
+      const VerificationMeta('category');
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+      'category', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _addressMeta =
+      const VerificationMeta('address');
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+      'address', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _dataOriginMeta =
+      const VerificationMeta('dataOrigin');
+  @override
+  late final GeneratedColumn<String> dataOrigin = GeneratedColumn<String>(
+      'data_origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('user_provided'));
+  static const VerificationMeta _rightsBasisMeta =
+      const VerificationMeta('rightsBasis');
+  @override
+  late final GeneratedColumn<String> rightsBasis = GeneratedColumn<String>(
+      'rights_basis', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _latitudeMeta =
+      const VerificationMeta('latitude');
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+      'latitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _longitudeMeta =
+      const VerificationMeta('longitude');
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+      'longitude', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _phoneNumberMeta =
+      const VerificationMeta('phoneNumber');
+  @override
+  late final GeneratedColumn<String> phoneNumber = GeneratedColumn<String>(
+      'phone_number', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _websiteUrlMeta =
+      const VerificationMeta('websiteUrl');
+  @override
+  late final GeneratedColumn<String> websiteUrl = GeneratedColumn<String>(
+      'website_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _openingHoursTextMeta =
+      const VerificationMeta('openingHoursText');
+  @override
+  late final GeneratedColumn<String> openingHoursText = GeneratedColumn<String>(
+      'opening_hours_text', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _googleMapsUrlMeta =
+      const VerificationMeta('googleMapsUrl');
+  @override
+  late final GeneratedColumn<String> googleMapsUrl = GeneratedColumn<String>(
+      'google_maps_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _googleFetchedAtMeta =
+      const VerificationMeta('googleFetchedAt');
+  @override
+  late final GeneratedColumn<String> googleFetchedAt = GeneratedColumn<String>(
+      'google_fetched_at', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _googlePhotoNameMeta =
+      const VerificationMeta('googlePhotoName');
+  @override
+  late final GeneratedColumn<String> googlePhotoName = GeneratedColumn<String>(
+      'google_photo_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _googlePhotoAttributionMeta =
+      const VerificationMeta('googlePhotoAttribution');
+  @override
+  late final GeneratedColumn<String> googlePhotoAttribution =
+      GeneratedColumn<String>('google_photo_attribution', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _userImageLocalPathMeta =
+      const VerificationMeta('userImageLocalPath');
+  @override
+  late final GeneratedColumn<String> userImageLocalPath =
+      GeneratedColumn<String>('user_image_local_path', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _userImageStoragePathMeta =
+      const VerificationMeta('userImageStoragePath');
+  @override
+  late final GeneratedColumn<String> userImageStoragePath =
+      GeneratedColumn<String>('user_image_storage_path', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _userImageUploadStatusMeta =
+      const VerificationMeta('userImageUploadStatus');
+  @override
+  late final GeneratedColumn<String> userImageUploadStatus =
+      GeneratedColumn<String>('user_image_upload_status', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('local_only'));
+  static const VerificationMeta _userImageAltTextMeta =
+      const VerificationMeta('userImageAltText');
+  @override
+  late final GeneratedColumn<String> userImageAltText = GeneratedColumn<String>(
+      'user_image_alt_text', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _memoMeta = const VerificationMeta('memo');
+  @override
+  late final GeneratedColumn<String> memo = GeneratedColumn<String>(
+      'memo', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        planId,
+        ownerId,
+        source,
+        googlePlaceId,
+        name,
+        category,
+        address,
+        dataOrigin,
+        rightsBasis,
+        latitude,
+        longitude,
+        phoneNumber,
+        websiteUrl,
+        openingHoursText,
+        googleMapsUrl,
+        googleFetchedAt,
+        googlePhotoName,
+        googlePhotoAttribution,
+        userImageLocalPath,
+        userImageStoragePath,
+        userImageUploadStatus,
+        userImageAltText,
+        memo,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'itinerary_spots';
+  @override
+  VerificationContext validateIntegrity(Insertable<ItinerarySpotRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('plan_id')) {
+      context.handle(_planIdMeta,
+          planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta));
+    } else if (isInserting) {
+      context.missing(_planIdMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('google_place_id')) {
+      context.handle(
+          _googlePlaceIdMeta,
+          googlePlaceId.isAcceptableOrUnknown(
+              data['google_place_id']!, _googlePlaceIdMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(_categoryMeta,
+          category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('address')) {
+      context.handle(_addressMeta,
+          address.isAcceptableOrUnknown(data['address']!, _addressMeta));
+    }
+    if (data.containsKey('data_origin')) {
+      context.handle(
+          _dataOriginMeta,
+          dataOrigin.isAcceptableOrUnknown(
+              data['data_origin']!, _dataOriginMeta));
+    }
+    if (data.containsKey('rights_basis')) {
+      context.handle(
+          _rightsBasisMeta,
+          rightsBasis.isAcceptableOrUnknown(
+              data['rights_basis']!, _rightsBasisMeta));
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(_latitudeMeta,
+          latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta));
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(_longitudeMeta,
+          longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta));
+    }
+    if (data.containsKey('phone_number')) {
+      context.handle(
+          _phoneNumberMeta,
+          phoneNumber.isAcceptableOrUnknown(
+              data['phone_number']!, _phoneNumberMeta));
+    }
+    if (data.containsKey('website_url')) {
+      context.handle(
+          _websiteUrlMeta,
+          websiteUrl.isAcceptableOrUnknown(
+              data['website_url']!, _websiteUrlMeta));
+    }
+    if (data.containsKey('opening_hours_text')) {
+      context.handle(
+          _openingHoursTextMeta,
+          openingHoursText.isAcceptableOrUnknown(
+              data['opening_hours_text']!, _openingHoursTextMeta));
+    }
+    if (data.containsKey('google_maps_url')) {
+      context.handle(
+          _googleMapsUrlMeta,
+          googleMapsUrl.isAcceptableOrUnknown(
+              data['google_maps_url']!, _googleMapsUrlMeta));
+    }
+    if (data.containsKey('google_fetched_at')) {
+      context.handle(
+          _googleFetchedAtMeta,
+          googleFetchedAt.isAcceptableOrUnknown(
+              data['google_fetched_at']!, _googleFetchedAtMeta));
+    }
+    if (data.containsKey('google_photo_name')) {
+      context.handle(
+          _googlePhotoNameMeta,
+          googlePhotoName.isAcceptableOrUnknown(
+              data['google_photo_name']!, _googlePhotoNameMeta));
+    }
+    if (data.containsKey('google_photo_attribution')) {
+      context.handle(
+          _googlePhotoAttributionMeta,
+          googlePhotoAttribution.isAcceptableOrUnknown(
+              data['google_photo_attribution']!, _googlePhotoAttributionMeta));
+    }
+    if (data.containsKey('user_image_local_path')) {
+      context.handle(
+          _userImageLocalPathMeta,
+          userImageLocalPath.isAcceptableOrUnknown(
+              data['user_image_local_path']!, _userImageLocalPathMeta));
+    }
+    if (data.containsKey('user_image_storage_path')) {
+      context.handle(
+          _userImageStoragePathMeta,
+          userImageStoragePath.isAcceptableOrUnknown(
+              data['user_image_storage_path']!, _userImageStoragePathMeta));
+    }
+    if (data.containsKey('user_image_upload_status')) {
+      context.handle(
+          _userImageUploadStatusMeta,
+          userImageUploadStatus.isAcceptableOrUnknown(
+              data['user_image_upload_status']!, _userImageUploadStatusMeta));
+    }
+    if (data.containsKey('user_image_alt_text')) {
+      context.handle(
+          _userImageAltTextMeta,
+          userImageAltText.isAcceptableOrUnknown(
+              data['user_image_alt_text']!, _userImageAltTextMeta));
+    }
+    if (data.containsKey('memo')) {
+      context.handle(
+          _memoMeta, memo.isAcceptableOrUnknown(data['memo']!, _memoMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ItinerarySpotRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ItinerarySpotRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      planId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}plan_id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      googlePlaceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}google_place_id']),
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      category: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      address: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}address']),
+      dataOrigin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}data_origin'])!,
+      rightsBasis: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rights_basis']),
+      latitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}latitude']),
+      longitude: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}longitude']),
+      phoneNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}phone_number']),
+      websiteUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}website_url']),
+      openingHoursText: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}opening_hours_text']),
+      googleMapsUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}google_maps_url']),
+      googleFetchedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}google_fetched_at']),
+      googlePhotoName: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}google_photo_name']),
+      googlePhotoAttribution: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}google_photo_attribution']),
+      userImageLocalPath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}user_image_local_path']),
+      userImageStoragePath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}user_image_storage_path']),
+      userImageUploadStatus: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}user_image_upload_status'])!,
+      userImageAltText: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}user_image_alt_text']),
+      memo: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}memo']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ItinerarySpotsTable createAlias(String alias) {
+    return $ItinerarySpotsTable(attachedDatabase, alias);
+  }
+}
+
+class ItinerarySpotRow extends DataClass
+    implements Insertable<ItinerarySpotRow> {
+  final String id;
+  final String planId;
+  final String ownerId;
+  final String source;
+  final String? googlePlaceId;
+  final String name;
+  final String category;
+  final String? address;
+
+  /// 永続する名称・住所の出典・権利根拠（既定はユーザー入力, §12.2）。
+  final String dataOrigin;
+  final String? rightsBasis;
+  final double? latitude;
+  final double? longitude;
+  final String? phoneNumber;
+  final String? websiteUrl;
+  final String? openingHoursText;
+  final String? googleMapsUrl;
+  final String? googleFetchedAt;
+  final String? googlePhotoName;
+  final String? googlePhotoAttribution;
+  final String? userImageLocalPath;
+  final String? userImageStoragePath;
+  final String userImageUploadStatus;
+  final String? userImageAltText;
+  final String? memo;
+  final String createdAt;
+  final String updatedAt;
+  const ItinerarySpotRow(
+      {required this.id,
+      required this.planId,
+      required this.ownerId,
+      required this.source,
+      this.googlePlaceId,
+      required this.name,
+      required this.category,
+      this.address,
+      required this.dataOrigin,
+      this.rightsBasis,
+      this.latitude,
+      this.longitude,
+      this.phoneNumber,
+      this.websiteUrl,
+      this.openingHoursText,
+      this.googleMapsUrl,
+      this.googleFetchedAt,
+      this.googlePhotoName,
+      this.googlePhotoAttribution,
+      this.userImageLocalPath,
+      this.userImageStoragePath,
+      required this.userImageUploadStatus,
+      this.userImageAltText,
+      this.memo,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['plan_id'] = Variable<String>(planId);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || googlePlaceId != null) {
+      map['google_place_id'] = Variable<String>(googlePlaceId);
+    }
+    map['name'] = Variable<String>(name);
+    map['category'] = Variable<String>(category);
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
+    }
+    map['data_origin'] = Variable<String>(dataOrigin);
+    if (!nullToAbsent || rightsBasis != null) {
+      map['rights_basis'] = Variable<String>(rightsBasis);
+    }
+    if (!nullToAbsent || latitude != null) {
+      map['latitude'] = Variable<double>(latitude);
+    }
+    if (!nullToAbsent || longitude != null) {
+      map['longitude'] = Variable<double>(longitude);
+    }
+    if (!nullToAbsent || phoneNumber != null) {
+      map['phone_number'] = Variable<String>(phoneNumber);
+    }
+    if (!nullToAbsent || websiteUrl != null) {
+      map['website_url'] = Variable<String>(websiteUrl);
+    }
+    if (!nullToAbsent || openingHoursText != null) {
+      map['opening_hours_text'] = Variable<String>(openingHoursText);
+    }
+    if (!nullToAbsent || googleMapsUrl != null) {
+      map['google_maps_url'] = Variable<String>(googleMapsUrl);
+    }
+    if (!nullToAbsent || googleFetchedAt != null) {
+      map['google_fetched_at'] = Variable<String>(googleFetchedAt);
+    }
+    if (!nullToAbsent || googlePhotoName != null) {
+      map['google_photo_name'] = Variable<String>(googlePhotoName);
+    }
+    if (!nullToAbsent || googlePhotoAttribution != null) {
+      map['google_photo_attribution'] =
+          Variable<String>(googlePhotoAttribution);
+    }
+    if (!nullToAbsent || userImageLocalPath != null) {
+      map['user_image_local_path'] = Variable<String>(userImageLocalPath);
+    }
+    if (!nullToAbsent || userImageStoragePath != null) {
+      map['user_image_storage_path'] = Variable<String>(userImageStoragePath);
+    }
+    map['user_image_upload_status'] = Variable<String>(userImageUploadStatus);
+    if (!nullToAbsent || userImageAltText != null) {
+      map['user_image_alt_text'] = Variable<String>(userImageAltText);
+    }
+    if (!nullToAbsent || memo != null) {
+      map['memo'] = Variable<String>(memo);
+    }
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  ItinerarySpotsCompanion toCompanion(bool nullToAbsent) {
+    return ItinerarySpotsCompanion(
+      id: Value(id),
+      planId: Value(planId),
+      ownerId: Value(ownerId),
+      source: Value(source),
+      googlePlaceId: googlePlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(googlePlaceId),
+      name: Value(name),
+      category: Value(category),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
+      dataOrigin: Value(dataOrigin),
+      rightsBasis: rightsBasis == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rightsBasis),
+      latitude: latitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(latitude),
+      longitude: longitude == null && nullToAbsent
+          ? const Value.absent()
+          : Value(longitude),
+      phoneNumber: phoneNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phoneNumber),
+      websiteUrl: websiteUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(websiteUrl),
+      openingHoursText: openingHoursText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(openingHoursText),
+      googleMapsUrl: googleMapsUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(googleMapsUrl),
+      googleFetchedAt: googleFetchedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(googleFetchedAt),
+      googlePhotoName: googlePhotoName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(googlePhotoName),
+      googlePhotoAttribution: googlePhotoAttribution == null && nullToAbsent
+          ? const Value.absent()
+          : Value(googlePhotoAttribution),
+      userImageLocalPath: userImageLocalPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userImageLocalPath),
+      userImageStoragePath: userImageStoragePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userImageStoragePath),
+      userImageUploadStatus: Value(userImageUploadStatus),
+      userImageAltText: userImageAltText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userImageAltText),
+      memo: memo == null && nullToAbsent ? const Value.absent() : Value(memo),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ItinerarySpotRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ItinerarySpotRow(
+      id: serializer.fromJson<String>(json['id']),
+      planId: serializer.fromJson<String>(json['planId']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      source: serializer.fromJson<String>(json['source']),
+      googlePlaceId: serializer.fromJson<String?>(json['googlePlaceId']),
+      name: serializer.fromJson<String>(json['name']),
+      category: serializer.fromJson<String>(json['category']),
+      address: serializer.fromJson<String?>(json['address']),
+      dataOrigin: serializer.fromJson<String>(json['dataOrigin']),
+      rightsBasis: serializer.fromJson<String?>(json['rightsBasis']),
+      latitude: serializer.fromJson<double?>(json['latitude']),
+      longitude: serializer.fromJson<double?>(json['longitude']),
+      phoneNumber: serializer.fromJson<String?>(json['phoneNumber']),
+      websiteUrl: serializer.fromJson<String?>(json['websiteUrl']),
+      openingHoursText: serializer.fromJson<String?>(json['openingHoursText']),
+      googleMapsUrl: serializer.fromJson<String?>(json['googleMapsUrl']),
+      googleFetchedAt: serializer.fromJson<String?>(json['googleFetchedAt']),
+      googlePhotoName: serializer.fromJson<String?>(json['googlePhotoName']),
+      googlePhotoAttribution:
+          serializer.fromJson<String?>(json['googlePhotoAttribution']),
+      userImageLocalPath:
+          serializer.fromJson<String?>(json['userImageLocalPath']),
+      userImageStoragePath:
+          serializer.fromJson<String?>(json['userImageStoragePath']),
+      userImageUploadStatus:
+          serializer.fromJson<String>(json['userImageUploadStatus']),
+      userImageAltText: serializer.fromJson<String?>(json['userImageAltText']),
+      memo: serializer.fromJson<String?>(json['memo']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'planId': serializer.toJson<String>(planId),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'source': serializer.toJson<String>(source),
+      'googlePlaceId': serializer.toJson<String?>(googlePlaceId),
+      'name': serializer.toJson<String>(name),
+      'category': serializer.toJson<String>(category),
+      'address': serializer.toJson<String?>(address),
+      'dataOrigin': serializer.toJson<String>(dataOrigin),
+      'rightsBasis': serializer.toJson<String?>(rightsBasis),
+      'latitude': serializer.toJson<double?>(latitude),
+      'longitude': serializer.toJson<double?>(longitude),
+      'phoneNumber': serializer.toJson<String?>(phoneNumber),
+      'websiteUrl': serializer.toJson<String?>(websiteUrl),
+      'openingHoursText': serializer.toJson<String?>(openingHoursText),
+      'googleMapsUrl': serializer.toJson<String?>(googleMapsUrl),
+      'googleFetchedAt': serializer.toJson<String?>(googleFetchedAt),
+      'googlePhotoName': serializer.toJson<String?>(googlePhotoName),
+      'googlePhotoAttribution':
+          serializer.toJson<String?>(googlePhotoAttribution),
+      'userImageLocalPath': serializer.toJson<String?>(userImageLocalPath),
+      'userImageStoragePath': serializer.toJson<String?>(userImageStoragePath),
+      'userImageUploadStatus': serializer.toJson<String>(userImageUploadStatus),
+      'userImageAltText': serializer.toJson<String?>(userImageAltText),
+      'memo': serializer.toJson<String?>(memo),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  ItinerarySpotRow copyWith(
+          {String? id,
+          String? planId,
+          String? ownerId,
+          String? source,
+          Value<String?> googlePlaceId = const Value.absent(),
+          String? name,
+          String? category,
+          Value<String?> address = const Value.absent(),
+          String? dataOrigin,
+          Value<String?> rightsBasis = const Value.absent(),
+          Value<double?> latitude = const Value.absent(),
+          Value<double?> longitude = const Value.absent(),
+          Value<String?> phoneNumber = const Value.absent(),
+          Value<String?> websiteUrl = const Value.absent(),
+          Value<String?> openingHoursText = const Value.absent(),
+          Value<String?> googleMapsUrl = const Value.absent(),
+          Value<String?> googleFetchedAt = const Value.absent(),
+          Value<String?> googlePhotoName = const Value.absent(),
+          Value<String?> googlePhotoAttribution = const Value.absent(),
+          Value<String?> userImageLocalPath = const Value.absent(),
+          Value<String?> userImageStoragePath = const Value.absent(),
+          String? userImageUploadStatus,
+          Value<String?> userImageAltText = const Value.absent(),
+          Value<String?> memo = const Value.absent(),
+          String? createdAt,
+          String? updatedAt}) =>
+      ItinerarySpotRow(
+        id: id ?? this.id,
+        planId: planId ?? this.planId,
+        ownerId: ownerId ?? this.ownerId,
+        source: source ?? this.source,
+        googlePlaceId:
+            googlePlaceId.present ? googlePlaceId.value : this.googlePlaceId,
+        name: name ?? this.name,
+        category: category ?? this.category,
+        address: address.present ? address.value : this.address,
+        dataOrigin: dataOrigin ?? this.dataOrigin,
+        rightsBasis: rightsBasis.present ? rightsBasis.value : this.rightsBasis,
+        latitude: latitude.present ? latitude.value : this.latitude,
+        longitude: longitude.present ? longitude.value : this.longitude,
+        phoneNumber: phoneNumber.present ? phoneNumber.value : this.phoneNumber,
+        websiteUrl: websiteUrl.present ? websiteUrl.value : this.websiteUrl,
+        openingHoursText: openingHoursText.present
+            ? openingHoursText.value
+            : this.openingHoursText,
+        googleMapsUrl:
+            googleMapsUrl.present ? googleMapsUrl.value : this.googleMapsUrl,
+        googleFetchedAt: googleFetchedAt.present
+            ? googleFetchedAt.value
+            : this.googleFetchedAt,
+        googlePhotoName: googlePhotoName.present
+            ? googlePhotoName.value
+            : this.googlePhotoName,
+        googlePhotoAttribution: googlePhotoAttribution.present
+            ? googlePhotoAttribution.value
+            : this.googlePhotoAttribution,
+        userImageLocalPath: userImageLocalPath.present
+            ? userImageLocalPath.value
+            : this.userImageLocalPath,
+        userImageStoragePath: userImageStoragePath.present
+            ? userImageStoragePath.value
+            : this.userImageStoragePath,
+        userImageUploadStatus:
+            userImageUploadStatus ?? this.userImageUploadStatus,
+        userImageAltText: userImageAltText.present
+            ? userImageAltText.value
+            : this.userImageAltText,
+        memo: memo.present ? memo.value : this.memo,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  ItinerarySpotRow copyWithCompanion(ItinerarySpotsCompanion data) {
+    return ItinerarySpotRow(
+      id: data.id.present ? data.id.value : this.id,
+      planId: data.planId.present ? data.planId.value : this.planId,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      source: data.source.present ? data.source.value : this.source,
+      googlePlaceId: data.googlePlaceId.present
+          ? data.googlePlaceId.value
+          : this.googlePlaceId,
+      name: data.name.present ? data.name.value : this.name,
+      category: data.category.present ? data.category.value : this.category,
+      address: data.address.present ? data.address.value : this.address,
+      dataOrigin:
+          data.dataOrigin.present ? data.dataOrigin.value : this.dataOrigin,
+      rightsBasis:
+          data.rightsBasis.present ? data.rightsBasis.value : this.rightsBasis,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      phoneNumber:
+          data.phoneNumber.present ? data.phoneNumber.value : this.phoneNumber,
+      websiteUrl:
+          data.websiteUrl.present ? data.websiteUrl.value : this.websiteUrl,
+      openingHoursText: data.openingHoursText.present
+          ? data.openingHoursText.value
+          : this.openingHoursText,
+      googleMapsUrl: data.googleMapsUrl.present
+          ? data.googleMapsUrl.value
+          : this.googleMapsUrl,
+      googleFetchedAt: data.googleFetchedAt.present
+          ? data.googleFetchedAt.value
+          : this.googleFetchedAt,
+      googlePhotoName: data.googlePhotoName.present
+          ? data.googlePhotoName.value
+          : this.googlePhotoName,
+      googlePhotoAttribution: data.googlePhotoAttribution.present
+          ? data.googlePhotoAttribution.value
+          : this.googlePhotoAttribution,
+      userImageLocalPath: data.userImageLocalPath.present
+          ? data.userImageLocalPath.value
+          : this.userImageLocalPath,
+      userImageStoragePath: data.userImageStoragePath.present
+          ? data.userImageStoragePath.value
+          : this.userImageStoragePath,
+      userImageUploadStatus: data.userImageUploadStatus.present
+          ? data.userImageUploadStatus.value
+          : this.userImageUploadStatus,
+      userImageAltText: data.userImageAltText.present
+          ? data.userImageAltText.value
+          : this.userImageAltText,
+      memo: data.memo.present ? data.memo.value : this.memo,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItinerarySpotRow(')
+          ..write('id: $id, ')
+          ..write('planId: $planId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('source: $source, ')
+          ..write('googlePlaceId: $googlePlaceId, ')
+          ..write('name: $name, ')
+          ..write('category: $category, ')
+          ..write('address: $address, ')
+          ..write('dataOrigin: $dataOrigin, ')
+          ..write('rightsBasis: $rightsBasis, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('phoneNumber: $phoneNumber, ')
+          ..write('websiteUrl: $websiteUrl, ')
+          ..write('openingHoursText: $openingHoursText, ')
+          ..write('googleMapsUrl: $googleMapsUrl, ')
+          ..write('googleFetchedAt: $googleFetchedAt, ')
+          ..write('googlePhotoName: $googlePhotoName, ')
+          ..write('googlePhotoAttribution: $googlePhotoAttribution, ')
+          ..write('userImageLocalPath: $userImageLocalPath, ')
+          ..write('userImageStoragePath: $userImageStoragePath, ')
+          ..write('userImageUploadStatus: $userImageUploadStatus, ')
+          ..write('userImageAltText: $userImageAltText, ')
+          ..write('memo: $memo, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        id,
+        planId,
+        ownerId,
+        source,
+        googlePlaceId,
+        name,
+        category,
+        address,
+        dataOrigin,
+        rightsBasis,
+        latitude,
+        longitude,
+        phoneNumber,
+        websiteUrl,
+        openingHoursText,
+        googleMapsUrl,
+        googleFetchedAt,
+        googlePhotoName,
+        googlePhotoAttribution,
+        userImageLocalPath,
+        userImageStoragePath,
+        userImageUploadStatus,
+        userImageAltText,
+        memo,
+        createdAt,
+        updatedAt
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ItinerarySpotRow &&
+          other.id == this.id &&
+          other.planId == this.planId &&
+          other.ownerId == this.ownerId &&
+          other.source == this.source &&
+          other.googlePlaceId == this.googlePlaceId &&
+          other.name == this.name &&
+          other.category == this.category &&
+          other.address == this.address &&
+          other.dataOrigin == this.dataOrigin &&
+          other.rightsBasis == this.rightsBasis &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.phoneNumber == this.phoneNumber &&
+          other.websiteUrl == this.websiteUrl &&
+          other.openingHoursText == this.openingHoursText &&
+          other.googleMapsUrl == this.googleMapsUrl &&
+          other.googleFetchedAt == this.googleFetchedAt &&
+          other.googlePhotoName == this.googlePhotoName &&
+          other.googlePhotoAttribution == this.googlePhotoAttribution &&
+          other.userImageLocalPath == this.userImageLocalPath &&
+          other.userImageStoragePath == this.userImageStoragePath &&
+          other.userImageUploadStatus == this.userImageUploadStatus &&
+          other.userImageAltText == this.userImageAltText &&
+          other.memo == this.memo &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ItinerarySpotsCompanion extends UpdateCompanion<ItinerarySpotRow> {
+  final Value<String> id;
+  final Value<String> planId;
+  final Value<String> ownerId;
+  final Value<String> source;
+  final Value<String?> googlePlaceId;
+  final Value<String> name;
+  final Value<String> category;
+  final Value<String?> address;
+  final Value<String> dataOrigin;
+  final Value<String?> rightsBasis;
+  final Value<double?> latitude;
+  final Value<double?> longitude;
+  final Value<String?> phoneNumber;
+  final Value<String?> websiteUrl;
+  final Value<String?> openingHoursText;
+  final Value<String?> googleMapsUrl;
+  final Value<String?> googleFetchedAt;
+  final Value<String?> googlePhotoName;
+  final Value<String?> googlePhotoAttribution;
+  final Value<String?> userImageLocalPath;
+  final Value<String?> userImageStoragePath;
+  final Value<String> userImageUploadStatus;
+  final Value<String?> userImageAltText;
+  final Value<String?> memo;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const ItinerarySpotsCompanion({
+    this.id = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.googlePlaceId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.category = const Value.absent(),
+    this.address = const Value.absent(),
+    this.dataOrigin = const Value.absent(),
+    this.rightsBasis = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.phoneNumber = const Value.absent(),
+    this.websiteUrl = const Value.absent(),
+    this.openingHoursText = const Value.absent(),
+    this.googleMapsUrl = const Value.absent(),
+    this.googleFetchedAt = const Value.absent(),
+    this.googlePhotoName = const Value.absent(),
+    this.googlePhotoAttribution = const Value.absent(),
+    this.userImageLocalPath = const Value.absent(),
+    this.userImageStoragePath = const Value.absent(),
+    this.userImageUploadStatus = const Value.absent(),
+    this.userImageAltText = const Value.absent(),
+    this.memo = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ItinerarySpotsCompanion.insert({
+    required String id,
+    required String planId,
+    required String ownerId,
+    this.source = const Value.absent(),
+    this.googlePlaceId = const Value.absent(),
+    required String name,
+    required String category,
+    this.address = const Value.absent(),
+    this.dataOrigin = const Value.absent(),
+    this.rightsBasis = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.phoneNumber = const Value.absent(),
+    this.websiteUrl = const Value.absent(),
+    this.openingHoursText = const Value.absent(),
+    this.googleMapsUrl = const Value.absent(),
+    this.googleFetchedAt = const Value.absent(),
+    this.googlePhotoName = const Value.absent(),
+    this.googlePhotoAttribution = const Value.absent(),
+    this.userImageLocalPath = const Value.absent(),
+    this.userImageStoragePath = const Value.absent(),
+    this.userImageUploadStatus = const Value.absent(),
+    this.userImageAltText = const Value.absent(),
+    this.memo = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        planId = Value(planId),
+        ownerId = Value(ownerId),
+        name = Value(name),
+        category = Value(category),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<ItinerarySpotRow> custom({
+    Expression<String>? id,
+    Expression<String>? planId,
+    Expression<String>? ownerId,
+    Expression<String>? source,
+    Expression<String>? googlePlaceId,
+    Expression<String>? name,
+    Expression<String>? category,
+    Expression<String>? address,
+    Expression<String>? dataOrigin,
+    Expression<String>? rightsBasis,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<String>? phoneNumber,
+    Expression<String>? websiteUrl,
+    Expression<String>? openingHoursText,
+    Expression<String>? googleMapsUrl,
+    Expression<String>? googleFetchedAt,
+    Expression<String>? googlePhotoName,
+    Expression<String>? googlePhotoAttribution,
+    Expression<String>? userImageLocalPath,
+    Expression<String>? userImageStoragePath,
+    Expression<String>? userImageUploadStatus,
+    Expression<String>? userImageAltText,
+    Expression<String>? memo,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (planId != null) 'plan_id': planId,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (source != null) 'source': source,
+      if (googlePlaceId != null) 'google_place_id': googlePlaceId,
+      if (name != null) 'name': name,
+      if (category != null) 'category': category,
+      if (address != null) 'address': address,
+      if (dataOrigin != null) 'data_origin': dataOrigin,
+      if (rightsBasis != null) 'rights_basis': rightsBasis,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (websiteUrl != null) 'website_url': websiteUrl,
+      if (openingHoursText != null) 'opening_hours_text': openingHoursText,
+      if (googleMapsUrl != null) 'google_maps_url': googleMapsUrl,
+      if (googleFetchedAt != null) 'google_fetched_at': googleFetchedAt,
+      if (googlePhotoName != null) 'google_photo_name': googlePhotoName,
+      if (googlePhotoAttribution != null)
+        'google_photo_attribution': googlePhotoAttribution,
+      if (userImageLocalPath != null)
+        'user_image_local_path': userImageLocalPath,
+      if (userImageStoragePath != null)
+        'user_image_storage_path': userImageStoragePath,
+      if (userImageUploadStatus != null)
+        'user_image_upload_status': userImageUploadStatus,
+      if (userImageAltText != null) 'user_image_alt_text': userImageAltText,
+      if (memo != null) 'memo': memo,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ItinerarySpotsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? planId,
+      Value<String>? ownerId,
+      Value<String>? source,
+      Value<String?>? googlePlaceId,
+      Value<String>? name,
+      Value<String>? category,
+      Value<String?>? address,
+      Value<String>? dataOrigin,
+      Value<String?>? rightsBasis,
+      Value<double?>? latitude,
+      Value<double?>? longitude,
+      Value<String?>? phoneNumber,
+      Value<String?>? websiteUrl,
+      Value<String?>? openingHoursText,
+      Value<String?>? googleMapsUrl,
+      Value<String?>? googleFetchedAt,
+      Value<String?>? googlePhotoName,
+      Value<String?>? googlePhotoAttribution,
+      Value<String?>? userImageLocalPath,
+      Value<String?>? userImageStoragePath,
+      Value<String>? userImageUploadStatus,
+      Value<String?>? userImageAltText,
+      Value<String?>? memo,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return ItinerarySpotsCompanion(
+      id: id ?? this.id,
+      planId: planId ?? this.planId,
+      ownerId: ownerId ?? this.ownerId,
+      source: source ?? this.source,
+      googlePlaceId: googlePlaceId ?? this.googlePlaceId,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      address: address ?? this.address,
+      dataOrigin: dataOrigin ?? this.dataOrigin,
+      rightsBasis: rightsBasis ?? this.rightsBasis,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      websiteUrl: websiteUrl ?? this.websiteUrl,
+      openingHoursText: openingHoursText ?? this.openingHoursText,
+      googleMapsUrl: googleMapsUrl ?? this.googleMapsUrl,
+      googleFetchedAt: googleFetchedAt ?? this.googleFetchedAt,
+      googlePhotoName: googlePhotoName ?? this.googlePhotoName,
+      googlePhotoAttribution:
+          googlePhotoAttribution ?? this.googlePhotoAttribution,
+      userImageLocalPath: userImageLocalPath ?? this.userImageLocalPath,
+      userImageStoragePath: userImageStoragePath ?? this.userImageStoragePath,
+      userImageUploadStatus:
+          userImageUploadStatus ?? this.userImageUploadStatus,
+      userImageAltText: userImageAltText ?? this.userImageAltText,
+      memo: memo ?? this.memo,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (planId.present) {
+      map['plan_id'] = Variable<String>(planId.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (googlePlaceId.present) {
+      map['google_place_id'] = Variable<String>(googlePlaceId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (dataOrigin.present) {
+      map['data_origin'] = Variable<String>(dataOrigin.value);
+    }
+    if (rightsBasis.present) {
+      map['rights_basis'] = Variable<String>(rightsBasis.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (phoneNumber.present) {
+      map['phone_number'] = Variable<String>(phoneNumber.value);
+    }
+    if (websiteUrl.present) {
+      map['website_url'] = Variable<String>(websiteUrl.value);
+    }
+    if (openingHoursText.present) {
+      map['opening_hours_text'] = Variable<String>(openingHoursText.value);
+    }
+    if (googleMapsUrl.present) {
+      map['google_maps_url'] = Variable<String>(googleMapsUrl.value);
+    }
+    if (googleFetchedAt.present) {
+      map['google_fetched_at'] = Variable<String>(googleFetchedAt.value);
+    }
+    if (googlePhotoName.present) {
+      map['google_photo_name'] = Variable<String>(googlePhotoName.value);
+    }
+    if (googlePhotoAttribution.present) {
+      map['google_photo_attribution'] =
+          Variable<String>(googlePhotoAttribution.value);
+    }
+    if (userImageLocalPath.present) {
+      map['user_image_local_path'] = Variable<String>(userImageLocalPath.value);
+    }
+    if (userImageStoragePath.present) {
+      map['user_image_storage_path'] =
+          Variable<String>(userImageStoragePath.value);
+    }
+    if (userImageUploadStatus.present) {
+      map['user_image_upload_status'] =
+          Variable<String>(userImageUploadStatus.value);
+    }
+    if (userImageAltText.present) {
+      map['user_image_alt_text'] = Variable<String>(userImageAltText.value);
+    }
+    if (memo.present) {
+      map['memo'] = Variable<String>(memo.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItinerarySpotsCompanion(')
+          ..write('id: $id, ')
+          ..write('planId: $planId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('source: $source, ')
+          ..write('googlePlaceId: $googlePlaceId, ')
+          ..write('name: $name, ')
+          ..write('category: $category, ')
+          ..write('address: $address, ')
+          ..write('dataOrigin: $dataOrigin, ')
+          ..write('rightsBasis: $rightsBasis, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('phoneNumber: $phoneNumber, ')
+          ..write('websiteUrl: $websiteUrl, ')
+          ..write('openingHoursText: $openingHoursText, ')
+          ..write('googleMapsUrl: $googleMapsUrl, ')
+          ..write('googleFetchedAt: $googleFetchedAt, ')
+          ..write('googlePhotoName: $googlePhotoName, ')
+          ..write('googlePhotoAttribution: $googlePhotoAttribution, ')
+          ..write('userImageLocalPath: $userImageLocalPath, ')
+          ..write('userImageStoragePath: $userImageStoragePath, ')
+          ..write('userImageUploadStatus: $userImageUploadStatus, ')
+          ..write('userImageAltText: $userImageAltText, ')
+          ..write('memo: $memo, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ItinerarySpotLinksTable extends ItinerarySpotLinks
+    with TableInfo<$ItinerarySpotLinksTable, ItinerarySpotLinkRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ItinerarySpotLinksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _spotIdMeta = const VerificationMeta('spotId');
+  @override
+  late final GeneratedColumn<String> spotId = GeneratedColumn<String>(
+      'spot_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+      'url', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+      'label', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, spotId, ownerId, kind, url, label, sortOrder, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'itinerary_spot_links';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<ItinerarySpotLinkRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('spot_id')) {
+      context.handle(_spotIdMeta,
+          spotId.isAcceptableOrUnknown(data['spot_id']!, _spotIdMeta));
+    } else if (isInserting) {
+      context.missing(_spotIdMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+          _urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
+    } else if (isInserting) {
+      context.missing(_urlMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+          _labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ItinerarySpotLinkRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ItinerarySpotLinkRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      spotId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}spot_id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      url: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}url'])!,
+      label: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}label']),
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ItinerarySpotLinksTable createAlias(String alias) {
+    return $ItinerarySpotLinksTable(attachedDatabase, alias);
+  }
+}
+
+class ItinerarySpotLinkRow extends DataClass
+    implements Insertable<ItinerarySpotLinkRow> {
+  final String id;
+  final String spotId;
+  final String ownerId;
+  final String kind;
+  final String url;
+  final String? label;
+  final int sortOrder;
+  final String createdAt;
+  final String updatedAt;
+  const ItinerarySpotLinkRow(
+      {required this.id,
+      required this.spotId,
+      required this.ownerId,
+      required this.kind,
+      required this.url,
+      this.label,
+      required this.sortOrder,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['spot_id'] = Variable<String>(spotId);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['kind'] = Variable<String>(kind);
+    map['url'] = Variable<String>(url);
+    if (!nullToAbsent || label != null) {
+      map['label'] = Variable<String>(label);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  ItinerarySpotLinksCompanion toCompanion(bool nullToAbsent) {
+    return ItinerarySpotLinksCompanion(
+      id: Value(id),
+      spotId: Value(spotId),
+      ownerId: Value(ownerId),
+      kind: Value(kind),
+      url: Value(url),
+      label:
+          label == null && nullToAbsent ? const Value.absent() : Value(label),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ItinerarySpotLinkRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ItinerarySpotLinkRow(
+      id: serializer.fromJson<String>(json['id']),
+      spotId: serializer.fromJson<String>(json['spotId']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      url: serializer.fromJson<String>(json['url']),
+      label: serializer.fromJson<String?>(json['label']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'spotId': serializer.toJson<String>(spotId),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'kind': serializer.toJson<String>(kind),
+      'url': serializer.toJson<String>(url),
+      'label': serializer.toJson<String?>(label),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  ItinerarySpotLinkRow copyWith(
+          {String? id,
+          String? spotId,
+          String? ownerId,
+          String? kind,
+          String? url,
+          Value<String?> label = const Value.absent(),
+          int? sortOrder,
+          String? createdAt,
+          String? updatedAt}) =>
+      ItinerarySpotLinkRow(
+        id: id ?? this.id,
+        spotId: spotId ?? this.spotId,
+        ownerId: ownerId ?? this.ownerId,
+        kind: kind ?? this.kind,
+        url: url ?? this.url,
+        label: label.present ? label.value : this.label,
+        sortOrder: sortOrder ?? this.sortOrder,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  ItinerarySpotLinkRow copyWithCompanion(ItinerarySpotLinksCompanion data) {
+    return ItinerarySpotLinkRow(
+      id: data.id.present ? data.id.value : this.id,
+      spotId: data.spotId.present ? data.spotId.value : this.spotId,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      url: data.url.present ? data.url.value : this.url,
+      label: data.label.present ? data.label.value : this.label,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItinerarySpotLinkRow(')
+          ..write('id: $id, ')
+          ..write('spotId: $spotId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('kind: $kind, ')
+          ..write('url: $url, ')
+          ..write('label: $label, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, spotId, ownerId, kind, url, label, sortOrder, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ItinerarySpotLinkRow &&
+          other.id == this.id &&
+          other.spotId == this.spotId &&
+          other.ownerId == this.ownerId &&
+          other.kind == this.kind &&
+          other.url == this.url &&
+          other.label == this.label &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ItinerarySpotLinksCompanion
+    extends UpdateCompanion<ItinerarySpotLinkRow> {
+  final Value<String> id;
+  final Value<String> spotId;
+  final Value<String> ownerId;
+  final Value<String> kind;
+  final Value<String> url;
+  final Value<String?> label;
+  final Value<int> sortOrder;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const ItinerarySpotLinksCompanion({
+    this.id = const Value.absent(),
+    this.spotId = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.url = const Value.absent(),
+    this.label = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ItinerarySpotLinksCompanion.insert({
+    required String id,
+    required String spotId,
+    required String ownerId,
+    required String kind,
+    required String url,
+    this.label = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        spotId = Value(spotId),
+        ownerId = Value(ownerId),
+        kind = Value(kind),
+        url = Value(url),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<ItinerarySpotLinkRow> custom({
+    Expression<String>? id,
+    Expression<String>? spotId,
+    Expression<String>? ownerId,
+    Expression<String>? kind,
+    Expression<String>? url,
+    Expression<String>? label,
+    Expression<int>? sortOrder,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (spotId != null) 'spot_id': spotId,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (kind != null) 'kind': kind,
+      if (url != null) 'url': url,
+      if (label != null) 'label': label,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ItinerarySpotLinksCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? spotId,
+      Value<String>? ownerId,
+      Value<String>? kind,
+      Value<String>? url,
+      Value<String?>? label,
+      Value<int>? sortOrder,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return ItinerarySpotLinksCompanion(
+      id: id ?? this.id,
+      spotId: spotId ?? this.spotId,
+      ownerId: ownerId ?? this.ownerId,
+      kind: kind ?? this.kind,
+      url: url ?? this.url,
+      label: label ?? this.label,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (spotId.present) {
+      map['spot_id'] = Variable<String>(spotId.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItinerarySpotLinksCompanion(')
+          ..write('id: $id, ')
+          ..write('spotId: $spotId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('kind: $kind, ')
+          ..write('url: $url, ')
+          ..write('label: $label, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ItineraryEntriesTable extends ItineraryEntries
+    with TableInfo<$ItineraryEntriesTable, ItineraryEntryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ItineraryEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<String> planId = GeneratedColumn<String>(
+      'plan_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _spotIdMeta = const VerificationMeta('spotId');
+  @override
+  late final GeneratedColumn<String> spotId = GeneratedColumn<String>(
+      'spot_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _transportIdMeta =
+      const VerificationMeta('transportId');
+  @override
+  late final GeneratedColumn<String> transportId = GeneratedColumn<String>(
+      'transport_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lodgingIdMeta =
+      const VerificationMeta('lodgingId');
+  @override
+  late final GeneratedColumn<String> lodgingId = GeneratedColumn<String>(
+      'lodging_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _titleOverrideMeta =
+      const VerificationMeta('titleOverride');
+  @override
+  late final GeneratedColumn<String> titleOverride = GeneratedColumn<String>(
+      'title_override', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _startAtMeta =
+      const VerificationMeta('startAt');
+  @override
+  late final GeneratedColumn<String> startAt = GeneratedColumn<String>(
+      'start_at', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _endAtMeta = const VerificationMeta('endAt');
+  @override
+  late final GeneratedColumn<String> endAt = GeneratedColumn<String>(
+      'end_at', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _localDateMeta =
+      const VerificationMeta('localDate');
+  @override
+  late final GeneratedColumn<String> localDate = GeneratedColumn<String>(
+      'local_date', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _timeZoneIdMeta =
+      const VerificationMeta('timeZoneId');
+  @override
+  late final GeneratedColumn<String> timeZoneId = GeneratedColumn<String>(
+      'time_zone_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _bufferBeforeMinutesMeta =
+      const VerificationMeta('bufferBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> bufferBeforeMinutes = GeneratedColumn<int>(
+      'buffer_before_minutes', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _bufferAfterMinutesMeta =
+      const VerificationMeta('bufferAfterMinutes');
+  @override
+  late final GeneratedColumn<int> bufferAfterMinutes = GeneratedColumn<int>(
+      'buffer_after_minutes', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _memoMeta = const VerificationMeta('memo');
+  @override
+  late final GeneratedColumn<String> memo = GeneratedColumn<String>(
+      'memo', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        planId,
+        ownerId,
+        kind,
+        spotId,
+        transportId,
+        lodgingId,
+        titleOverride,
+        startAt,
+        endAt,
+        localDate,
+        timeZoneId,
+        bufferBeforeMinutes,
+        bufferAfterMinutes,
+        memo,
+        sortOrder,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'itinerary_entries';
+  @override
+  VerificationContext validateIntegrity(Insertable<ItineraryEntryRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('plan_id')) {
+      context.handle(_planIdMeta,
+          planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta));
+    } else if (isInserting) {
+      context.missing(_planIdMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('spot_id')) {
+      context.handle(_spotIdMeta,
+          spotId.isAcceptableOrUnknown(data['spot_id']!, _spotIdMeta));
+    }
+    if (data.containsKey('transport_id')) {
+      context.handle(
+          _transportIdMeta,
+          transportId.isAcceptableOrUnknown(
+              data['transport_id']!, _transportIdMeta));
+    }
+    if (data.containsKey('lodging_id')) {
+      context.handle(_lodgingIdMeta,
+          lodgingId.isAcceptableOrUnknown(data['lodging_id']!, _lodgingIdMeta));
+    }
+    if (data.containsKey('title_override')) {
+      context.handle(
+          _titleOverrideMeta,
+          titleOverride.isAcceptableOrUnknown(
+              data['title_override']!, _titleOverrideMeta));
+    }
+    if (data.containsKey('start_at')) {
+      context.handle(_startAtMeta,
+          startAt.isAcceptableOrUnknown(data['start_at']!, _startAtMeta));
+    }
+    if (data.containsKey('end_at')) {
+      context.handle(
+          _endAtMeta, endAt.isAcceptableOrUnknown(data['end_at']!, _endAtMeta));
+    }
+    if (data.containsKey('local_date')) {
+      context.handle(_localDateMeta,
+          localDate.isAcceptableOrUnknown(data['local_date']!, _localDateMeta));
+    }
+    if (data.containsKey('time_zone_id')) {
+      context.handle(
+          _timeZoneIdMeta,
+          timeZoneId.isAcceptableOrUnknown(
+              data['time_zone_id']!, _timeZoneIdMeta));
+    }
+    if (data.containsKey('buffer_before_minutes')) {
+      context.handle(
+          _bufferBeforeMinutesMeta,
+          bufferBeforeMinutes.isAcceptableOrUnknown(
+              data['buffer_before_minutes']!, _bufferBeforeMinutesMeta));
+    }
+    if (data.containsKey('buffer_after_minutes')) {
+      context.handle(
+          _bufferAfterMinutesMeta,
+          bufferAfterMinutes.isAcceptableOrUnknown(
+              data['buffer_after_minutes']!, _bufferAfterMinutesMeta));
+    }
+    if (data.containsKey('memo')) {
+      context.handle(
+          _memoMeta, memo.isAcceptableOrUnknown(data['memo']!, _memoMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ItineraryEntryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ItineraryEntryRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      planId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}plan_id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      spotId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}spot_id']),
+      transportId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}transport_id']),
+      lodgingId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lodging_id']),
+      titleOverride: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title_override']),
+      startAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}start_at']),
+      endAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}end_at']),
+      localDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}local_date']),
+      timeZoneId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}time_zone_id']),
+      bufferBeforeMinutes: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}buffer_before_minutes'])!,
+      bufferAfterMinutes: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}buffer_after_minutes'])!,
+      memo: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}memo']),
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ItineraryEntriesTable createAlias(String alias) {
+    return $ItineraryEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class ItineraryEntryRow extends DataClass
+    implements Insertable<ItineraryEntryRow> {
+  final String id;
+  final String planId;
+  final String ownerId;
+  final String kind;
+  final String? spotId;
+  final String? transportId;
+  final String? lodgingId;
+  final String? titleOverride;
+  final String? startAt;
+  final String? endAt;
+  final String? localDate;
+  final String? timeZoneId;
+  final int bufferBeforeMinutes;
+  final int bufferAfterMinutes;
+  final String? memo;
+  final int sortOrder;
+  final String createdAt;
+  final String updatedAt;
+  const ItineraryEntryRow(
+      {required this.id,
+      required this.planId,
+      required this.ownerId,
+      required this.kind,
+      this.spotId,
+      this.transportId,
+      this.lodgingId,
+      this.titleOverride,
+      this.startAt,
+      this.endAt,
+      this.localDate,
+      this.timeZoneId,
+      required this.bufferBeforeMinutes,
+      required this.bufferAfterMinutes,
+      this.memo,
+      required this.sortOrder,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['plan_id'] = Variable<String>(planId);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || spotId != null) {
+      map['spot_id'] = Variable<String>(spotId);
+    }
+    if (!nullToAbsent || transportId != null) {
+      map['transport_id'] = Variable<String>(transportId);
+    }
+    if (!nullToAbsent || lodgingId != null) {
+      map['lodging_id'] = Variable<String>(lodgingId);
+    }
+    if (!nullToAbsent || titleOverride != null) {
+      map['title_override'] = Variable<String>(titleOverride);
+    }
+    if (!nullToAbsent || startAt != null) {
+      map['start_at'] = Variable<String>(startAt);
+    }
+    if (!nullToAbsent || endAt != null) {
+      map['end_at'] = Variable<String>(endAt);
+    }
+    if (!nullToAbsent || localDate != null) {
+      map['local_date'] = Variable<String>(localDate);
+    }
+    if (!nullToAbsent || timeZoneId != null) {
+      map['time_zone_id'] = Variable<String>(timeZoneId);
+    }
+    map['buffer_before_minutes'] = Variable<int>(bufferBeforeMinutes);
+    map['buffer_after_minutes'] = Variable<int>(bufferAfterMinutes);
+    if (!nullToAbsent || memo != null) {
+      map['memo'] = Variable<String>(memo);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  ItineraryEntriesCompanion toCompanion(bool nullToAbsent) {
+    return ItineraryEntriesCompanion(
+      id: Value(id),
+      planId: Value(planId),
+      ownerId: Value(ownerId),
+      kind: Value(kind),
+      spotId:
+          spotId == null && nullToAbsent ? const Value.absent() : Value(spotId),
+      transportId: transportId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transportId),
+      lodgingId: lodgingId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lodgingId),
+      titleOverride: titleOverride == null && nullToAbsent
+          ? const Value.absent()
+          : Value(titleOverride),
+      startAt: startAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startAt),
+      endAt:
+          endAt == null && nullToAbsent ? const Value.absent() : Value(endAt),
+      localDate: localDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localDate),
+      timeZoneId: timeZoneId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(timeZoneId),
+      bufferBeforeMinutes: Value(bufferBeforeMinutes),
+      bufferAfterMinutes: Value(bufferAfterMinutes),
+      memo: memo == null && nullToAbsent ? const Value.absent() : Value(memo),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ItineraryEntryRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ItineraryEntryRow(
+      id: serializer.fromJson<String>(json['id']),
+      planId: serializer.fromJson<String>(json['planId']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      spotId: serializer.fromJson<String?>(json['spotId']),
+      transportId: serializer.fromJson<String?>(json['transportId']),
+      lodgingId: serializer.fromJson<String?>(json['lodgingId']),
+      titleOverride: serializer.fromJson<String?>(json['titleOverride']),
+      startAt: serializer.fromJson<String?>(json['startAt']),
+      endAt: serializer.fromJson<String?>(json['endAt']),
+      localDate: serializer.fromJson<String?>(json['localDate']),
+      timeZoneId: serializer.fromJson<String?>(json['timeZoneId']),
+      bufferBeforeMinutes:
+          serializer.fromJson<int>(json['bufferBeforeMinutes']),
+      bufferAfterMinutes: serializer.fromJson<int>(json['bufferAfterMinutes']),
+      memo: serializer.fromJson<String?>(json['memo']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'planId': serializer.toJson<String>(planId),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'kind': serializer.toJson<String>(kind),
+      'spotId': serializer.toJson<String?>(spotId),
+      'transportId': serializer.toJson<String?>(transportId),
+      'lodgingId': serializer.toJson<String?>(lodgingId),
+      'titleOverride': serializer.toJson<String?>(titleOverride),
+      'startAt': serializer.toJson<String?>(startAt),
+      'endAt': serializer.toJson<String?>(endAt),
+      'localDate': serializer.toJson<String?>(localDate),
+      'timeZoneId': serializer.toJson<String?>(timeZoneId),
+      'bufferBeforeMinutes': serializer.toJson<int>(bufferBeforeMinutes),
+      'bufferAfterMinutes': serializer.toJson<int>(bufferAfterMinutes),
+      'memo': serializer.toJson<String?>(memo),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  ItineraryEntryRow copyWith(
+          {String? id,
+          String? planId,
+          String? ownerId,
+          String? kind,
+          Value<String?> spotId = const Value.absent(),
+          Value<String?> transportId = const Value.absent(),
+          Value<String?> lodgingId = const Value.absent(),
+          Value<String?> titleOverride = const Value.absent(),
+          Value<String?> startAt = const Value.absent(),
+          Value<String?> endAt = const Value.absent(),
+          Value<String?> localDate = const Value.absent(),
+          Value<String?> timeZoneId = const Value.absent(),
+          int? bufferBeforeMinutes,
+          int? bufferAfterMinutes,
+          Value<String?> memo = const Value.absent(),
+          int? sortOrder,
+          String? createdAt,
+          String? updatedAt}) =>
+      ItineraryEntryRow(
+        id: id ?? this.id,
+        planId: planId ?? this.planId,
+        ownerId: ownerId ?? this.ownerId,
+        kind: kind ?? this.kind,
+        spotId: spotId.present ? spotId.value : this.spotId,
+        transportId: transportId.present ? transportId.value : this.transportId,
+        lodgingId: lodgingId.present ? lodgingId.value : this.lodgingId,
+        titleOverride:
+            titleOverride.present ? titleOverride.value : this.titleOverride,
+        startAt: startAt.present ? startAt.value : this.startAt,
+        endAt: endAt.present ? endAt.value : this.endAt,
+        localDate: localDate.present ? localDate.value : this.localDate,
+        timeZoneId: timeZoneId.present ? timeZoneId.value : this.timeZoneId,
+        bufferBeforeMinutes: bufferBeforeMinutes ?? this.bufferBeforeMinutes,
+        bufferAfterMinutes: bufferAfterMinutes ?? this.bufferAfterMinutes,
+        memo: memo.present ? memo.value : this.memo,
+        sortOrder: sortOrder ?? this.sortOrder,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  ItineraryEntryRow copyWithCompanion(ItineraryEntriesCompanion data) {
+    return ItineraryEntryRow(
+      id: data.id.present ? data.id.value : this.id,
+      planId: data.planId.present ? data.planId.value : this.planId,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      spotId: data.spotId.present ? data.spotId.value : this.spotId,
+      transportId:
+          data.transportId.present ? data.transportId.value : this.transportId,
+      lodgingId: data.lodgingId.present ? data.lodgingId.value : this.lodgingId,
+      titleOverride: data.titleOverride.present
+          ? data.titleOverride.value
+          : this.titleOverride,
+      startAt: data.startAt.present ? data.startAt.value : this.startAt,
+      endAt: data.endAt.present ? data.endAt.value : this.endAt,
+      localDate: data.localDate.present ? data.localDate.value : this.localDate,
+      timeZoneId:
+          data.timeZoneId.present ? data.timeZoneId.value : this.timeZoneId,
+      bufferBeforeMinutes: data.bufferBeforeMinutes.present
+          ? data.bufferBeforeMinutes.value
+          : this.bufferBeforeMinutes,
+      bufferAfterMinutes: data.bufferAfterMinutes.present
+          ? data.bufferAfterMinutes.value
+          : this.bufferAfterMinutes,
+      memo: data.memo.present ? data.memo.value : this.memo,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItineraryEntryRow(')
+          ..write('id: $id, ')
+          ..write('planId: $planId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('kind: $kind, ')
+          ..write('spotId: $spotId, ')
+          ..write('transportId: $transportId, ')
+          ..write('lodgingId: $lodgingId, ')
+          ..write('titleOverride: $titleOverride, ')
+          ..write('startAt: $startAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('localDate: $localDate, ')
+          ..write('timeZoneId: $timeZoneId, ')
+          ..write('bufferBeforeMinutes: $bufferBeforeMinutes, ')
+          ..write('bufferAfterMinutes: $bufferAfterMinutes, ')
+          ..write('memo: $memo, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      planId,
+      ownerId,
+      kind,
+      spotId,
+      transportId,
+      lodgingId,
+      titleOverride,
+      startAt,
+      endAt,
+      localDate,
+      timeZoneId,
+      bufferBeforeMinutes,
+      bufferAfterMinutes,
+      memo,
+      sortOrder,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ItineraryEntryRow &&
+          other.id == this.id &&
+          other.planId == this.planId &&
+          other.ownerId == this.ownerId &&
+          other.kind == this.kind &&
+          other.spotId == this.spotId &&
+          other.transportId == this.transportId &&
+          other.lodgingId == this.lodgingId &&
+          other.titleOverride == this.titleOverride &&
+          other.startAt == this.startAt &&
+          other.endAt == this.endAt &&
+          other.localDate == this.localDate &&
+          other.timeZoneId == this.timeZoneId &&
+          other.bufferBeforeMinutes == this.bufferBeforeMinutes &&
+          other.bufferAfterMinutes == this.bufferAfterMinutes &&
+          other.memo == this.memo &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ItineraryEntriesCompanion extends UpdateCompanion<ItineraryEntryRow> {
+  final Value<String> id;
+  final Value<String> planId;
+  final Value<String> ownerId;
+  final Value<String> kind;
+  final Value<String?> spotId;
+  final Value<String?> transportId;
+  final Value<String?> lodgingId;
+  final Value<String?> titleOverride;
+  final Value<String?> startAt;
+  final Value<String?> endAt;
+  final Value<String?> localDate;
+  final Value<String?> timeZoneId;
+  final Value<int> bufferBeforeMinutes;
+  final Value<int> bufferAfterMinutes;
+  final Value<String?> memo;
+  final Value<int> sortOrder;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const ItineraryEntriesCompanion({
+    this.id = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.spotId = const Value.absent(),
+    this.transportId = const Value.absent(),
+    this.lodgingId = const Value.absent(),
+    this.titleOverride = const Value.absent(),
+    this.startAt = const Value.absent(),
+    this.endAt = const Value.absent(),
+    this.localDate = const Value.absent(),
+    this.timeZoneId = const Value.absent(),
+    this.bufferBeforeMinutes = const Value.absent(),
+    this.bufferAfterMinutes = const Value.absent(),
+    this.memo = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ItineraryEntriesCompanion.insert({
+    required String id,
+    required String planId,
+    required String ownerId,
+    required String kind,
+    this.spotId = const Value.absent(),
+    this.transportId = const Value.absent(),
+    this.lodgingId = const Value.absent(),
+    this.titleOverride = const Value.absent(),
+    this.startAt = const Value.absent(),
+    this.endAt = const Value.absent(),
+    this.localDate = const Value.absent(),
+    this.timeZoneId = const Value.absent(),
+    this.bufferBeforeMinutes = const Value.absent(),
+    this.bufferAfterMinutes = const Value.absent(),
+    this.memo = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        planId = Value(planId),
+        ownerId = Value(ownerId),
+        kind = Value(kind),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<ItineraryEntryRow> custom({
+    Expression<String>? id,
+    Expression<String>? planId,
+    Expression<String>? ownerId,
+    Expression<String>? kind,
+    Expression<String>? spotId,
+    Expression<String>? transportId,
+    Expression<String>? lodgingId,
+    Expression<String>? titleOverride,
+    Expression<String>? startAt,
+    Expression<String>? endAt,
+    Expression<String>? localDate,
+    Expression<String>? timeZoneId,
+    Expression<int>? bufferBeforeMinutes,
+    Expression<int>? bufferAfterMinutes,
+    Expression<String>? memo,
+    Expression<int>? sortOrder,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (planId != null) 'plan_id': planId,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (kind != null) 'kind': kind,
+      if (spotId != null) 'spot_id': spotId,
+      if (transportId != null) 'transport_id': transportId,
+      if (lodgingId != null) 'lodging_id': lodgingId,
+      if (titleOverride != null) 'title_override': titleOverride,
+      if (startAt != null) 'start_at': startAt,
+      if (endAt != null) 'end_at': endAt,
+      if (localDate != null) 'local_date': localDate,
+      if (timeZoneId != null) 'time_zone_id': timeZoneId,
+      if (bufferBeforeMinutes != null)
+        'buffer_before_minutes': bufferBeforeMinutes,
+      if (bufferAfterMinutes != null)
+        'buffer_after_minutes': bufferAfterMinutes,
+      if (memo != null) 'memo': memo,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ItineraryEntriesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? planId,
+      Value<String>? ownerId,
+      Value<String>? kind,
+      Value<String?>? spotId,
+      Value<String?>? transportId,
+      Value<String?>? lodgingId,
+      Value<String?>? titleOverride,
+      Value<String?>? startAt,
+      Value<String?>? endAt,
+      Value<String?>? localDate,
+      Value<String?>? timeZoneId,
+      Value<int>? bufferBeforeMinutes,
+      Value<int>? bufferAfterMinutes,
+      Value<String?>? memo,
+      Value<int>? sortOrder,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return ItineraryEntriesCompanion(
+      id: id ?? this.id,
+      planId: planId ?? this.planId,
+      ownerId: ownerId ?? this.ownerId,
+      kind: kind ?? this.kind,
+      spotId: spotId ?? this.spotId,
+      transportId: transportId ?? this.transportId,
+      lodgingId: lodgingId ?? this.lodgingId,
+      titleOverride: titleOverride ?? this.titleOverride,
+      startAt: startAt ?? this.startAt,
+      endAt: endAt ?? this.endAt,
+      localDate: localDate ?? this.localDate,
+      timeZoneId: timeZoneId ?? this.timeZoneId,
+      bufferBeforeMinutes: bufferBeforeMinutes ?? this.bufferBeforeMinutes,
+      bufferAfterMinutes: bufferAfterMinutes ?? this.bufferAfterMinutes,
+      memo: memo ?? this.memo,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (planId.present) {
+      map['plan_id'] = Variable<String>(planId.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (spotId.present) {
+      map['spot_id'] = Variable<String>(spotId.value);
+    }
+    if (transportId.present) {
+      map['transport_id'] = Variable<String>(transportId.value);
+    }
+    if (lodgingId.present) {
+      map['lodging_id'] = Variable<String>(lodgingId.value);
+    }
+    if (titleOverride.present) {
+      map['title_override'] = Variable<String>(titleOverride.value);
+    }
+    if (startAt.present) {
+      map['start_at'] = Variable<String>(startAt.value);
+    }
+    if (endAt.present) {
+      map['end_at'] = Variable<String>(endAt.value);
+    }
+    if (localDate.present) {
+      map['local_date'] = Variable<String>(localDate.value);
+    }
+    if (timeZoneId.present) {
+      map['time_zone_id'] = Variable<String>(timeZoneId.value);
+    }
+    if (bufferBeforeMinutes.present) {
+      map['buffer_before_minutes'] = Variable<int>(bufferBeforeMinutes.value);
+    }
+    if (bufferAfterMinutes.present) {
+      map['buffer_after_minutes'] = Variable<int>(bufferAfterMinutes.value);
+    }
+    if (memo.present) {
+      map['memo'] = Variable<String>(memo.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItineraryEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('planId: $planId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('kind: $kind, ')
+          ..write('spotId: $spotId, ')
+          ..write('transportId: $transportId, ')
+          ..write('lodgingId: $lodgingId, ')
+          ..write('titleOverride: $titleOverride, ')
+          ..write('startAt: $startAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('localDate: $localDate, ')
+          ..write('timeZoneId: $timeZoneId, ')
+          ..write('bufferBeforeMinutes: $bufferBeforeMinutes, ')
+          ..write('bufferAfterMinutes: $bufferAfterMinutes, ')
+          ..write('memo: $memo, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ItineraryLegsTable extends ItineraryLegs
+    with TableInfo<$ItineraryLegsTable, ItineraryLegRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ItineraryLegsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _planIdMeta = const VerificationMeta('planId');
+  @override
+  late final GeneratedColumn<String> planId = GeneratedColumn<String>(
+      'plan_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _originEntryIdMeta =
+      const VerificationMeta('originEntryId');
+  @override
+  late final GeneratedColumn<String> originEntryId = GeneratedColumn<String>(
+      'origin_entry_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _destinationEntryIdMeta =
+      const VerificationMeta('destinationEntryId');
+  @override
+  late final GeneratedColumn<String> destinationEntryId =
+      GeneratedColumn<String>('destination_entry_id', aliasedName, false,
+          type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('manual'));
+  static const VerificationMeta _travelModeMeta =
+      const VerificationMeta('travelMode');
+  @override
+  late final GeneratedColumn<String> travelMode = GeneratedColumn<String>(
+      'travel_mode', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('other'));
+  static const VerificationMeta _departureAtMeta =
+      const VerificationMeta('departureAt');
+  @override
+  late final GeneratedColumn<String> departureAt = GeneratedColumn<String>(
+      'departure_at', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _arrivalAtMeta =
+      const VerificationMeta('arrivalAt');
+  @override
+  late final GeneratedColumn<String> arrivalAt = GeneratedColumn<String>(
+      'arrival_at', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _durationMinutesMeta =
+      const VerificationMeta('durationMinutes');
+  @override
+  late final GeneratedColumn<int> durationMinutes = GeneratedColumn<int>(
+      'duration_minutes', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _distanceMetersMeta =
+      const VerificationMeta('distanceMeters');
+  @override
+  late final GeneratedColumn<int> distanceMeters = GeneratedColumn<int>(
+      'distance_meters', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _fareAmountMinorMeta =
+      const VerificationMeta('fareAmountMinor');
+  @override
+  late final GeneratedColumn<int> fareAmountMinor = GeneratedColumn<int>(
+      'fare_amount_minor', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _fareCurrencyMeta =
+      const VerificationMeta('fareCurrency');
+  @override
+  late final GeneratedColumn<String> fareCurrency = GeneratedColumn<String>(
+      'fare_currency', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _valueOriginMeta =
+      const VerificationMeta('valueOrigin');
+  @override
+  late final GeneratedColumn<String> valueOrigin = GeneratedColumn<String>(
+      'value_origin', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('user_provided'));
+  static const VerificationMeta _rightsBasisMeta =
+      const VerificationMeta('rightsBasis');
+  @override
+  late final GeneratedColumn<String> rightsBasis = GeneratedColumn<String>(
+      'rights_basis', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _representativeTimeBucketMeta =
+      const VerificationMeta('representativeTimeBucket');
+  @override
+  late final GeneratedColumn<String> representativeTimeBucket =
+      GeneratedColumn<String>('representative_time_bucket', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lastVerifiedAtMeta =
+      const VerificationMeta('lastVerifiedAt');
+  @override
+  late final GeneratedColumn<String> lastVerifiedAt = GeneratedColumn<String>(
+      'last_verified_at', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _routeSummaryMeta =
+      const VerificationMeta('routeSummary');
+  @override
+  late final GeneratedColumn<String> routeSummary = GeneratedColumn<String>(
+      'route_summary', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _transitStepsJsonMeta =
+      const VerificationMeta('transitStepsJson');
+  @override
+  late final GeneratedColumn<String> transitStepsJson = GeneratedColumn<String>(
+      'transit_steps_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _encodedPolylineMeta =
+      const VerificationMeta('encodedPolyline');
+  @override
+  late final GeneratedColumn<String> encodedPolyline = GeneratedColumn<String>(
+      'encoded_polyline', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _googleMapsUrlMeta =
+      const VerificationMeta('googleMapsUrl');
+  @override
+  late final GeneratedColumn<String> googleMapsUrl = GeneratedColumn<String>(
+      'google_maps_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _fetchedAtMeta =
+      const VerificationMeta('fetchedAt');
+  @override
+  late final GeneratedColumn<String> fetchedAt = GeneratedColumn<String>(
+      'fetched_at', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _cacheKeyMeta =
+      const VerificationMeta('cacheKey');
+  @override
+  late final GeneratedColumn<String> cacheKey = GeneratedColumn<String>(
+      'cache_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isStaleMeta =
+      const VerificationMeta('isStale');
+  @override
+  late final GeneratedColumn<bool> isStale = GeneratedColumn<bool>(
+      'is_stale', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_stale" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        planId,
+        ownerId,
+        originEntryId,
+        destinationEntryId,
+        source,
+        travelMode,
+        departureAt,
+        arrivalAt,
+        durationMinutes,
+        distanceMeters,
+        fareAmountMinor,
+        fareCurrency,
+        valueOrigin,
+        rightsBasis,
+        representativeTimeBucket,
+        lastVerifiedAt,
+        routeSummary,
+        transitStepsJson,
+        encodedPolyline,
+        googleMapsUrl,
+        fetchedAt,
+        cacheKey,
+        isStale,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'itinerary_legs';
+  @override
+  VerificationContext validateIntegrity(Insertable<ItineraryLegRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('plan_id')) {
+      context.handle(_planIdMeta,
+          planId.isAcceptableOrUnknown(data['plan_id']!, _planIdMeta));
+    } else if (isInserting) {
+      context.missing(_planIdMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('origin_entry_id')) {
+      context.handle(
+          _originEntryIdMeta,
+          originEntryId.isAcceptableOrUnknown(
+              data['origin_entry_id']!, _originEntryIdMeta));
+    } else if (isInserting) {
+      context.missing(_originEntryIdMeta);
+    }
+    if (data.containsKey('destination_entry_id')) {
+      context.handle(
+          _destinationEntryIdMeta,
+          destinationEntryId.isAcceptableOrUnknown(
+              data['destination_entry_id']!, _destinationEntryIdMeta));
+    } else if (isInserting) {
+      context.missing(_destinationEntryIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('travel_mode')) {
+      context.handle(
+          _travelModeMeta,
+          travelMode.isAcceptableOrUnknown(
+              data['travel_mode']!, _travelModeMeta));
+    }
+    if (data.containsKey('departure_at')) {
+      context.handle(
+          _departureAtMeta,
+          departureAt.isAcceptableOrUnknown(
+              data['departure_at']!, _departureAtMeta));
+    }
+    if (data.containsKey('arrival_at')) {
+      context.handle(_arrivalAtMeta,
+          arrivalAt.isAcceptableOrUnknown(data['arrival_at']!, _arrivalAtMeta));
+    }
+    if (data.containsKey('duration_minutes')) {
+      context.handle(
+          _durationMinutesMeta,
+          durationMinutes.isAcceptableOrUnknown(
+              data['duration_minutes']!, _durationMinutesMeta));
+    }
+    if (data.containsKey('distance_meters')) {
+      context.handle(
+          _distanceMetersMeta,
+          distanceMeters.isAcceptableOrUnknown(
+              data['distance_meters']!, _distanceMetersMeta));
+    }
+    if (data.containsKey('fare_amount_minor')) {
+      context.handle(
+          _fareAmountMinorMeta,
+          fareAmountMinor.isAcceptableOrUnknown(
+              data['fare_amount_minor']!, _fareAmountMinorMeta));
+    }
+    if (data.containsKey('fare_currency')) {
+      context.handle(
+          _fareCurrencyMeta,
+          fareCurrency.isAcceptableOrUnknown(
+              data['fare_currency']!, _fareCurrencyMeta));
+    }
+    if (data.containsKey('value_origin')) {
+      context.handle(
+          _valueOriginMeta,
+          valueOrigin.isAcceptableOrUnknown(
+              data['value_origin']!, _valueOriginMeta));
+    }
+    if (data.containsKey('rights_basis')) {
+      context.handle(
+          _rightsBasisMeta,
+          rightsBasis.isAcceptableOrUnknown(
+              data['rights_basis']!, _rightsBasisMeta));
+    }
+    if (data.containsKey('representative_time_bucket')) {
+      context.handle(
+          _representativeTimeBucketMeta,
+          representativeTimeBucket.isAcceptableOrUnknown(
+              data['representative_time_bucket']!,
+              _representativeTimeBucketMeta));
+    }
+    if (data.containsKey('last_verified_at')) {
+      context.handle(
+          _lastVerifiedAtMeta,
+          lastVerifiedAt.isAcceptableOrUnknown(
+              data['last_verified_at']!, _lastVerifiedAtMeta));
+    }
+    if (data.containsKey('route_summary')) {
+      context.handle(
+          _routeSummaryMeta,
+          routeSummary.isAcceptableOrUnknown(
+              data['route_summary']!, _routeSummaryMeta));
+    }
+    if (data.containsKey('transit_steps_json')) {
+      context.handle(
+          _transitStepsJsonMeta,
+          transitStepsJson.isAcceptableOrUnknown(
+              data['transit_steps_json']!, _transitStepsJsonMeta));
+    }
+    if (data.containsKey('encoded_polyline')) {
+      context.handle(
+          _encodedPolylineMeta,
+          encodedPolyline.isAcceptableOrUnknown(
+              data['encoded_polyline']!, _encodedPolylineMeta));
+    }
+    if (data.containsKey('google_maps_url')) {
+      context.handle(
+          _googleMapsUrlMeta,
+          googleMapsUrl.isAcceptableOrUnknown(
+              data['google_maps_url']!, _googleMapsUrlMeta));
+    }
+    if (data.containsKey('fetched_at')) {
+      context.handle(_fetchedAtMeta,
+          fetchedAt.isAcceptableOrUnknown(data['fetched_at']!, _fetchedAtMeta));
+    }
+    if (data.containsKey('cache_key')) {
+      context.handle(_cacheKeyMeta,
+          cacheKey.isAcceptableOrUnknown(data['cache_key']!, _cacheKeyMeta));
+    }
+    if (data.containsKey('is_stale')) {
+      context.handle(_isStaleMeta,
+          isStale.isAcceptableOrUnknown(data['is_stale']!, _isStaleMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ItineraryLegRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ItineraryLegRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      planId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}plan_id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      originEntryId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}origin_entry_id'])!,
+      destinationEntryId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}destination_entry_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      travelMode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}travel_mode'])!,
+      departureAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}departure_at']),
+      arrivalAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}arrival_at']),
+      durationMinutes: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}duration_minutes']),
+      distanceMeters: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}distance_meters']),
+      fareAmountMinor: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}fare_amount_minor']),
+      fareCurrency: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}fare_currency']),
+      valueOrigin: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}value_origin'])!,
+      rightsBasis: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rights_basis']),
+      representativeTimeBucket: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}representative_time_bucket']),
+      lastVerifiedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}last_verified_at']),
+      routeSummary: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}route_summary']),
+      transitStepsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}transit_steps_json']),
+      encodedPolyline: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}encoded_polyline']),
+      googleMapsUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}google_maps_url']),
+      fetchedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}fetched_at']),
+      cacheKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cache_key']),
+      isStale: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_stale'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ItineraryLegsTable createAlias(String alias) {
+    return $ItineraryLegsTable(attachedDatabase, alias);
+  }
+}
+
+class ItineraryLegRow extends DataClass implements Insertable<ItineraryLegRow> {
+  final String id;
+  final String planId;
+  final String ownerId;
+  final String originEntryId;
+  final String destinationEntryId;
+  final String source;
+  final String travelMode;
+  final String? departureAt;
+  final String? arrivalAt;
+  final int? durationMinutes;
+  final int? distanceMeters;
+  final int? fareAmountMinor;
+  final String? fareCurrency;
+
+  /// 永続する概算経路値の出典・権利根拠・代表時刻帯・最終確認（§12.5）。
+  final String valueOrigin;
+  final String? rightsBasis;
+  final String? representativeTimeBucket;
+  final String? lastVerifiedAt;
+  final String? routeSummary;
+  final String? transitStepsJson;
+  final String? encodedPolyline;
+  final String? googleMapsUrl;
+  final String? fetchedAt;
+  final String? cacheKey;
+  final bool isStale;
+  final String createdAt;
+  final String updatedAt;
+  const ItineraryLegRow(
+      {required this.id,
+      required this.planId,
+      required this.ownerId,
+      required this.originEntryId,
+      required this.destinationEntryId,
+      required this.source,
+      required this.travelMode,
+      this.departureAt,
+      this.arrivalAt,
+      this.durationMinutes,
+      this.distanceMeters,
+      this.fareAmountMinor,
+      this.fareCurrency,
+      required this.valueOrigin,
+      this.rightsBasis,
+      this.representativeTimeBucket,
+      this.lastVerifiedAt,
+      this.routeSummary,
+      this.transitStepsJson,
+      this.encodedPolyline,
+      this.googleMapsUrl,
+      this.fetchedAt,
+      this.cacheKey,
+      required this.isStale,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['plan_id'] = Variable<String>(planId);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['origin_entry_id'] = Variable<String>(originEntryId);
+    map['destination_entry_id'] = Variable<String>(destinationEntryId);
+    map['source'] = Variable<String>(source);
+    map['travel_mode'] = Variable<String>(travelMode);
+    if (!nullToAbsent || departureAt != null) {
+      map['departure_at'] = Variable<String>(departureAt);
+    }
+    if (!nullToAbsent || arrivalAt != null) {
+      map['arrival_at'] = Variable<String>(arrivalAt);
+    }
+    if (!nullToAbsent || durationMinutes != null) {
+      map['duration_minutes'] = Variable<int>(durationMinutes);
+    }
+    if (!nullToAbsent || distanceMeters != null) {
+      map['distance_meters'] = Variable<int>(distanceMeters);
+    }
+    if (!nullToAbsent || fareAmountMinor != null) {
+      map['fare_amount_minor'] = Variable<int>(fareAmountMinor);
+    }
+    if (!nullToAbsent || fareCurrency != null) {
+      map['fare_currency'] = Variable<String>(fareCurrency);
+    }
+    map['value_origin'] = Variable<String>(valueOrigin);
+    if (!nullToAbsent || rightsBasis != null) {
+      map['rights_basis'] = Variable<String>(rightsBasis);
+    }
+    if (!nullToAbsent || representativeTimeBucket != null) {
+      map['representative_time_bucket'] =
+          Variable<String>(representativeTimeBucket);
+    }
+    if (!nullToAbsent || lastVerifiedAt != null) {
+      map['last_verified_at'] = Variable<String>(lastVerifiedAt);
+    }
+    if (!nullToAbsent || routeSummary != null) {
+      map['route_summary'] = Variable<String>(routeSummary);
+    }
+    if (!nullToAbsent || transitStepsJson != null) {
+      map['transit_steps_json'] = Variable<String>(transitStepsJson);
+    }
+    if (!nullToAbsent || encodedPolyline != null) {
+      map['encoded_polyline'] = Variable<String>(encodedPolyline);
+    }
+    if (!nullToAbsent || googleMapsUrl != null) {
+      map['google_maps_url'] = Variable<String>(googleMapsUrl);
+    }
+    if (!nullToAbsent || fetchedAt != null) {
+      map['fetched_at'] = Variable<String>(fetchedAt);
+    }
+    if (!nullToAbsent || cacheKey != null) {
+      map['cache_key'] = Variable<String>(cacheKey);
+    }
+    map['is_stale'] = Variable<bool>(isStale);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  ItineraryLegsCompanion toCompanion(bool nullToAbsent) {
+    return ItineraryLegsCompanion(
+      id: Value(id),
+      planId: Value(planId),
+      ownerId: Value(ownerId),
+      originEntryId: Value(originEntryId),
+      destinationEntryId: Value(destinationEntryId),
+      source: Value(source),
+      travelMode: Value(travelMode),
+      departureAt: departureAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(departureAt),
+      arrivalAt: arrivalAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(arrivalAt),
+      durationMinutes: durationMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMinutes),
+      distanceMeters: distanceMeters == null && nullToAbsent
+          ? const Value.absent()
+          : Value(distanceMeters),
+      fareAmountMinor: fareAmountMinor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fareAmountMinor),
+      fareCurrency: fareCurrency == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fareCurrency),
+      valueOrigin: Value(valueOrigin),
+      rightsBasis: rightsBasis == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rightsBasis),
+      representativeTimeBucket: representativeTimeBucket == null && nullToAbsent
+          ? const Value.absent()
+          : Value(representativeTimeBucket),
+      lastVerifiedAt: lastVerifiedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastVerifiedAt),
+      routeSummary: routeSummary == null && nullToAbsent
+          ? const Value.absent()
+          : Value(routeSummary),
+      transitStepsJson: transitStepsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transitStepsJson),
+      encodedPolyline: encodedPolyline == null && nullToAbsent
+          ? const Value.absent()
+          : Value(encodedPolyline),
+      googleMapsUrl: googleMapsUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(googleMapsUrl),
+      fetchedAt: fetchedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fetchedAt),
+      cacheKey: cacheKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cacheKey),
+      isStale: Value(isStale),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ItineraryLegRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ItineraryLegRow(
+      id: serializer.fromJson<String>(json['id']),
+      planId: serializer.fromJson<String>(json['planId']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      originEntryId: serializer.fromJson<String>(json['originEntryId']),
+      destinationEntryId:
+          serializer.fromJson<String>(json['destinationEntryId']),
+      source: serializer.fromJson<String>(json['source']),
+      travelMode: serializer.fromJson<String>(json['travelMode']),
+      departureAt: serializer.fromJson<String?>(json['departureAt']),
+      arrivalAt: serializer.fromJson<String?>(json['arrivalAt']),
+      durationMinutes: serializer.fromJson<int?>(json['durationMinutes']),
+      distanceMeters: serializer.fromJson<int?>(json['distanceMeters']),
+      fareAmountMinor: serializer.fromJson<int?>(json['fareAmountMinor']),
+      fareCurrency: serializer.fromJson<String?>(json['fareCurrency']),
+      valueOrigin: serializer.fromJson<String>(json['valueOrigin']),
+      rightsBasis: serializer.fromJson<String?>(json['rightsBasis']),
+      representativeTimeBucket:
+          serializer.fromJson<String?>(json['representativeTimeBucket']),
+      lastVerifiedAt: serializer.fromJson<String?>(json['lastVerifiedAt']),
+      routeSummary: serializer.fromJson<String?>(json['routeSummary']),
+      transitStepsJson: serializer.fromJson<String?>(json['transitStepsJson']),
+      encodedPolyline: serializer.fromJson<String?>(json['encodedPolyline']),
+      googleMapsUrl: serializer.fromJson<String?>(json['googleMapsUrl']),
+      fetchedAt: serializer.fromJson<String?>(json['fetchedAt']),
+      cacheKey: serializer.fromJson<String?>(json['cacheKey']),
+      isStale: serializer.fromJson<bool>(json['isStale']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'planId': serializer.toJson<String>(planId),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'originEntryId': serializer.toJson<String>(originEntryId),
+      'destinationEntryId': serializer.toJson<String>(destinationEntryId),
+      'source': serializer.toJson<String>(source),
+      'travelMode': serializer.toJson<String>(travelMode),
+      'departureAt': serializer.toJson<String?>(departureAt),
+      'arrivalAt': serializer.toJson<String?>(arrivalAt),
+      'durationMinutes': serializer.toJson<int?>(durationMinutes),
+      'distanceMeters': serializer.toJson<int?>(distanceMeters),
+      'fareAmountMinor': serializer.toJson<int?>(fareAmountMinor),
+      'fareCurrency': serializer.toJson<String?>(fareCurrency),
+      'valueOrigin': serializer.toJson<String>(valueOrigin),
+      'rightsBasis': serializer.toJson<String?>(rightsBasis),
+      'representativeTimeBucket':
+          serializer.toJson<String?>(representativeTimeBucket),
+      'lastVerifiedAt': serializer.toJson<String?>(lastVerifiedAt),
+      'routeSummary': serializer.toJson<String?>(routeSummary),
+      'transitStepsJson': serializer.toJson<String?>(transitStepsJson),
+      'encodedPolyline': serializer.toJson<String?>(encodedPolyline),
+      'googleMapsUrl': serializer.toJson<String?>(googleMapsUrl),
+      'fetchedAt': serializer.toJson<String?>(fetchedAt),
+      'cacheKey': serializer.toJson<String?>(cacheKey),
+      'isStale': serializer.toJson<bool>(isStale),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  ItineraryLegRow copyWith(
+          {String? id,
+          String? planId,
+          String? ownerId,
+          String? originEntryId,
+          String? destinationEntryId,
+          String? source,
+          String? travelMode,
+          Value<String?> departureAt = const Value.absent(),
+          Value<String?> arrivalAt = const Value.absent(),
+          Value<int?> durationMinutes = const Value.absent(),
+          Value<int?> distanceMeters = const Value.absent(),
+          Value<int?> fareAmountMinor = const Value.absent(),
+          Value<String?> fareCurrency = const Value.absent(),
+          String? valueOrigin,
+          Value<String?> rightsBasis = const Value.absent(),
+          Value<String?> representativeTimeBucket = const Value.absent(),
+          Value<String?> lastVerifiedAt = const Value.absent(),
+          Value<String?> routeSummary = const Value.absent(),
+          Value<String?> transitStepsJson = const Value.absent(),
+          Value<String?> encodedPolyline = const Value.absent(),
+          Value<String?> googleMapsUrl = const Value.absent(),
+          Value<String?> fetchedAt = const Value.absent(),
+          Value<String?> cacheKey = const Value.absent(),
+          bool? isStale,
+          String? createdAt,
+          String? updatedAt}) =>
+      ItineraryLegRow(
+        id: id ?? this.id,
+        planId: planId ?? this.planId,
+        ownerId: ownerId ?? this.ownerId,
+        originEntryId: originEntryId ?? this.originEntryId,
+        destinationEntryId: destinationEntryId ?? this.destinationEntryId,
+        source: source ?? this.source,
+        travelMode: travelMode ?? this.travelMode,
+        departureAt: departureAt.present ? departureAt.value : this.departureAt,
+        arrivalAt: arrivalAt.present ? arrivalAt.value : this.arrivalAt,
+        durationMinutes: durationMinutes.present
+            ? durationMinutes.value
+            : this.durationMinutes,
+        distanceMeters:
+            distanceMeters.present ? distanceMeters.value : this.distanceMeters,
+        fareAmountMinor: fareAmountMinor.present
+            ? fareAmountMinor.value
+            : this.fareAmountMinor,
+        fareCurrency:
+            fareCurrency.present ? fareCurrency.value : this.fareCurrency,
+        valueOrigin: valueOrigin ?? this.valueOrigin,
+        rightsBasis: rightsBasis.present ? rightsBasis.value : this.rightsBasis,
+        representativeTimeBucket: representativeTimeBucket.present
+            ? representativeTimeBucket.value
+            : this.representativeTimeBucket,
+        lastVerifiedAt:
+            lastVerifiedAt.present ? lastVerifiedAt.value : this.lastVerifiedAt,
+        routeSummary:
+            routeSummary.present ? routeSummary.value : this.routeSummary,
+        transitStepsJson: transitStepsJson.present
+            ? transitStepsJson.value
+            : this.transitStepsJson,
+        encodedPolyline: encodedPolyline.present
+            ? encodedPolyline.value
+            : this.encodedPolyline,
+        googleMapsUrl:
+            googleMapsUrl.present ? googleMapsUrl.value : this.googleMapsUrl,
+        fetchedAt: fetchedAt.present ? fetchedAt.value : this.fetchedAt,
+        cacheKey: cacheKey.present ? cacheKey.value : this.cacheKey,
+        isStale: isStale ?? this.isStale,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  ItineraryLegRow copyWithCompanion(ItineraryLegsCompanion data) {
+    return ItineraryLegRow(
+      id: data.id.present ? data.id.value : this.id,
+      planId: data.planId.present ? data.planId.value : this.planId,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      originEntryId: data.originEntryId.present
+          ? data.originEntryId.value
+          : this.originEntryId,
+      destinationEntryId: data.destinationEntryId.present
+          ? data.destinationEntryId.value
+          : this.destinationEntryId,
+      source: data.source.present ? data.source.value : this.source,
+      travelMode:
+          data.travelMode.present ? data.travelMode.value : this.travelMode,
+      departureAt:
+          data.departureAt.present ? data.departureAt.value : this.departureAt,
+      arrivalAt: data.arrivalAt.present ? data.arrivalAt.value : this.arrivalAt,
+      durationMinutes: data.durationMinutes.present
+          ? data.durationMinutes.value
+          : this.durationMinutes,
+      distanceMeters: data.distanceMeters.present
+          ? data.distanceMeters.value
+          : this.distanceMeters,
+      fareAmountMinor: data.fareAmountMinor.present
+          ? data.fareAmountMinor.value
+          : this.fareAmountMinor,
+      fareCurrency: data.fareCurrency.present
+          ? data.fareCurrency.value
+          : this.fareCurrency,
+      valueOrigin:
+          data.valueOrigin.present ? data.valueOrigin.value : this.valueOrigin,
+      rightsBasis:
+          data.rightsBasis.present ? data.rightsBasis.value : this.rightsBasis,
+      representativeTimeBucket: data.representativeTimeBucket.present
+          ? data.representativeTimeBucket.value
+          : this.representativeTimeBucket,
+      lastVerifiedAt: data.lastVerifiedAt.present
+          ? data.lastVerifiedAt.value
+          : this.lastVerifiedAt,
+      routeSummary: data.routeSummary.present
+          ? data.routeSummary.value
+          : this.routeSummary,
+      transitStepsJson: data.transitStepsJson.present
+          ? data.transitStepsJson.value
+          : this.transitStepsJson,
+      encodedPolyline: data.encodedPolyline.present
+          ? data.encodedPolyline.value
+          : this.encodedPolyline,
+      googleMapsUrl: data.googleMapsUrl.present
+          ? data.googleMapsUrl.value
+          : this.googleMapsUrl,
+      fetchedAt: data.fetchedAt.present ? data.fetchedAt.value : this.fetchedAt,
+      cacheKey: data.cacheKey.present ? data.cacheKey.value : this.cacheKey,
+      isStale: data.isStale.present ? data.isStale.value : this.isStale,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItineraryLegRow(')
+          ..write('id: $id, ')
+          ..write('planId: $planId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('originEntryId: $originEntryId, ')
+          ..write('destinationEntryId: $destinationEntryId, ')
+          ..write('source: $source, ')
+          ..write('travelMode: $travelMode, ')
+          ..write('departureAt: $departureAt, ')
+          ..write('arrivalAt: $arrivalAt, ')
+          ..write('durationMinutes: $durationMinutes, ')
+          ..write('distanceMeters: $distanceMeters, ')
+          ..write('fareAmountMinor: $fareAmountMinor, ')
+          ..write('fareCurrency: $fareCurrency, ')
+          ..write('valueOrigin: $valueOrigin, ')
+          ..write('rightsBasis: $rightsBasis, ')
+          ..write('representativeTimeBucket: $representativeTimeBucket, ')
+          ..write('lastVerifiedAt: $lastVerifiedAt, ')
+          ..write('routeSummary: $routeSummary, ')
+          ..write('transitStepsJson: $transitStepsJson, ')
+          ..write('encodedPolyline: $encodedPolyline, ')
+          ..write('googleMapsUrl: $googleMapsUrl, ')
+          ..write('fetchedAt: $fetchedAt, ')
+          ..write('cacheKey: $cacheKey, ')
+          ..write('isStale: $isStale, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+        id,
+        planId,
+        ownerId,
+        originEntryId,
+        destinationEntryId,
+        source,
+        travelMode,
+        departureAt,
+        arrivalAt,
+        durationMinutes,
+        distanceMeters,
+        fareAmountMinor,
+        fareCurrency,
+        valueOrigin,
+        rightsBasis,
+        representativeTimeBucket,
+        lastVerifiedAt,
+        routeSummary,
+        transitStepsJson,
+        encodedPolyline,
+        googleMapsUrl,
+        fetchedAt,
+        cacheKey,
+        isStale,
+        createdAt,
+        updatedAt
+      ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ItineraryLegRow &&
+          other.id == this.id &&
+          other.planId == this.planId &&
+          other.ownerId == this.ownerId &&
+          other.originEntryId == this.originEntryId &&
+          other.destinationEntryId == this.destinationEntryId &&
+          other.source == this.source &&
+          other.travelMode == this.travelMode &&
+          other.departureAt == this.departureAt &&
+          other.arrivalAt == this.arrivalAt &&
+          other.durationMinutes == this.durationMinutes &&
+          other.distanceMeters == this.distanceMeters &&
+          other.fareAmountMinor == this.fareAmountMinor &&
+          other.fareCurrency == this.fareCurrency &&
+          other.valueOrigin == this.valueOrigin &&
+          other.rightsBasis == this.rightsBasis &&
+          other.representativeTimeBucket == this.representativeTimeBucket &&
+          other.lastVerifiedAt == this.lastVerifiedAt &&
+          other.routeSummary == this.routeSummary &&
+          other.transitStepsJson == this.transitStepsJson &&
+          other.encodedPolyline == this.encodedPolyline &&
+          other.googleMapsUrl == this.googleMapsUrl &&
+          other.fetchedAt == this.fetchedAt &&
+          other.cacheKey == this.cacheKey &&
+          other.isStale == this.isStale &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ItineraryLegsCompanion extends UpdateCompanion<ItineraryLegRow> {
+  final Value<String> id;
+  final Value<String> planId;
+  final Value<String> ownerId;
+  final Value<String> originEntryId;
+  final Value<String> destinationEntryId;
+  final Value<String> source;
+  final Value<String> travelMode;
+  final Value<String?> departureAt;
+  final Value<String?> arrivalAt;
+  final Value<int?> durationMinutes;
+  final Value<int?> distanceMeters;
+  final Value<int?> fareAmountMinor;
+  final Value<String?> fareCurrency;
+  final Value<String> valueOrigin;
+  final Value<String?> rightsBasis;
+  final Value<String?> representativeTimeBucket;
+  final Value<String?> lastVerifiedAt;
+  final Value<String?> routeSummary;
+  final Value<String?> transitStepsJson;
+  final Value<String?> encodedPolyline;
+  final Value<String?> googleMapsUrl;
+  final Value<String?> fetchedAt;
+  final Value<String?> cacheKey;
+  final Value<bool> isStale;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const ItineraryLegsCompanion({
+    this.id = const Value.absent(),
+    this.planId = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.originEntryId = const Value.absent(),
+    this.destinationEntryId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.travelMode = const Value.absent(),
+    this.departureAt = const Value.absent(),
+    this.arrivalAt = const Value.absent(),
+    this.durationMinutes = const Value.absent(),
+    this.distanceMeters = const Value.absent(),
+    this.fareAmountMinor = const Value.absent(),
+    this.fareCurrency = const Value.absent(),
+    this.valueOrigin = const Value.absent(),
+    this.rightsBasis = const Value.absent(),
+    this.representativeTimeBucket = const Value.absent(),
+    this.lastVerifiedAt = const Value.absent(),
+    this.routeSummary = const Value.absent(),
+    this.transitStepsJson = const Value.absent(),
+    this.encodedPolyline = const Value.absent(),
+    this.googleMapsUrl = const Value.absent(),
+    this.fetchedAt = const Value.absent(),
+    this.cacheKey = const Value.absent(),
+    this.isStale = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ItineraryLegsCompanion.insert({
+    required String id,
+    required String planId,
+    required String ownerId,
+    required String originEntryId,
+    required String destinationEntryId,
+    this.source = const Value.absent(),
+    this.travelMode = const Value.absent(),
+    this.departureAt = const Value.absent(),
+    this.arrivalAt = const Value.absent(),
+    this.durationMinutes = const Value.absent(),
+    this.distanceMeters = const Value.absent(),
+    this.fareAmountMinor = const Value.absent(),
+    this.fareCurrency = const Value.absent(),
+    this.valueOrigin = const Value.absent(),
+    this.rightsBasis = const Value.absent(),
+    this.representativeTimeBucket = const Value.absent(),
+    this.lastVerifiedAt = const Value.absent(),
+    this.routeSummary = const Value.absent(),
+    this.transitStepsJson = const Value.absent(),
+    this.encodedPolyline = const Value.absent(),
+    this.googleMapsUrl = const Value.absent(),
+    this.fetchedAt = const Value.absent(),
+    this.cacheKey = const Value.absent(),
+    this.isStale = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        planId = Value(planId),
+        ownerId = Value(ownerId),
+        originEntryId = Value(originEntryId),
+        destinationEntryId = Value(destinationEntryId),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<ItineraryLegRow> custom({
+    Expression<String>? id,
+    Expression<String>? planId,
+    Expression<String>? ownerId,
+    Expression<String>? originEntryId,
+    Expression<String>? destinationEntryId,
+    Expression<String>? source,
+    Expression<String>? travelMode,
+    Expression<String>? departureAt,
+    Expression<String>? arrivalAt,
+    Expression<int>? durationMinutes,
+    Expression<int>? distanceMeters,
+    Expression<int>? fareAmountMinor,
+    Expression<String>? fareCurrency,
+    Expression<String>? valueOrigin,
+    Expression<String>? rightsBasis,
+    Expression<String>? representativeTimeBucket,
+    Expression<String>? lastVerifiedAt,
+    Expression<String>? routeSummary,
+    Expression<String>? transitStepsJson,
+    Expression<String>? encodedPolyline,
+    Expression<String>? googleMapsUrl,
+    Expression<String>? fetchedAt,
+    Expression<String>? cacheKey,
+    Expression<bool>? isStale,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (planId != null) 'plan_id': planId,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (originEntryId != null) 'origin_entry_id': originEntryId,
+      if (destinationEntryId != null)
+        'destination_entry_id': destinationEntryId,
+      if (source != null) 'source': source,
+      if (travelMode != null) 'travel_mode': travelMode,
+      if (departureAt != null) 'departure_at': departureAt,
+      if (arrivalAt != null) 'arrival_at': arrivalAt,
+      if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      if (distanceMeters != null) 'distance_meters': distanceMeters,
+      if (fareAmountMinor != null) 'fare_amount_minor': fareAmountMinor,
+      if (fareCurrency != null) 'fare_currency': fareCurrency,
+      if (valueOrigin != null) 'value_origin': valueOrigin,
+      if (rightsBasis != null) 'rights_basis': rightsBasis,
+      if (representativeTimeBucket != null)
+        'representative_time_bucket': representativeTimeBucket,
+      if (lastVerifiedAt != null) 'last_verified_at': lastVerifiedAt,
+      if (routeSummary != null) 'route_summary': routeSummary,
+      if (transitStepsJson != null) 'transit_steps_json': transitStepsJson,
+      if (encodedPolyline != null) 'encoded_polyline': encodedPolyline,
+      if (googleMapsUrl != null) 'google_maps_url': googleMapsUrl,
+      if (fetchedAt != null) 'fetched_at': fetchedAt,
+      if (cacheKey != null) 'cache_key': cacheKey,
+      if (isStale != null) 'is_stale': isStale,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ItineraryLegsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? planId,
+      Value<String>? ownerId,
+      Value<String>? originEntryId,
+      Value<String>? destinationEntryId,
+      Value<String>? source,
+      Value<String>? travelMode,
+      Value<String?>? departureAt,
+      Value<String?>? arrivalAt,
+      Value<int?>? durationMinutes,
+      Value<int?>? distanceMeters,
+      Value<int?>? fareAmountMinor,
+      Value<String?>? fareCurrency,
+      Value<String>? valueOrigin,
+      Value<String?>? rightsBasis,
+      Value<String?>? representativeTimeBucket,
+      Value<String?>? lastVerifiedAt,
+      Value<String?>? routeSummary,
+      Value<String?>? transitStepsJson,
+      Value<String?>? encodedPolyline,
+      Value<String?>? googleMapsUrl,
+      Value<String?>? fetchedAt,
+      Value<String?>? cacheKey,
+      Value<bool>? isStale,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return ItineraryLegsCompanion(
+      id: id ?? this.id,
+      planId: planId ?? this.planId,
+      ownerId: ownerId ?? this.ownerId,
+      originEntryId: originEntryId ?? this.originEntryId,
+      destinationEntryId: destinationEntryId ?? this.destinationEntryId,
+      source: source ?? this.source,
+      travelMode: travelMode ?? this.travelMode,
+      departureAt: departureAt ?? this.departureAt,
+      arrivalAt: arrivalAt ?? this.arrivalAt,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      distanceMeters: distanceMeters ?? this.distanceMeters,
+      fareAmountMinor: fareAmountMinor ?? this.fareAmountMinor,
+      fareCurrency: fareCurrency ?? this.fareCurrency,
+      valueOrigin: valueOrigin ?? this.valueOrigin,
+      rightsBasis: rightsBasis ?? this.rightsBasis,
+      representativeTimeBucket:
+          representativeTimeBucket ?? this.representativeTimeBucket,
+      lastVerifiedAt: lastVerifiedAt ?? this.lastVerifiedAt,
+      routeSummary: routeSummary ?? this.routeSummary,
+      transitStepsJson: transitStepsJson ?? this.transitStepsJson,
+      encodedPolyline: encodedPolyline ?? this.encodedPolyline,
+      googleMapsUrl: googleMapsUrl ?? this.googleMapsUrl,
+      fetchedAt: fetchedAt ?? this.fetchedAt,
+      cacheKey: cacheKey ?? this.cacheKey,
+      isStale: isStale ?? this.isStale,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (planId.present) {
+      map['plan_id'] = Variable<String>(planId.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (originEntryId.present) {
+      map['origin_entry_id'] = Variable<String>(originEntryId.value);
+    }
+    if (destinationEntryId.present) {
+      map['destination_entry_id'] = Variable<String>(destinationEntryId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (travelMode.present) {
+      map['travel_mode'] = Variable<String>(travelMode.value);
+    }
+    if (departureAt.present) {
+      map['departure_at'] = Variable<String>(departureAt.value);
+    }
+    if (arrivalAt.present) {
+      map['arrival_at'] = Variable<String>(arrivalAt.value);
+    }
+    if (durationMinutes.present) {
+      map['duration_minutes'] = Variable<int>(durationMinutes.value);
+    }
+    if (distanceMeters.present) {
+      map['distance_meters'] = Variable<int>(distanceMeters.value);
+    }
+    if (fareAmountMinor.present) {
+      map['fare_amount_minor'] = Variable<int>(fareAmountMinor.value);
+    }
+    if (fareCurrency.present) {
+      map['fare_currency'] = Variable<String>(fareCurrency.value);
+    }
+    if (valueOrigin.present) {
+      map['value_origin'] = Variable<String>(valueOrigin.value);
+    }
+    if (rightsBasis.present) {
+      map['rights_basis'] = Variable<String>(rightsBasis.value);
+    }
+    if (representativeTimeBucket.present) {
+      map['representative_time_bucket'] =
+          Variable<String>(representativeTimeBucket.value);
+    }
+    if (lastVerifiedAt.present) {
+      map['last_verified_at'] = Variable<String>(lastVerifiedAt.value);
+    }
+    if (routeSummary.present) {
+      map['route_summary'] = Variable<String>(routeSummary.value);
+    }
+    if (transitStepsJson.present) {
+      map['transit_steps_json'] = Variable<String>(transitStepsJson.value);
+    }
+    if (encodedPolyline.present) {
+      map['encoded_polyline'] = Variable<String>(encodedPolyline.value);
+    }
+    if (googleMapsUrl.present) {
+      map['google_maps_url'] = Variable<String>(googleMapsUrl.value);
+    }
+    if (fetchedAt.present) {
+      map['fetched_at'] = Variable<String>(fetchedAt.value);
+    }
+    if (cacheKey.present) {
+      map['cache_key'] = Variable<String>(cacheKey.value);
+    }
+    if (isStale.present) {
+      map['is_stale'] = Variable<bool>(isStale.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ItineraryLegsCompanion(')
+          ..write('id: $id, ')
+          ..write('planId: $planId, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('originEntryId: $originEntryId, ')
+          ..write('destinationEntryId: $destinationEntryId, ')
+          ..write('source: $source, ')
+          ..write('travelMode: $travelMode, ')
+          ..write('departureAt: $departureAt, ')
+          ..write('arrivalAt: $arrivalAt, ')
+          ..write('durationMinutes: $durationMinutes, ')
+          ..write('distanceMeters: $distanceMeters, ')
+          ..write('fareAmountMinor: $fareAmountMinor, ')
+          ..write('fareCurrency: $fareCurrency, ')
+          ..write('valueOrigin: $valueOrigin, ')
+          ..write('rightsBasis: $rightsBasis, ')
+          ..write('representativeTimeBucket: $representativeTimeBucket, ')
+          ..write('lastVerifiedAt: $lastVerifiedAt, ')
+          ..write('routeSummary: $routeSummary, ')
+          ..write('transitStepsJson: $transitStepsJson, ')
+          ..write('encodedPolyline: $encodedPolyline, ')
+          ..write('googleMapsUrl: $googleMapsUrl, ')
+          ..write('fetchedAt: $fetchedAt, ')
+          ..write('cacheKey: $cacheKey, ')
+          ..write('isStale: $isStale, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $OutboxOpsTable extends OutboxOps
     with TableInfo<$OutboxOpsTable, OutboxOpRow> {
   @override
@@ -10463,6 +14944,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TodoTemplatesTable todoTemplates = $TodoTemplatesTable(this);
   late final $TodoTemplateItemsTable todoTemplateItems =
       $TodoTemplateItemsTable(this);
+  late final $ItineraryPlansTable itineraryPlans = $ItineraryPlansTable(this);
+  late final $ItinerarySpotsTable itinerarySpots = $ItinerarySpotsTable(this);
+  late final $ItinerarySpotLinksTable itinerarySpotLinks =
+      $ItinerarySpotLinksTable(this);
+  late final $ItineraryEntriesTable itineraryEntries =
+      $ItineraryEntriesTable(this);
+  late final $ItineraryLegsTable itineraryLegs = $ItineraryLegsTable(this);
   late final $OutboxOpsTable outboxOps = $OutboxOpsTable(this);
   late final $AppKvsTable appKvs = $AppKvsTable(this);
   late final $FormDraftsTable formDrafts = $FormDraftsTable(this);
@@ -10488,6 +14976,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         oshiAnniversaries,
         todoTemplates,
         todoTemplateItems,
+        itineraryPlans,
+        itinerarySpots,
+        itinerarySpotLinks,
+        itineraryEntries,
+        itineraryLegs,
         outboxOps,
         appKvs,
         formDrafts,
@@ -14790,6 +19283,1947 @@ typedef $$TodoTemplateItemsTableProcessedTableManager = ProcessedTableManager<
     ),
     TodoTemplateItemRow,
     PrefetchHooks Function()>;
+typedef $$ItineraryPlansTableCreateCompanionBuilder = ItineraryPlansCompanion
+    Function({
+  required String id,
+  required String genbaId,
+  required String ownerId,
+  required String title,
+  Value<String?> memo,
+  Value<String?> startDate,
+  Value<String?> endDate,
+  required String timeZoneId,
+  Value<String?> coverImageLocalPath,
+  Value<String?> coverImageStoragePath,
+  Value<String> coverImageUploadStatus,
+  Value<int> sortOrder,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$ItineraryPlansTableUpdateCompanionBuilder = ItineraryPlansCompanion
+    Function({
+  Value<String> id,
+  Value<String> genbaId,
+  Value<String> ownerId,
+  Value<String> title,
+  Value<String?> memo,
+  Value<String?> startDate,
+  Value<String?> endDate,
+  Value<String> timeZoneId,
+  Value<String?> coverImageLocalPath,
+  Value<String?> coverImageStoragePath,
+  Value<String> coverImageUploadStatus,
+  Value<int> sortOrder,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$ItineraryPlansTableFilterComposer
+    extends Composer<_$AppDatabase, $ItineraryPlansTable> {
+  $$ItineraryPlansTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get genbaId => $composableBuilder(
+      column: $table.genbaId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get memo => $composableBuilder(
+      column: $table.memo, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get startDate => $composableBuilder(
+      column: $table.startDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get timeZoneId => $composableBuilder(
+      column: $table.timeZoneId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverImageLocalPath => $composableBuilder(
+      column: $table.coverImageLocalPath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverImageStoragePath => $composableBuilder(
+      column: $table.coverImageStoragePath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverImageUploadStatus => $composableBuilder(
+      column: $table.coverImageUploadStatus,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ItineraryPlansTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItineraryPlansTable> {
+  $$ItineraryPlansTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get genbaId => $composableBuilder(
+      column: $table.genbaId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get memo => $composableBuilder(
+      column: $table.memo, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get startDate => $composableBuilder(
+      column: $table.startDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get endDate => $composableBuilder(
+      column: $table.endDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get timeZoneId => $composableBuilder(
+      column: $table.timeZoneId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverImageLocalPath => $composableBuilder(
+      column: $table.coverImageLocalPath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverImageStoragePath => $composableBuilder(
+      column: $table.coverImageStoragePath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverImageUploadStatus => $composableBuilder(
+      column: $table.coverImageUploadStatus,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ItineraryPlansTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItineraryPlansTable> {
+  $$ItineraryPlansTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get genbaId =>
+      $composableBuilder(column: $table.genbaId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get memo =>
+      $composableBuilder(column: $table.memo, builder: (column) => column);
+
+  GeneratedColumn<String> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<String> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<String> get timeZoneId => $composableBuilder(
+      column: $table.timeZoneId, builder: (column) => column);
+
+  GeneratedColumn<String> get coverImageLocalPath => $composableBuilder(
+      column: $table.coverImageLocalPath, builder: (column) => column);
+
+  GeneratedColumn<String> get coverImageStoragePath => $composableBuilder(
+      column: $table.coverImageStoragePath, builder: (column) => column);
+
+  GeneratedColumn<String> get coverImageUploadStatus => $composableBuilder(
+      column: $table.coverImageUploadStatus, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ItineraryPlansTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ItineraryPlansTable,
+    ItineraryPlanRow,
+    $$ItineraryPlansTableFilterComposer,
+    $$ItineraryPlansTableOrderingComposer,
+    $$ItineraryPlansTableAnnotationComposer,
+    $$ItineraryPlansTableCreateCompanionBuilder,
+    $$ItineraryPlansTableUpdateCompanionBuilder,
+    (
+      ItineraryPlanRow,
+      BaseReferences<_$AppDatabase, $ItineraryPlansTable, ItineraryPlanRow>
+    ),
+    ItineraryPlanRow,
+    PrefetchHooks Function()> {
+  $$ItineraryPlansTableTableManager(
+      _$AppDatabase db, $ItineraryPlansTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ItineraryPlansTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ItineraryPlansTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ItineraryPlansTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> genbaId = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String?> memo = const Value.absent(),
+            Value<String?> startDate = const Value.absent(),
+            Value<String?> endDate = const Value.absent(),
+            Value<String> timeZoneId = const Value.absent(),
+            Value<String?> coverImageLocalPath = const Value.absent(),
+            Value<String?> coverImageStoragePath = const Value.absent(),
+            Value<String> coverImageUploadStatus = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItineraryPlansCompanion(
+            id: id,
+            genbaId: genbaId,
+            ownerId: ownerId,
+            title: title,
+            memo: memo,
+            startDate: startDate,
+            endDate: endDate,
+            timeZoneId: timeZoneId,
+            coverImageLocalPath: coverImageLocalPath,
+            coverImageStoragePath: coverImageStoragePath,
+            coverImageUploadStatus: coverImageUploadStatus,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String genbaId,
+            required String ownerId,
+            required String title,
+            Value<String?> memo = const Value.absent(),
+            Value<String?> startDate = const Value.absent(),
+            Value<String?> endDate = const Value.absent(),
+            required String timeZoneId,
+            Value<String?> coverImageLocalPath = const Value.absent(),
+            Value<String?> coverImageStoragePath = const Value.absent(),
+            Value<String> coverImageUploadStatus = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItineraryPlansCompanion.insert(
+            id: id,
+            genbaId: genbaId,
+            ownerId: ownerId,
+            title: title,
+            memo: memo,
+            startDate: startDate,
+            endDate: endDate,
+            timeZoneId: timeZoneId,
+            coverImageLocalPath: coverImageLocalPath,
+            coverImageStoragePath: coverImageStoragePath,
+            coverImageUploadStatus: coverImageUploadStatus,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ItineraryPlansTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ItineraryPlansTable,
+    ItineraryPlanRow,
+    $$ItineraryPlansTableFilterComposer,
+    $$ItineraryPlansTableOrderingComposer,
+    $$ItineraryPlansTableAnnotationComposer,
+    $$ItineraryPlansTableCreateCompanionBuilder,
+    $$ItineraryPlansTableUpdateCompanionBuilder,
+    (
+      ItineraryPlanRow,
+      BaseReferences<_$AppDatabase, $ItineraryPlansTable, ItineraryPlanRow>
+    ),
+    ItineraryPlanRow,
+    PrefetchHooks Function()>;
+typedef $$ItinerarySpotsTableCreateCompanionBuilder = ItinerarySpotsCompanion
+    Function({
+  required String id,
+  required String planId,
+  required String ownerId,
+  Value<String> source,
+  Value<String?> googlePlaceId,
+  required String name,
+  required String category,
+  Value<String?> address,
+  Value<String> dataOrigin,
+  Value<String?> rightsBasis,
+  Value<double?> latitude,
+  Value<double?> longitude,
+  Value<String?> phoneNumber,
+  Value<String?> websiteUrl,
+  Value<String?> openingHoursText,
+  Value<String?> googleMapsUrl,
+  Value<String?> googleFetchedAt,
+  Value<String?> googlePhotoName,
+  Value<String?> googlePhotoAttribution,
+  Value<String?> userImageLocalPath,
+  Value<String?> userImageStoragePath,
+  Value<String> userImageUploadStatus,
+  Value<String?> userImageAltText,
+  Value<String?> memo,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$ItinerarySpotsTableUpdateCompanionBuilder = ItinerarySpotsCompanion
+    Function({
+  Value<String> id,
+  Value<String> planId,
+  Value<String> ownerId,
+  Value<String> source,
+  Value<String?> googlePlaceId,
+  Value<String> name,
+  Value<String> category,
+  Value<String?> address,
+  Value<String> dataOrigin,
+  Value<String?> rightsBasis,
+  Value<double?> latitude,
+  Value<double?> longitude,
+  Value<String?> phoneNumber,
+  Value<String?> websiteUrl,
+  Value<String?> openingHoursText,
+  Value<String?> googleMapsUrl,
+  Value<String?> googleFetchedAt,
+  Value<String?> googlePhotoName,
+  Value<String?> googlePhotoAttribution,
+  Value<String?> userImageLocalPath,
+  Value<String?> userImageStoragePath,
+  Value<String> userImageUploadStatus,
+  Value<String?> userImageAltText,
+  Value<String?> memo,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$ItinerarySpotsTableFilterComposer
+    extends Composer<_$AppDatabase, $ItinerarySpotsTable> {
+  $$ItinerarySpotsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get googlePlaceId => $composableBuilder(
+      column: $table.googlePlaceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get address => $composableBuilder(
+      column: $table.address, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get dataOrigin => $composableBuilder(
+      column: $table.dataOrigin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rightsBasis => $composableBuilder(
+      column: $table.rightsBasis, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+      column: $table.latitude, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+      column: $table.longitude, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get phoneNumber => $composableBuilder(
+      column: $table.phoneNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get websiteUrl => $composableBuilder(
+      column: $table.websiteUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get openingHoursText => $composableBuilder(
+      column: $table.openingHoursText,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get googleMapsUrl => $composableBuilder(
+      column: $table.googleMapsUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get googleFetchedAt => $composableBuilder(
+      column: $table.googleFetchedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get googlePhotoName => $composableBuilder(
+      column: $table.googlePhotoName,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get googlePhotoAttribution => $composableBuilder(
+      column: $table.googlePhotoAttribution,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userImageLocalPath => $composableBuilder(
+      column: $table.userImageLocalPath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userImageStoragePath => $composableBuilder(
+      column: $table.userImageStoragePath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userImageUploadStatus => $composableBuilder(
+      column: $table.userImageUploadStatus,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userImageAltText => $composableBuilder(
+      column: $table.userImageAltText,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get memo => $composableBuilder(
+      column: $table.memo, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ItinerarySpotsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItinerarySpotsTable> {
+  $$ItinerarySpotsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get googlePlaceId => $composableBuilder(
+      column: $table.googlePlaceId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get address => $composableBuilder(
+      column: $table.address, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get dataOrigin => $composableBuilder(
+      column: $table.dataOrigin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rightsBasis => $composableBuilder(
+      column: $table.rightsBasis, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+      column: $table.latitude, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+      column: $table.longitude, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get phoneNumber => $composableBuilder(
+      column: $table.phoneNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get websiteUrl => $composableBuilder(
+      column: $table.websiteUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get openingHoursText => $composableBuilder(
+      column: $table.openingHoursText,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get googleMapsUrl => $composableBuilder(
+      column: $table.googleMapsUrl,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get googleFetchedAt => $composableBuilder(
+      column: $table.googleFetchedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get googlePhotoName => $composableBuilder(
+      column: $table.googlePhotoName,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get googlePhotoAttribution => $composableBuilder(
+      column: $table.googlePhotoAttribution,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userImageLocalPath => $composableBuilder(
+      column: $table.userImageLocalPath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userImageStoragePath => $composableBuilder(
+      column: $table.userImageStoragePath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userImageUploadStatus => $composableBuilder(
+      column: $table.userImageUploadStatus,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userImageAltText => $composableBuilder(
+      column: $table.userImageAltText,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get memo => $composableBuilder(
+      column: $table.memo, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ItinerarySpotsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItinerarySpotsTable> {
+  $$ItinerarySpotsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get planId =>
+      $composableBuilder(column: $table.planId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get googlePlaceId => $composableBuilder(
+      column: $table.googlePlaceId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<String> get dataOrigin => $composableBuilder(
+      column: $table.dataOrigin, builder: (column) => column);
+
+  GeneratedColumn<String> get rightsBasis => $composableBuilder(
+      column: $table.rightsBasis, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<String> get phoneNumber => $composableBuilder(
+      column: $table.phoneNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get websiteUrl => $composableBuilder(
+      column: $table.websiteUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get openingHoursText => $composableBuilder(
+      column: $table.openingHoursText, builder: (column) => column);
+
+  GeneratedColumn<String> get googleMapsUrl => $composableBuilder(
+      column: $table.googleMapsUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get googleFetchedAt => $composableBuilder(
+      column: $table.googleFetchedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get googlePhotoName => $composableBuilder(
+      column: $table.googlePhotoName, builder: (column) => column);
+
+  GeneratedColumn<String> get googlePhotoAttribution => $composableBuilder(
+      column: $table.googlePhotoAttribution, builder: (column) => column);
+
+  GeneratedColumn<String> get userImageLocalPath => $composableBuilder(
+      column: $table.userImageLocalPath, builder: (column) => column);
+
+  GeneratedColumn<String> get userImageStoragePath => $composableBuilder(
+      column: $table.userImageStoragePath, builder: (column) => column);
+
+  GeneratedColumn<String> get userImageUploadStatus => $composableBuilder(
+      column: $table.userImageUploadStatus, builder: (column) => column);
+
+  GeneratedColumn<String> get userImageAltText => $composableBuilder(
+      column: $table.userImageAltText, builder: (column) => column);
+
+  GeneratedColumn<String> get memo =>
+      $composableBuilder(column: $table.memo, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ItinerarySpotsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ItinerarySpotsTable,
+    ItinerarySpotRow,
+    $$ItinerarySpotsTableFilterComposer,
+    $$ItinerarySpotsTableOrderingComposer,
+    $$ItinerarySpotsTableAnnotationComposer,
+    $$ItinerarySpotsTableCreateCompanionBuilder,
+    $$ItinerarySpotsTableUpdateCompanionBuilder,
+    (
+      ItinerarySpotRow,
+      BaseReferences<_$AppDatabase, $ItinerarySpotsTable, ItinerarySpotRow>
+    ),
+    ItinerarySpotRow,
+    PrefetchHooks Function()> {
+  $$ItinerarySpotsTableTableManager(
+      _$AppDatabase db, $ItinerarySpotsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ItinerarySpotsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ItinerarySpotsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ItinerarySpotsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> planId = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String?> googlePlaceId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> category = const Value.absent(),
+            Value<String?> address = const Value.absent(),
+            Value<String> dataOrigin = const Value.absent(),
+            Value<String?> rightsBasis = const Value.absent(),
+            Value<double?> latitude = const Value.absent(),
+            Value<double?> longitude = const Value.absent(),
+            Value<String?> phoneNumber = const Value.absent(),
+            Value<String?> websiteUrl = const Value.absent(),
+            Value<String?> openingHoursText = const Value.absent(),
+            Value<String?> googleMapsUrl = const Value.absent(),
+            Value<String?> googleFetchedAt = const Value.absent(),
+            Value<String?> googlePhotoName = const Value.absent(),
+            Value<String?> googlePhotoAttribution = const Value.absent(),
+            Value<String?> userImageLocalPath = const Value.absent(),
+            Value<String?> userImageStoragePath = const Value.absent(),
+            Value<String> userImageUploadStatus = const Value.absent(),
+            Value<String?> userImageAltText = const Value.absent(),
+            Value<String?> memo = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItinerarySpotsCompanion(
+            id: id,
+            planId: planId,
+            ownerId: ownerId,
+            source: source,
+            googlePlaceId: googlePlaceId,
+            name: name,
+            category: category,
+            address: address,
+            dataOrigin: dataOrigin,
+            rightsBasis: rightsBasis,
+            latitude: latitude,
+            longitude: longitude,
+            phoneNumber: phoneNumber,
+            websiteUrl: websiteUrl,
+            openingHoursText: openingHoursText,
+            googleMapsUrl: googleMapsUrl,
+            googleFetchedAt: googleFetchedAt,
+            googlePhotoName: googlePhotoName,
+            googlePhotoAttribution: googlePhotoAttribution,
+            userImageLocalPath: userImageLocalPath,
+            userImageStoragePath: userImageStoragePath,
+            userImageUploadStatus: userImageUploadStatus,
+            userImageAltText: userImageAltText,
+            memo: memo,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String planId,
+            required String ownerId,
+            Value<String> source = const Value.absent(),
+            Value<String?> googlePlaceId = const Value.absent(),
+            required String name,
+            required String category,
+            Value<String?> address = const Value.absent(),
+            Value<String> dataOrigin = const Value.absent(),
+            Value<String?> rightsBasis = const Value.absent(),
+            Value<double?> latitude = const Value.absent(),
+            Value<double?> longitude = const Value.absent(),
+            Value<String?> phoneNumber = const Value.absent(),
+            Value<String?> websiteUrl = const Value.absent(),
+            Value<String?> openingHoursText = const Value.absent(),
+            Value<String?> googleMapsUrl = const Value.absent(),
+            Value<String?> googleFetchedAt = const Value.absent(),
+            Value<String?> googlePhotoName = const Value.absent(),
+            Value<String?> googlePhotoAttribution = const Value.absent(),
+            Value<String?> userImageLocalPath = const Value.absent(),
+            Value<String?> userImageStoragePath = const Value.absent(),
+            Value<String> userImageUploadStatus = const Value.absent(),
+            Value<String?> userImageAltText = const Value.absent(),
+            Value<String?> memo = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItinerarySpotsCompanion.insert(
+            id: id,
+            planId: planId,
+            ownerId: ownerId,
+            source: source,
+            googlePlaceId: googlePlaceId,
+            name: name,
+            category: category,
+            address: address,
+            dataOrigin: dataOrigin,
+            rightsBasis: rightsBasis,
+            latitude: latitude,
+            longitude: longitude,
+            phoneNumber: phoneNumber,
+            websiteUrl: websiteUrl,
+            openingHoursText: openingHoursText,
+            googleMapsUrl: googleMapsUrl,
+            googleFetchedAt: googleFetchedAt,
+            googlePhotoName: googlePhotoName,
+            googlePhotoAttribution: googlePhotoAttribution,
+            userImageLocalPath: userImageLocalPath,
+            userImageStoragePath: userImageStoragePath,
+            userImageUploadStatus: userImageUploadStatus,
+            userImageAltText: userImageAltText,
+            memo: memo,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ItinerarySpotsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ItinerarySpotsTable,
+    ItinerarySpotRow,
+    $$ItinerarySpotsTableFilterComposer,
+    $$ItinerarySpotsTableOrderingComposer,
+    $$ItinerarySpotsTableAnnotationComposer,
+    $$ItinerarySpotsTableCreateCompanionBuilder,
+    $$ItinerarySpotsTableUpdateCompanionBuilder,
+    (
+      ItinerarySpotRow,
+      BaseReferences<_$AppDatabase, $ItinerarySpotsTable, ItinerarySpotRow>
+    ),
+    ItinerarySpotRow,
+    PrefetchHooks Function()>;
+typedef $$ItinerarySpotLinksTableCreateCompanionBuilder
+    = ItinerarySpotLinksCompanion Function({
+  required String id,
+  required String spotId,
+  required String ownerId,
+  required String kind,
+  required String url,
+  Value<String?> label,
+  Value<int> sortOrder,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$ItinerarySpotLinksTableUpdateCompanionBuilder
+    = ItinerarySpotLinksCompanion Function({
+  Value<String> id,
+  Value<String> spotId,
+  Value<String> ownerId,
+  Value<String> kind,
+  Value<String> url,
+  Value<String?> label,
+  Value<int> sortOrder,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$ItinerarySpotLinksTableFilterComposer
+    extends Composer<_$AppDatabase, $ItinerarySpotLinksTable> {
+  $$ItinerarySpotLinksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get spotId => $composableBuilder(
+      column: $table.spotId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get url => $composableBuilder(
+      column: $table.url, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ItinerarySpotLinksTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItinerarySpotLinksTable> {
+  $$ItinerarySpotLinksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get spotId => $composableBuilder(
+      column: $table.spotId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get url => $composableBuilder(
+      column: $table.url, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ItinerarySpotLinksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItinerarySpotLinksTable> {
+  $$ItinerarySpotLinksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get spotId =>
+      $composableBuilder(column: $table.spotId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ItinerarySpotLinksTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ItinerarySpotLinksTable,
+    ItinerarySpotLinkRow,
+    $$ItinerarySpotLinksTableFilterComposer,
+    $$ItinerarySpotLinksTableOrderingComposer,
+    $$ItinerarySpotLinksTableAnnotationComposer,
+    $$ItinerarySpotLinksTableCreateCompanionBuilder,
+    $$ItinerarySpotLinksTableUpdateCompanionBuilder,
+    (
+      ItinerarySpotLinkRow,
+      BaseReferences<_$AppDatabase, $ItinerarySpotLinksTable,
+          ItinerarySpotLinkRow>
+    ),
+    ItinerarySpotLinkRow,
+    PrefetchHooks Function()> {
+  $$ItinerarySpotLinksTableTableManager(
+      _$AppDatabase db, $ItinerarySpotLinksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ItinerarySpotLinksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ItinerarySpotLinksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ItinerarySpotLinksTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> spotId = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> url = const Value.absent(),
+            Value<String?> label = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItinerarySpotLinksCompanion(
+            id: id,
+            spotId: spotId,
+            ownerId: ownerId,
+            kind: kind,
+            url: url,
+            label: label,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String spotId,
+            required String ownerId,
+            required String kind,
+            required String url,
+            Value<String?> label = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItinerarySpotLinksCompanion.insert(
+            id: id,
+            spotId: spotId,
+            ownerId: ownerId,
+            kind: kind,
+            url: url,
+            label: label,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ItinerarySpotLinksTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ItinerarySpotLinksTable,
+    ItinerarySpotLinkRow,
+    $$ItinerarySpotLinksTableFilterComposer,
+    $$ItinerarySpotLinksTableOrderingComposer,
+    $$ItinerarySpotLinksTableAnnotationComposer,
+    $$ItinerarySpotLinksTableCreateCompanionBuilder,
+    $$ItinerarySpotLinksTableUpdateCompanionBuilder,
+    (
+      ItinerarySpotLinkRow,
+      BaseReferences<_$AppDatabase, $ItinerarySpotLinksTable,
+          ItinerarySpotLinkRow>
+    ),
+    ItinerarySpotLinkRow,
+    PrefetchHooks Function()>;
+typedef $$ItineraryEntriesTableCreateCompanionBuilder
+    = ItineraryEntriesCompanion Function({
+  required String id,
+  required String planId,
+  required String ownerId,
+  required String kind,
+  Value<String?> spotId,
+  Value<String?> transportId,
+  Value<String?> lodgingId,
+  Value<String?> titleOverride,
+  Value<String?> startAt,
+  Value<String?> endAt,
+  Value<String?> localDate,
+  Value<String?> timeZoneId,
+  Value<int> bufferBeforeMinutes,
+  Value<int> bufferAfterMinutes,
+  Value<String?> memo,
+  Value<int> sortOrder,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$ItineraryEntriesTableUpdateCompanionBuilder
+    = ItineraryEntriesCompanion Function({
+  Value<String> id,
+  Value<String> planId,
+  Value<String> ownerId,
+  Value<String> kind,
+  Value<String?> spotId,
+  Value<String?> transportId,
+  Value<String?> lodgingId,
+  Value<String?> titleOverride,
+  Value<String?> startAt,
+  Value<String?> endAt,
+  Value<String?> localDate,
+  Value<String?> timeZoneId,
+  Value<int> bufferBeforeMinutes,
+  Value<int> bufferAfterMinutes,
+  Value<String?> memo,
+  Value<int> sortOrder,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$ItineraryEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $ItineraryEntriesTable> {
+  $$ItineraryEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get spotId => $composableBuilder(
+      column: $table.spotId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get transportId => $composableBuilder(
+      column: $table.transportId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lodgingId => $composableBuilder(
+      column: $table.lodgingId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get titleOverride => $composableBuilder(
+      column: $table.titleOverride, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get startAt => $composableBuilder(
+      column: $table.startAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get endAt => $composableBuilder(
+      column: $table.endAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get localDate => $composableBuilder(
+      column: $table.localDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get timeZoneId => $composableBuilder(
+      column: $table.timeZoneId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get bufferBeforeMinutes => $composableBuilder(
+      column: $table.bufferBeforeMinutes,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get bufferAfterMinutes => $composableBuilder(
+      column: $table.bufferAfterMinutes,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get memo => $composableBuilder(
+      column: $table.memo, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ItineraryEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItineraryEntriesTable> {
+  $$ItineraryEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get spotId => $composableBuilder(
+      column: $table.spotId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get transportId => $composableBuilder(
+      column: $table.transportId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lodgingId => $composableBuilder(
+      column: $table.lodgingId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get titleOverride => $composableBuilder(
+      column: $table.titleOverride,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get startAt => $composableBuilder(
+      column: $table.startAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get endAt => $composableBuilder(
+      column: $table.endAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get localDate => $composableBuilder(
+      column: $table.localDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get timeZoneId => $composableBuilder(
+      column: $table.timeZoneId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get bufferBeforeMinutes => $composableBuilder(
+      column: $table.bufferBeforeMinutes,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get bufferAfterMinutes => $composableBuilder(
+      column: $table.bufferAfterMinutes,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get memo => $composableBuilder(
+      column: $table.memo, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ItineraryEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItineraryEntriesTable> {
+  $$ItineraryEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get planId =>
+      $composableBuilder(column: $table.planId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get spotId =>
+      $composableBuilder(column: $table.spotId, builder: (column) => column);
+
+  GeneratedColumn<String> get transportId => $composableBuilder(
+      column: $table.transportId, builder: (column) => column);
+
+  GeneratedColumn<String> get lodgingId =>
+      $composableBuilder(column: $table.lodgingId, builder: (column) => column);
+
+  GeneratedColumn<String> get titleOverride => $composableBuilder(
+      column: $table.titleOverride, builder: (column) => column);
+
+  GeneratedColumn<String> get startAt =>
+      $composableBuilder(column: $table.startAt, builder: (column) => column);
+
+  GeneratedColumn<String> get endAt =>
+      $composableBuilder(column: $table.endAt, builder: (column) => column);
+
+  GeneratedColumn<String> get localDate =>
+      $composableBuilder(column: $table.localDate, builder: (column) => column);
+
+  GeneratedColumn<String> get timeZoneId => $composableBuilder(
+      column: $table.timeZoneId, builder: (column) => column);
+
+  GeneratedColumn<int> get bufferBeforeMinutes => $composableBuilder(
+      column: $table.bufferBeforeMinutes, builder: (column) => column);
+
+  GeneratedColumn<int> get bufferAfterMinutes => $composableBuilder(
+      column: $table.bufferAfterMinutes, builder: (column) => column);
+
+  GeneratedColumn<String> get memo =>
+      $composableBuilder(column: $table.memo, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ItineraryEntriesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ItineraryEntriesTable,
+    ItineraryEntryRow,
+    $$ItineraryEntriesTableFilterComposer,
+    $$ItineraryEntriesTableOrderingComposer,
+    $$ItineraryEntriesTableAnnotationComposer,
+    $$ItineraryEntriesTableCreateCompanionBuilder,
+    $$ItineraryEntriesTableUpdateCompanionBuilder,
+    (
+      ItineraryEntryRow,
+      BaseReferences<_$AppDatabase, $ItineraryEntriesTable, ItineraryEntryRow>
+    ),
+    ItineraryEntryRow,
+    PrefetchHooks Function()> {
+  $$ItineraryEntriesTableTableManager(
+      _$AppDatabase db, $ItineraryEntriesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ItineraryEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ItineraryEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ItineraryEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> planId = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String?> spotId = const Value.absent(),
+            Value<String?> transportId = const Value.absent(),
+            Value<String?> lodgingId = const Value.absent(),
+            Value<String?> titleOverride = const Value.absent(),
+            Value<String?> startAt = const Value.absent(),
+            Value<String?> endAt = const Value.absent(),
+            Value<String?> localDate = const Value.absent(),
+            Value<String?> timeZoneId = const Value.absent(),
+            Value<int> bufferBeforeMinutes = const Value.absent(),
+            Value<int> bufferAfterMinutes = const Value.absent(),
+            Value<String?> memo = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItineraryEntriesCompanion(
+            id: id,
+            planId: planId,
+            ownerId: ownerId,
+            kind: kind,
+            spotId: spotId,
+            transportId: transportId,
+            lodgingId: lodgingId,
+            titleOverride: titleOverride,
+            startAt: startAt,
+            endAt: endAt,
+            localDate: localDate,
+            timeZoneId: timeZoneId,
+            bufferBeforeMinutes: bufferBeforeMinutes,
+            bufferAfterMinutes: bufferAfterMinutes,
+            memo: memo,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String planId,
+            required String ownerId,
+            required String kind,
+            Value<String?> spotId = const Value.absent(),
+            Value<String?> transportId = const Value.absent(),
+            Value<String?> lodgingId = const Value.absent(),
+            Value<String?> titleOverride = const Value.absent(),
+            Value<String?> startAt = const Value.absent(),
+            Value<String?> endAt = const Value.absent(),
+            Value<String?> localDate = const Value.absent(),
+            Value<String?> timeZoneId = const Value.absent(),
+            Value<int> bufferBeforeMinutes = const Value.absent(),
+            Value<int> bufferAfterMinutes = const Value.absent(),
+            Value<String?> memo = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItineraryEntriesCompanion.insert(
+            id: id,
+            planId: planId,
+            ownerId: ownerId,
+            kind: kind,
+            spotId: spotId,
+            transportId: transportId,
+            lodgingId: lodgingId,
+            titleOverride: titleOverride,
+            startAt: startAt,
+            endAt: endAt,
+            localDate: localDate,
+            timeZoneId: timeZoneId,
+            bufferBeforeMinutes: bufferBeforeMinutes,
+            bufferAfterMinutes: bufferAfterMinutes,
+            memo: memo,
+            sortOrder: sortOrder,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ItineraryEntriesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ItineraryEntriesTable,
+    ItineraryEntryRow,
+    $$ItineraryEntriesTableFilterComposer,
+    $$ItineraryEntriesTableOrderingComposer,
+    $$ItineraryEntriesTableAnnotationComposer,
+    $$ItineraryEntriesTableCreateCompanionBuilder,
+    $$ItineraryEntriesTableUpdateCompanionBuilder,
+    (
+      ItineraryEntryRow,
+      BaseReferences<_$AppDatabase, $ItineraryEntriesTable, ItineraryEntryRow>
+    ),
+    ItineraryEntryRow,
+    PrefetchHooks Function()>;
+typedef $$ItineraryLegsTableCreateCompanionBuilder = ItineraryLegsCompanion
+    Function({
+  required String id,
+  required String planId,
+  required String ownerId,
+  required String originEntryId,
+  required String destinationEntryId,
+  Value<String> source,
+  Value<String> travelMode,
+  Value<String?> departureAt,
+  Value<String?> arrivalAt,
+  Value<int?> durationMinutes,
+  Value<int?> distanceMeters,
+  Value<int?> fareAmountMinor,
+  Value<String?> fareCurrency,
+  Value<String> valueOrigin,
+  Value<String?> rightsBasis,
+  Value<String?> representativeTimeBucket,
+  Value<String?> lastVerifiedAt,
+  Value<String?> routeSummary,
+  Value<String?> transitStepsJson,
+  Value<String?> encodedPolyline,
+  Value<String?> googleMapsUrl,
+  Value<String?> fetchedAt,
+  Value<String?> cacheKey,
+  Value<bool> isStale,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$ItineraryLegsTableUpdateCompanionBuilder = ItineraryLegsCompanion
+    Function({
+  Value<String> id,
+  Value<String> planId,
+  Value<String> ownerId,
+  Value<String> originEntryId,
+  Value<String> destinationEntryId,
+  Value<String> source,
+  Value<String> travelMode,
+  Value<String?> departureAt,
+  Value<String?> arrivalAt,
+  Value<int?> durationMinutes,
+  Value<int?> distanceMeters,
+  Value<int?> fareAmountMinor,
+  Value<String?> fareCurrency,
+  Value<String> valueOrigin,
+  Value<String?> rightsBasis,
+  Value<String?> representativeTimeBucket,
+  Value<String?> lastVerifiedAt,
+  Value<String?> routeSummary,
+  Value<String?> transitStepsJson,
+  Value<String?> encodedPolyline,
+  Value<String?> googleMapsUrl,
+  Value<String?> fetchedAt,
+  Value<String?> cacheKey,
+  Value<bool> isStale,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$ItineraryLegsTableFilterComposer
+    extends Composer<_$AppDatabase, $ItineraryLegsTable> {
+  $$ItineraryLegsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get originEntryId => $composableBuilder(
+      column: $table.originEntryId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get destinationEntryId => $composableBuilder(
+      column: $table.destinationEntryId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get travelMode => $composableBuilder(
+      column: $table.travelMode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get departureAt => $composableBuilder(
+      column: $table.departureAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get arrivalAt => $composableBuilder(
+      column: $table.arrivalAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get durationMinutes => $composableBuilder(
+      column: $table.durationMinutes,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get distanceMeters => $composableBuilder(
+      column: $table.distanceMeters,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get fareAmountMinor => $composableBuilder(
+      column: $table.fareAmountMinor,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fareCurrency => $composableBuilder(
+      column: $table.fareCurrency, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get valueOrigin => $composableBuilder(
+      column: $table.valueOrigin, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rightsBasis => $composableBuilder(
+      column: $table.rightsBasis, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get representativeTimeBucket => $composableBuilder(
+      column: $table.representativeTimeBucket,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastVerifiedAt => $composableBuilder(
+      column: $table.lastVerifiedAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get routeSummary => $composableBuilder(
+      column: $table.routeSummary, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get transitStepsJson => $composableBuilder(
+      column: $table.transitStepsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get encodedPolyline => $composableBuilder(
+      column: $table.encodedPolyline,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get googleMapsUrl => $composableBuilder(
+      column: $table.googleMapsUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fetchedAt => $composableBuilder(
+      column: $table.fetchedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get cacheKey => $composableBuilder(
+      column: $table.cacheKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isStale => $composableBuilder(
+      column: $table.isStale, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ItineraryLegsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ItineraryLegsTable> {
+  $$ItineraryLegsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get planId => $composableBuilder(
+      column: $table.planId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get originEntryId => $composableBuilder(
+      column: $table.originEntryId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get destinationEntryId => $composableBuilder(
+      column: $table.destinationEntryId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get travelMode => $composableBuilder(
+      column: $table.travelMode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get departureAt => $composableBuilder(
+      column: $table.departureAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get arrivalAt => $composableBuilder(
+      column: $table.arrivalAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get durationMinutes => $composableBuilder(
+      column: $table.durationMinutes,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get distanceMeters => $composableBuilder(
+      column: $table.distanceMeters,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get fareAmountMinor => $composableBuilder(
+      column: $table.fareAmountMinor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fareCurrency => $composableBuilder(
+      column: $table.fareCurrency,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get valueOrigin => $composableBuilder(
+      column: $table.valueOrigin, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rightsBasis => $composableBuilder(
+      column: $table.rightsBasis, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get representativeTimeBucket => $composableBuilder(
+      column: $table.representativeTimeBucket,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastVerifiedAt => $composableBuilder(
+      column: $table.lastVerifiedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get routeSummary => $composableBuilder(
+      column: $table.routeSummary,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get transitStepsJson => $composableBuilder(
+      column: $table.transitStepsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get encodedPolyline => $composableBuilder(
+      column: $table.encodedPolyline,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get googleMapsUrl => $composableBuilder(
+      column: $table.googleMapsUrl,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fetchedAt => $composableBuilder(
+      column: $table.fetchedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get cacheKey => $composableBuilder(
+      column: $table.cacheKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isStale => $composableBuilder(
+      column: $table.isStale, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ItineraryLegsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ItineraryLegsTable> {
+  $$ItineraryLegsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get planId =>
+      $composableBuilder(column: $table.planId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get originEntryId => $composableBuilder(
+      column: $table.originEntryId, builder: (column) => column);
+
+  GeneratedColumn<String> get destinationEntryId => $composableBuilder(
+      column: $table.destinationEntryId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get travelMode => $composableBuilder(
+      column: $table.travelMode, builder: (column) => column);
+
+  GeneratedColumn<String> get departureAt => $composableBuilder(
+      column: $table.departureAt, builder: (column) => column);
+
+  GeneratedColumn<String> get arrivalAt =>
+      $composableBuilder(column: $table.arrivalAt, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMinutes => $composableBuilder(
+      column: $table.durationMinutes, builder: (column) => column);
+
+  GeneratedColumn<int> get distanceMeters => $composableBuilder(
+      column: $table.distanceMeters, builder: (column) => column);
+
+  GeneratedColumn<int> get fareAmountMinor => $composableBuilder(
+      column: $table.fareAmountMinor, builder: (column) => column);
+
+  GeneratedColumn<String> get fareCurrency => $composableBuilder(
+      column: $table.fareCurrency, builder: (column) => column);
+
+  GeneratedColumn<String> get valueOrigin => $composableBuilder(
+      column: $table.valueOrigin, builder: (column) => column);
+
+  GeneratedColumn<String> get rightsBasis => $composableBuilder(
+      column: $table.rightsBasis, builder: (column) => column);
+
+  GeneratedColumn<String> get representativeTimeBucket => $composableBuilder(
+      column: $table.representativeTimeBucket, builder: (column) => column);
+
+  GeneratedColumn<String> get lastVerifiedAt => $composableBuilder(
+      column: $table.lastVerifiedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get routeSummary => $composableBuilder(
+      column: $table.routeSummary, builder: (column) => column);
+
+  GeneratedColumn<String> get transitStepsJson => $composableBuilder(
+      column: $table.transitStepsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get encodedPolyline => $composableBuilder(
+      column: $table.encodedPolyline, builder: (column) => column);
+
+  GeneratedColumn<String> get googleMapsUrl => $composableBuilder(
+      column: $table.googleMapsUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get fetchedAt =>
+      $composableBuilder(column: $table.fetchedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get cacheKey =>
+      $composableBuilder(column: $table.cacheKey, builder: (column) => column);
+
+  GeneratedColumn<bool> get isStale =>
+      $composableBuilder(column: $table.isStale, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ItineraryLegsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ItineraryLegsTable,
+    ItineraryLegRow,
+    $$ItineraryLegsTableFilterComposer,
+    $$ItineraryLegsTableOrderingComposer,
+    $$ItineraryLegsTableAnnotationComposer,
+    $$ItineraryLegsTableCreateCompanionBuilder,
+    $$ItineraryLegsTableUpdateCompanionBuilder,
+    (
+      ItineraryLegRow,
+      BaseReferences<_$AppDatabase, $ItineraryLegsTable, ItineraryLegRow>
+    ),
+    ItineraryLegRow,
+    PrefetchHooks Function()> {
+  $$ItineraryLegsTableTableManager(_$AppDatabase db, $ItineraryLegsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ItineraryLegsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ItineraryLegsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ItineraryLegsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> planId = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> originEntryId = const Value.absent(),
+            Value<String> destinationEntryId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String> travelMode = const Value.absent(),
+            Value<String?> departureAt = const Value.absent(),
+            Value<String?> arrivalAt = const Value.absent(),
+            Value<int?> durationMinutes = const Value.absent(),
+            Value<int?> distanceMeters = const Value.absent(),
+            Value<int?> fareAmountMinor = const Value.absent(),
+            Value<String?> fareCurrency = const Value.absent(),
+            Value<String> valueOrigin = const Value.absent(),
+            Value<String?> rightsBasis = const Value.absent(),
+            Value<String?> representativeTimeBucket = const Value.absent(),
+            Value<String?> lastVerifiedAt = const Value.absent(),
+            Value<String?> routeSummary = const Value.absent(),
+            Value<String?> transitStepsJson = const Value.absent(),
+            Value<String?> encodedPolyline = const Value.absent(),
+            Value<String?> googleMapsUrl = const Value.absent(),
+            Value<String?> fetchedAt = const Value.absent(),
+            Value<String?> cacheKey = const Value.absent(),
+            Value<bool> isStale = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItineraryLegsCompanion(
+            id: id,
+            planId: planId,
+            ownerId: ownerId,
+            originEntryId: originEntryId,
+            destinationEntryId: destinationEntryId,
+            source: source,
+            travelMode: travelMode,
+            departureAt: departureAt,
+            arrivalAt: arrivalAt,
+            durationMinutes: durationMinutes,
+            distanceMeters: distanceMeters,
+            fareAmountMinor: fareAmountMinor,
+            fareCurrency: fareCurrency,
+            valueOrigin: valueOrigin,
+            rightsBasis: rightsBasis,
+            representativeTimeBucket: representativeTimeBucket,
+            lastVerifiedAt: lastVerifiedAt,
+            routeSummary: routeSummary,
+            transitStepsJson: transitStepsJson,
+            encodedPolyline: encodedPolyline,
+            googleMapsUrl: googleMapsUrl,
+            fetchedAt: fetchedAt,
+            cacheKey: cacheKey,
+            isStale: isStale,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String planId,
+            required String ownerId,
+            required String originEntryId,
+            required String destinationEntryId,
+            Value<String> source = const Value.absent(),
+            Value<String> travelMode = const Value.absent(),
+            Value<String?> departureAt = const Value.absent(),
+            Value<String?> arrivalAt = const Value.absent(),
+            Value<int?> durationMinutes = const Value.absent(),
+            Value<int?> distanceMeters = const Value.absent(),
+            Value<int?> fareAmountMinor = const Value.absent(),
+            Value<String?> fareCurrency = const Value.absent(),
+            Value<String> valueOrigin = const Value.absent(),
+            Value<String?> rightsBasis = const Value.absent(),
+            Value<String?> representativeTimeBucket = const Value.absent(),
+            Value<String?> lastVerifiedAt = const Value.absent(),
+            Value<String?> routeSummary = const Value.absent(),
+            Value<String?> transitStepsJson = const Value.absent(),
+            Value<String?> encodedPolyline = const Value.absent(),
+            Value<String?> googleMapsUrl = const Value.absent(),
+            Value<String?> fetchedAt = const Value.absent(),
+            Value<String?> cacheKey = const Value.absent(),
+            Value<bool> isStale = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ItineraryLegsCompanion.insert(
+            id: id,
+            planId: planId,
+            ownerId: ownerId,
+            originEntryId: originEntryId,
+            destinationEntryId: destinationEntryId,
+            source: source,
+            travelMode: travelMode,
+            departureAt: departureAt,
+            arrivalAt: arrivalAt,
+            durationMinutes: durationMinutes,
+            distanceMeters: distanceMeters,
+            fareAmountMinor: fareAmountMinor,
+            fareCurrency: fareCurrency,
+            valueOrigin: valueOrigin,
+            rightsBasis: rightsBasis,
+            representativeTimeBucket: representativeTimeBucket,
+            lastVerifiedAt: lastVerifiedAt,
+            routeSummary: routeSummary,
+            transitStepsJson: transitStepsJson,
+            encodedPolyline: encodedPolyline,
+            googleMapsUrl: googleMapsUrl,
+            fetchedAt: fetchedAt,
+            cacheKey: cacheKey,
+            isStale: isStale,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ItineraryLegsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ItineraryLegsTable,
+    ItineraryLegRow,
+    $$ItineraryLegsTableFilterComposer,
+    $$ItineraryLegsTableOrderingComposer,
+    $$ItineraryLegsTableAnnotationComposer,
+    $$ItineraryLegsTableCreateCompanionBuilder,
+    $$ItineraryLegsTableUpdateCompanionBuilder,
+    (
+      ItineraryLegRow,
+      BaseReferences<_$AppDatabase, $ItineraryLegsTable, ItineraryLegRow>
+    ),
+    ItineraryLegRow,
+    PrefetchHooks Function()>;
 typedef $$OutboxOpsTableCreateCompanionBuilder = OutboxOpsCompanion Function({
   required String mutationId,
   required String ownerId,
@@ -15531,6 +21965,16 @@ class $AppDatabaseManager {
       $$TodoTemplatesTableTableManager(_db, _db.todoTemplates);
   $$TodoTemplateItemsTableTableManager get todoTemplateItems =>
       $$TodoTemplateItemsTableTableManager(_db, _db.todoTemplateItems);
+  $$ItineraryPlansTableTableManager get itineraryPlans =>
+      $$ItineraryPlansTableTableManager(_db, _db.itineraryPlans);
+  $$ItinerarySpotsTableTableManager get itinerarySpots =>
+      $$ItinerarySpotsTableTableManager(_db, _db.itinerarySpots);
+  $$ItinerarySpotLinksTableTableManager get itinerarySpotLinks =>
+      $$ItinerarySpotLinksTableTableManager(_db, _db.itinerarySpotLinks);
+  $$ItineraryEntriesTableTableManager get itineraryEntries =>
+      $$ItineraryEntriesTableTableManager(_db, _db.itineraryEntries);
+  $$ItineraryLegsTableTableManager get itineraryLegs =>
+      $$ItineraryLegsTableTableManager(_db, _db.itineraryLegs);
   $$OutboxOpsTableTableManager get outboxOps =>
       $$OutboxOpsTableTableManager(_db, _db.outboxOps);
   $$AppKvsTableTableManager get appKvs =>

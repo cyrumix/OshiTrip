@@ -367,6 +367,155 @@ class OshiAnniversaries extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// 現場の計画（旅程）。1現場につき既定で1件だが、DBは将来の複数旅程に
+/// 備えて1対多を許容する（schema v8, itinerary-plan-spec.md §12.1）。
+@DataClassName('ItineraryPlanRow')
+class ItineraryPlans extends Table {
+  TextColumn get id => text()();
+  TextColumn get genbaId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get title => text()();
+  TextColumn get memo => text().nullable()();
+  TextColumn get startDate => text().nullable()();
+  TextColumn get endDate => text().nullable()();
+  TextColumn get timeZoneId => text()();
+  TextColumn get coverImageLocalPath => text().nullable()();
+  TextColumn get coverImageStoragePath => text().nullable()();
+  TextColumn get coverImageUploadStatus =>
+      text().withDefault(const Constant('local_only'))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 計画に登録するスポット（施設・訪問先）。訪問予定（[ItineraryEntries]）とは
+/// 分離し、同じスポットを複数回予定できる（schema v8, §12.2）。
+@DataClassName('ItinerarySpotRow')
+class ItinerarySpots extends Table {
+  TextColumn get id => text()();
+  TextColumn get planId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get source => text().withDefault(const Constant('manual'))();
+  TextColumn get googlePlaceId => text().nullable()();
+  TextColumn get name => text()();
+  TextColumn get category => text()();
+  TextColumn get address => text().nullable()();
+
+  /// 永続する名称・住所の出典・権利根拠（既定はユーザー入力, §12.2）。
+  TextColumn get dataOrigin =>
+      text().withDefault(const Constant('user_provided'))();
+  TextColumn get rightsBasis => text().nullable()();
+  RealColumn get latitude => real().nullable()();
+  RealColumn get longitude => real().nullable()();
+  TextColumn get phoneNumber => text().nullable()();
+  TextColumn get websiteUrl => text().nullable()();
+  TextColumn get openingHoursText => text().nullable()();
+  TextColumn get googleMapsUrl => text().nullable()();
+  TextColumn get googleFetchedAt => text().nullable()();
+  TextColumn get googlePhotoName => text().nullable()();
+  TextColumn get googlePhotoAttribution => text().nullable()();
+  TextColumn get userImageLocalPath => text().nullable()();
+  TextColumn get userImageStoragePath => text().nullable()();
+  TextColumn get userImageUploadStatus =>
+      text().withDefault(const Constant('local_only'))();
+  TextColumn get userImageAltText => text().nullable()();
+  TextColumn get memo => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// スポットに複数保持できる種別つきURL（schema v8, §12.3/§4.5）。
+@DataClassName('ItinerarySpotLinkRow')
+class ItinerarySpotLinks extends Table {
+  TextColumn get id => text()();
+  TextColumn get spotId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get kind => text()();
+  TextColumn get url => text()();
+  TextColumn get label => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 旅程タイムラインの1項目（schema v8, §12.4）。kind に応じて spot_id /
+/// transport_id / lodging_id のうち1つだけを持つ（ドメイン層で検証）。
+/// transport_id / lodging_id は他機能（genba）のテーブルを参照するだけで
+/// FK を張らない（参照元削除時に勝手に消さず「参照切れ」として検出する
+/// 設計のため。§5.3）。
+@DataClassName('ItineraryEntryRow')
+class ItineraryEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get planId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get kind => text()();
+  TextColumn get spotId => text().nullable()();
+  TextColumn get transportId => text().nullable()();
+  TextColumn get lodgingId => text().nullable()();
+  TextColumn get titleOverride => text().nullable()();
+  TextColumn get startAt => text().nullable()();
+  TextColumn get endAt => text().nullable()();
+  TextColumn get localDate => text().nullable()();
+  TextColumn get timeZoneId => text().nullable()();
+  IntColumn get bufferBeforeMinutes =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get bufferAfterMinutes =>
+      integer().withDefault(const Constant(0))();
+  TextColumn get memo => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// スポット間の移動区間（schema v8, §12.5/§6.2）。
+@DataClassName('ItineraryLegRow')
+class ItineraryLegs extends Table {
+  TextColumn get id => text()();
+  TextColumn get planId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get originEntryId => text()();
+  TextColumn get destinationEntryId => text()();
+  TextColumn get source => text().withDefault(const Constant('manual'))();
+  TextColumn get travelMode => text().withDefault(const Constant('other'))();
+  TextColumn get departureAt => text().nullable()();
+  TextColumn get arrivalAt => text().nullable()();
+  IntColumn get durationMinutes => integer().nullable()();
+  IntColumn get distanceMeters => integer().nullable()();
+  IntColumn get fareAmountMinor => integer().nullable()();
+  TextColumn get fareCurrency => text().nullable()();
+
+  /// 永続する概算経路値の出典・権利根拠・代表時刻帯・最終確認（§12.5）。
+  TextColumn get valueOrigin =>
+      text().withDefault(const Constant('user_provided'))();
+  TextColumn get rightsBasis => text().nullable()();
+  TextColumn get representativeTimeBucket => text().nullable()();
+  TextColumn get lastVerifiedAt => text().nullable()();
+  TextColumn get routeSummary => text().nullable()();
+  TextColumn get transitStepsJson => text().nullable()();
+  TextColumn get encodedPolyline => text().nullable()();
+  TextColumn get googleMapsUrl => text().nullable()();
+  TextColumn get fetchedAt => text().nullable()();
+  TextColumn get cacheKey => text().nullable()();
+  BoolColumn get isStale => boolean().withDefault(const Constant(false))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Outbox（未同期変更キュー）。
 @DataClassName('OutboxOpRow')
 class OutboxOps extends Table {
@@ -451,6 +600,11 @@ class FormDrafts extends Table {
     OshiAnniversaries,
     TodoTemplates,
     TodoTemplateItems,
+    ItineraryPlans,
+    ItinerarySpots,
+    ItinerarySpotLinks,
+    ItineraryEntries,
+    ItineraryLegs,
     OutboxOps,
     AppKvs,
     FormDrafts,
@@ -473,8 +627,12 @@ class AppDatabase extends _$AppDatabase {
   /// （後方互換, nullable にせず安全な既定値を持つ列として追加）。
   /// v7: todo_templates / todo_template_items（Todo・持ち物のテンプレート）。
   /// 新規テーブルの追加のみで、既存データには一切触れない。
+  /// v8: itinerary_plans / itinerary_spots / itinerary_spot_links /
+  /// itinerary_entries / itinerary_legs（現場詳細「計画」タブの旅程基盤,
+  /// itinerary-plan-spec.md）。新規テーブルの追加のみで、既存データには
+  /// 一切触れない。
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -529,6 +687,14 @@ class AppDatabase extends _$AppDatabase {
             // 新規テーブルの追加のみ（既存データには触れない）。
             await m.createTable(todoTemplates);
             await m.createTable(todoTemplateItems);
+          }
+          if (from < 8) {
+            // 新規テーブルの追加のみ（既存データには触れない）。
+            await m.createTable(itineraryPlans);
+            await m.createTable(itinerarySpots);
+            await m.createTable(itinerarySpotLinks);
+            await m.createTable(itineraryEntries);
+            await m.createTable(itineraryLegs);
           }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
@@ -601,6 +767,45 @@ class AppDatabase extends _$AppDatabase {
     await idx(
       'idx_genbas_owner_oshi_group',
       'ON genbas (owner_id, oshi_group_id)',
+    );
+    await idx('idx_itinerary_plans_owner', 'ON itinerary_plans (owner_id)');
+    await idx('idx_itinerary_plans_genba', 'ON itinerary_plans (genba_id)');
+    await idx('idx_itinerary_spots_owner', 'ON itinerary_spots (owner_id)');
+    await idx('idx_itinerary_spots_plan', 'ON itinerary_spots (plan_id)');
+    await idx(
+      'idx_itinerary_spot_links_owner',
+      'ON itinerary_spot_links (owner_id)',
+    );
+    await idx(
+      'idx_itinerary_spot_links_spot',
+      'ON itinerary_spot_links (spot_id)',
+    );
+    await idx(
+      'idx_itinerary_entries_owner',
+      'ON itinerary_entries (owner_id)',
+    );
+    await idx('idx_itinerary_entries_plan', 'ON itinerary_entries (plan_id)');
+    await idx(
+      'idx_itinerary_entries_spot',
+      'ON itinerary_entries (spot_id)',
+    );
+    await idx(
+      'idx_itinerary_entries_transport',
+      'ON itinerary_entries (transport_id)',
+    );
+    await idx(
+      'idx_itinerary_entries_lodging',
+      'ON itinerary_entries (lodging_id)',
+    );
+    await idx('idx_itinerary_legs_owner', 'ON itinerary_legs (owner_id)');
+    await idx('idx_itinerary_legs_plan', 'ON itinerary_legs (plan_id)');
+    await idx(
+      'idx_itinerary_legs_origin',
+      'ON itinerary_legs (origin_entry_id)',
+    );
+    await idx(
+      'idx_itinerary_legs_destination',
+      'ON itinerary_legs (destination_entry_id)',
     );
     await idx(
       'idx_outbox_ops_owner_status',
