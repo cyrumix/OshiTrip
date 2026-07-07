@@ -19,11 +19,29 @@ void main() {
         expect(ItinerarySpot.fromJson(spot.toJson()).source, v);
       }
     });
-    test('ItinerarySpotCategory（14種）', () {
+    test('ItinerarySpotCategory（15種・聖地を含む）', () {
       for (final v in ItinerarySpotCategory.values) {
         final spot = makeItinerarySpot(category: v);
         expect(ItinerarySpot.fromJson(spot.toJson()).category, v);
       }
+      // 聖地は独立カテゴリで wire 値は 'sacred_place'、ラベルは「聖地」。
+      final sacred =
+          makeItinerarySpot(category: ItinerarySpotCategory.sacredPlace);
+      expect(sacred.toJson()['category'], 'sacred_place');
+      expect(
+        ItinerarySpot.fromJson(sacred.toJson()).category,
+        ItinerarySpotCategory.sacredPlace,
+      );
+      expect(ItinerarySpotCategory.sacredPlace.label, '聖地');
+      // 既存の「神社・寺院」「観光地」とは別値。
+      expect(
+        ItinerarySpotCategory.sacredPlace,
+        isNot(ItinerarySpotCategory.shrineTemple),
+      );
+      expect(
+        ItinerarySpotCategory.sacredPlace,
+        isNot(ItinerarySpotCategory.sightseeing),
+      );
     });
     test('ItinerarySpotLinkKind（7種）', () {
       for (final v in ItinerarySpotLinkKind.values) {

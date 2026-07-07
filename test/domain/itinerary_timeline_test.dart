@@ -298,7 +298,9 @@ void main() {
   });
 
   group('間に合わない可能性（余裕不足）の判定', () {
-    ItineraryTimelineEntry noteAt(
+    // 間に合い判定は「実際に訪問・移動する予定」に対して行う（メモは対象外,
+    // Phase 2追補 点6）。ここでは実予定（spot）で判定ロジックを検証する。
+    ItineraryTimelineEntry spotAt(
       String id,
       DateTime start,
       DateTime end, {
@@ -308,7 +310,8 @@ void main() {
       return resolveItineraryEntry(
         makeItineraryEntry(
           id: id,
-          kind: ItineraryEntryKind.note,
+          kind: ItineraryEntryKind.spot,
+          spotId: id,
           localDate: DateTime(start.year, start.month, start.day),
           bufferAfterMinutes: bufferAfter,
           bufferBeforeMinutes: bufferBefore,
@@ -320,13 +323,13 @@ void main() {
     }
 
     test('前の終了＋余裕＋（区間の所要）が次の開始を超えると次項目を警告', () {
-      final a = noteAt(
+      final a = spotAt(
         'a',
         DateTime.utc(2026, 8, 1, 10),
         DateTime.utc(2026, 8, 1, 11),
         bufferAfter: 15,
       );
-      final b = noteAt(
+      final b = spotAt(
         'b',
         DateTime.utc(2026, 8, 1, 11, 10),
         DateTime.utc(2026, 8, 1, 12),
@@ -341,12 +344,12 @@ void main() {
     });
 
     test('十分な余裕があれば警告しない', () {
-      final a = noteAt(
+      final a = spotAt(
         'a',
         DateTime.utc(2026, 8, 1, 10),
         DateTime.utc(2026, 8, 1, 11),
       );
-      final b = noteAt(
+      final b = spotAt(
         'b',
         DateTime.utc(2026, 8, 1, 13),
         DateTime.utc(2026, 8, 1, 14),
@@ -358,12 +361,12 @@ void main() {
     });
 
     test('区間の所要時間も考慮する', () {
-      final a = noteAt(
+      final a = spotAt(
         'a',
         DateTime.utc(2026, 8, 1, 10),
         DateTime.utc(2026, 8, 1, 11),
       );
-      final b = noteAt(
+      final b = spotAt(
         'b',
         DateTime.utc(2026, 8, 1, 11, 20),
         DateTime.utc(2026, 8, 1, 12),

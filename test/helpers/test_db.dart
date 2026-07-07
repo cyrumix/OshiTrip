@@ -18,6 +18,16 @@ AppDatabase createTestDb() {
   return AppDatabase(NativeDatabase.memory());
 }
 
+/// ファイルバック（永続）のテスト用DB。close→reopen による本物の
+/// マイグレーション経路（user_version 比較で onUpgrade が走る）を検証したい
+/// ときに使う。Windows では winsqlite3.dll へフォールバックする。
+AppDatabase openFileTestDb(File file) {
+  if (Platform.isWindows) {
+    open.overrideFor(OperatingSystem.windows, _openOnWindows);
+  }
+  return AppDatabase(NativeDatabase(file));
+}
+
 DynamicLibrary _openOnWindows() {
   try {
     return DynamicLibrary.open('sqlite3.dll');

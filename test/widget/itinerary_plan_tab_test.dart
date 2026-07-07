@@ -72,20 +72,23 @@ void main() {
     await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
-    // 候補（日付未定）に出る。
+    // 訪問日の初期値は本日(2026/7/2)ではなく、現場開催日(2026/8/1)になる（点4）。
+    // したがって候補ではなく開催日のセクションに出る。
     expect(find.text('東京タワー'), findsOneWidget);
-    expect(find.text('候補（日付未定）'), findsOneWidget);
-    // DBにも spot + 訪問項目が保存される。
+    expect(find.text('候補（日付未定）'), findsNothing);
+    expect(find.textContaining('2026/8/1'), findsWidgets);
+    // DBにも spot + 訪問項目が保存され、訪問日が開催日で入る。
     final plans = await container
         .read(itineraryRepositoryProvider)
         .watchByGenbaId(genbaId)
         .first;
     expect(plans, hasLength(1));
     expect(plans.single.spots.single.name, '東京タワー');
-    expect(
-      plans.single.entries.where((e) => e.kind == ItineraryEntryKind.spot),
-      hasLength(1),
-    );
+    final spotEntries = plans.single.entries
+        .where((e) => e.kind == ItineraryEntryKind.spot)
+        .toList();
+    expect(spotEntries, hasLength(1));
+    expect(spotEntries.single.localDate, DateTime(2026, 8, 1));
 
     // 編集: メニュー→編集→改名。
     await tester.tap(find.byTooltip('操作'));

@@ -18,6 +18,7 @@ import '../domain/itinerary_leg.dart';
 import '../domain/itinerary_plan.dart';
 import '../domain/itinerary_plan_aggregate.dart';
 import '../domain/itinerary_repository.dart';
+import '../domain/itinerary_schedule.dart';
 import '../domain/itinerary_spot.dart';
 import '../domain/itinerary_spot_link.dart';
 import '../domain/itinerary_validation.dart';
@@ -300,6 +301,13 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
   static const Failure _referenceFailure =
       ValidationFailure('参照先が見つからないか、この計画では利用できません');
 
+  /// [saveSpotBundle] の [removedLinkIds] が対象スポット・同一owner に属さない
+  /// （存在しない／別スポット／別owner）ときの一貫した型付き失敗。ID推測で
+  /// 他ユーザー・他スポットの行の存在有無を探れないよう、3ケースを同一文言へ
+  /// 正規化する（C-01 / 情報漏えい防止, Phase 2レビュー点3）。
+  static const Failure _removedLinkFailure =
+      ValidationFailure('削除対象のリンクが見つからないか、このスポットでは操作できません');
+
   /// [ItineraryEntry] の参照先（kind別）が同一owner・同一計画/現場に属するか。
   Future<Failure?> _validateEntryReferences(
     ItineraryEntry entry,
@@ -546,8 +554,18 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
           payload: stampedSpot.toJson()..remove('user_image_local_path'),
           now: now,
         );
-        // 削除リンク（無視しない）。
+        // 削除リンク（無視しない）。対象スポット・同一owner に属すもの以外は
+        // 一貫した型付き失敗で拒否し、全体を rollback する（別スポット・別owner・
+        // 存在しないIDを黙って delete Outbox に積まない, Phase 2レビュー点3）。
         for (final id in removedLinkIds) {
+          final target = await (_db.select(_db.itinerarySpotLinks)
+                ..where((t) => t.id.equals(id)))
+              .getSingleOrNull();
+          if (target == null ||
+              target.ownerId != owner ||
+              target.spotId != stampedSpot.id) {
+            throw const _ReferenceValidationException(_removedLinkFailure);
+          }
           await (_db.delete(_db.itinerarySpotLinks)
                 ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
               .go();
@@ -713,41 +731,83 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
   }
 
   @override
-  Future<Result<void>> reorderEntries(
-      List<ItineraryEntry> orderedEntries,) async {
+  Future<Result<void>> reorderEntries({
+    required String planId,
+    required List<String> orderedEntryIds,
+  }) async {
     final owner = _ownerId();
     if (owner == null) {
       return const Err(AuthFailure(message: 'ログインが必要です'));
     }
-    if (orderedEntries.any((e) => e.ownerId != owner)) {
-      return const Err(AuthFailure(message: '所有者が一致しません'));
-    }
     final now = _now;
     try {
       await _db.transaction(() async {
-        for (var i = 0; i < orderedEntries.length; i++) {
-          final e = orderedEntries[i];
-          if (e.sortOrder == i) continue;
+        // 同じ項目を2箇所へ置く指定は入力不正として拒否する。
+        if (orderedEntryIds.toSet().length != orderedEntryIds.length) {
+          throw const _ReferenceValidationException(
+            ValidationFailure('並び替え対象に重複した項目があります'),
+          );
+        }
+        // 現在owner・planId に属する対象行だけを読み込む。
+        final rows = orderedEntryIds.isEmpty
+            ? <ItineraryEntryRow>[]
+            : await (_db.select(_db.itineraryEntries)
+                  ..where(
+                    (t) =>
+                        t.id.isIn(orderedEntryIds) &
+                        t.ownerId.equals(owner) &
+                        t.planId.equals(planId),
+                  ))
+                .get();
+        final byId = {for (final r in rows) r.id: r};
+        // 全IDが実在し、現在owner・当該計画に属することを検証する。
+        for (final id in orderedEntryIds) {
+          if (byId.containsKey(id)) continue;
+          // 別owner の行なら他メソッドと同一の型付き失敗、それ以外
+          // （存在しない／別計画）は参照失敗へ正規化する（情報漏えい防止）。
           if (await _db.existsForOtherOwner(
             SyncEntity.itineraryEntries,
-            e.id,
+            id,
             owner,
           )) {
             throw const _ReferenceValidationException(
               AuthFailure(message: '既存の別ユーザーのデータは操作できません'),
             );
           }
+          throw const _ReferenceValidationException(
+            ValidationFailure('並び替え対象の項目が見つからないか、この計画のものではありません'),
+          );
+        }
+        // すべてが同一の表示日（交通・宿泊は参照元から導出した実効日）に
+        // 属するか検証する（別日をまたぐ並び替えを拒否する, 点2）。
+        await _assertSameEffectiveDate(
+          owner: owner,
+          planId: planId,
+          entries: [for (final id in orderedEntryIds) entryFromRow(byId[id]!)],
+        );
+        // 並び順(sort_order)と updated_at だけを更新する。中身は upsert しない。
+        for (var i = 0; i < orderedEntryIds.length; i++) {
+          final id = orderedEntryIds[i];
+          if (byId[id]!.sortOrder == i) continue;
           debugBeforeReorderWrite?.call(i);
-          final updated = e.copyWith(sortOrder: i, updatedAt: now);
-          await _db
-              .into(_db.itineraryEntries)
-              .insertOnConflictUpdate(entryToCompanion(updated));
+          await (_db.update(_db.itineraryEntries)
+                ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
+              .write(
+            ItineraryEntriesCompanion(
+              sortOrder: Value(i),
+              updatedAt: Value(now.toIso8601String()),
+            ),
+          );
+          // Outbox payload は更新後のDB行から作り、並び順以外を書き換えない。
+          final updated = await (_db.select(_db.itineraryEntries)
+                ..where((t) => t.id.equals(id)))
+              .getSingle();
           await _enqueueInTx(
             owner: owner,
             entityTable: SyncEntity.itineraryEntries,
-            entityId: e.id,
+            entityId: id,
             opType: OutboxOpType.upsert,
-            payload: updated.toJson(),
+            payload: entryFromRow(updated).toJson(),
             now: now,
           );
         }
@@ -759,6 +819,67 @@ class ItineraryRepositoryImpl implements ItineraryRepository {
     }
     _syncEngine.poke();
     return const Ok(null);
+  }
+
+  /// 並び替え対象の全項目が同一の**実効表示日**に属することを検証する。
+  /// 交通・宿泊は参照元（transports.departAt / lodgings.checkinDate）から
+  /// 日付を導出する（entry 側の上書きがあればそれを優先, §5.3 / 点4）。
+  /// 別日をまたぐ指定は型付き [ValidationFailure] で拒否する。
+  Future<void> _assertSameEffectiveDate({
+    required String owner,
+    required String planId,
+    required List<ItineraryEntry> entries,
+  }) async {
+    if (entries.length < 2) return;
+    // 参照元の日付が必要になるのは「上書きの無い交通/宿泊」だけ。
+    final needsSource = entries.any(
+      (e) =>
+          e.localDate == null &&
+          (e.kind == ItineraryEntryKind.transport ||
+              e.kind == ItineraryEntryKind.lodging),
+    );
+    var transportDate = const <String, DateTime?>{};
+    var lodgingDate = const <String, DateTime?>{};
+    if (needsSource) {
+      final genbaId = await _planGenbaId(planId, owner);
+      if (genbaId != null) {
+        final trs = await (_db.select(_db.transports)
+              ..where(
+                (t) => t.genbaId.equals(genbaId) & t.ownerId.equals(owner),
+              ))
+            .get();
+        transportDate = {
+          for (final t in trs)
+            t.id: t.departAt == null ? null : DateTime.parse(t.departAt!),
+        };
+        final lds = await (_db.select(_db.lodgings)
+              ..where(
+                (t) => t.genbaId.equals(genbaId) & t.ownerId.equals(owner),
+              ))
+            .get();
+        lodgingDate = {
+          for (final l in lds)
+            l.id: l.checkinDate == null ? null : DateTime.parse(l.checkinDate!),
+        };
+      }
+    }
+    final dates = <DateTime?>{};
+    for (final e in entries) {
+      dates.add(
+        effectiveItineraryLocalDate(
+          e,
+          transportDepartAt:
+              e.transportId == null ? null : transportDate[e.transportId],
+          lodgingCheckinDate:
+              e.lodgingId == null ? null : lodgingDate[e.lodgingId],
+        ),
+      );
+    }
+    if (dates.length > 1) {
+      throw const _ReferenceValidationException(
+        ValidationFailure('別の日の項目はまとめて並び替えできません'),
+      );
+    }
   }
 
   @override

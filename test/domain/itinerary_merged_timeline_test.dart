@@ -9,29 +9,37 @@ import '../helpers/fixtures.dart';
 /// 移動区間(leg)の配置（隣接／孤立）を検証する純粋関数テスト。
 void main() {
   ItineraryTimelineEntry tl(ItineraryEntry e) => ItineraryTimelineEntry(
-      entry: e, referenceStatus: ItineraryReferenceStatus.resolved,);
+        entry: e,
+        referenceStatus: ItineraryReferenceStatus.resolved,
+      );
 
   final date = DateTime(2026, 8, 1);
 
   group('buildItineraryDayRows: 会場＋アンカー＋項目を時刻順に融合', () {
     test('会場を先頭に、時刻付きは分昇順で融合、時刻未定は末尾', () {
-      final e9 = tl(makeItineraryEntry(
-        id: 'e9',
-        kind: ItineraryEntryKind.note,
-        localDate: date,
-        startAt: DateTime.utc(2026, 8, 1, 9),
-      ),);
-      final e11 = tl(makeItineraryEntry(
-        id: 'e11',
-        kind: ItineraryEntryKind.note,
-        localDate: date,
-        startAt: DateTime.utc(2026, 8, 1, 11),
-      ),);
-      final eNull = tl(makeItineraryEntry(
-        id: 'eNull',
-        kind: ItineraryEntryKind.note,
-        localDate: date,
-      ),);
+      final e9 = tl(
+        makeItineraryEntry(
+          id: 'e9',
+          kind: ItineraryEntryKind.note,
+          localDate: date,
+          startAt: DateTime.utc(2026, 8, 1, 9),
+        ),
+      );
+      final e11 = tl(
+        makeItineraryEntry(
+          id: 'e11',
+          kind: ItineraryEntryKind.note,
+          localDate: date,
+          startAt: DateTime.utc(2026, 8, 1, 11),
+        ),
+      );
+      final eNull = tl(
+        makeItineraryEntry(
+          id: 'eNull',
+          kind: ItineraryEntryKind.note,
+          localDate: date,
+        ),
+      );
       final anchor = ItineraryAnchor(
         kind: ItineraryAnchorKind.doorOpen,
         date: date,
@@ -52,8 +60,10 @@ void main() {
       expect((rows[0] as ItineraryVenueRow).venue.name, '大阪城ホール');
       // 9:00 entry → 10:00 anchor → 11:00 entry → 時刻未定 entry。
       expect((rows[1] as ItineraryEntryRow).item.entry.id, 'e9');
-      expect((rows[2] as ItineraryAnchorRow).anchor.kind,
-          ItineraryAnchorKind.doorOpen,);
+      expect(
+        (rows[2] as ItineraryAnchorRow).anchor.kind,
+        ItineraryAnchorKind.doorOpen,
+      );
       expect((rows[3] as ItineraryEntryRow).item.entry.id, 'e11');
       final last = rows[4] as ItineraryEntryRow;
       expect(last.item.entry.id, 'eNull');
@@ -61,21 +71,32 @@ void main() {
     });
 
     test('会場を渡さない日は会場ヘッダが出ない', () {
-      final day = ItineraryTimelineDay(date: date, anchors: const [], entries: [
-        tl(makeItineraryEntry(
-            id: 'x', kind: ItineraryEntryKind.note, localDate: date,),),
-      ],);
+      final day = ItineraryTimelineDay(
+        date: date,
+        anchors: const [],
+        entries: [
+          tl(
+            makeItineraryEntry(
+              id: 'x',
+              kind: ItineraryEntryKind.note,
+              localDate: date,
+            ),
+          ),
+        ],
+      );
       final rows = buildItineraryDayRows(day);
       expect(rows.whereType<ItineraryVenueRow>(), isEmpty);
     });
 
     test('同分ではアンカーが項目より前に来る', () {
-      final e10 = tl(makeItineraryEntry(
-        id: 'e10',
-        kind: ItineraryEntryKind.note,
-        localDate: date,
-        startAt: DateTime.utc(2026, 8, 1, 10),
-      ),);
+      final e10 = tl(
+        makeItineraryEntry(
+          id: 'e10',
+          kind: ItineraryEntryKind.note,
+          localDate: date,
+          startAt: DateTime.utc(2026, 8, 1, 10),
+        ),
+      );
       final anchor = ItineraryAnchor(
         kind: ItineraryAnchorKind.showStart,
         date: date,
@@ -91,17 +112,39 @@ void main() {
 
   group('placeItineraryLegs: 隣接／孤立の判定（点3: 落とさない）', () {
     test('隣接する端点は adjacent=true・afterEntryId=出発、離れていれば孤立', () {
-      final e0 =
-          tl(makeItineraryEntry(id: 'e0', kind: ItineraryEntryKind.note));
-      final e1 =
-          tl(makeItineraryEntry(id: 'e1', kind: ItineraryEntryKind.note));
-      final e2 =
-          tl(makeItineraryEntry(id: 'e2', kind: ItineraryEntryKind.note));
+      // メモは移動の端点にしないため、実予定(spot)で隣接判定を検証する（点6）。
+      final e0 = tl(
+        makeItineraryEntry(
+          id: 'e0',
+          kind: ItineraryEntryKind.spot,
+          spotId: 'e0',
+        ),
+      );
+      final e1 = tl(
+        makeItineraryEntry(
+          id: 'e1',
+          kind: ItineraryEntryKind.spot,
+          spotId: 'e1',
+        ),
+      );
+      final e2 = tl(
+        makeItineraryEntry(
+          id: 'e2',
+          kind: ItineraryEntryKind.spot,
+          spotId: 'e2',
+        ),
+      );
 
       final legAdjacent = makeItineraryLeg(
-          id: 'l-adj', originEntryId: 'e0', destinationEntryId: 'e1',);
+        id: 'l-adj',
+        originEntryId: 'e0',
+        destinationEntryId: 'e1',
+      );
       final legFar = makeItineraryLeg(
-          id: 'l-far', originEntryId: 'e0', destinationEntryId: 'e2',);
+        id: 'l-far',
+        originEntryId: 'e0',
+        destinationEntryId: 'e2',
+      );
       final legBroken = makeItineraryLeg(
         id: 'l-broken',
         originEntryId: 'missing',

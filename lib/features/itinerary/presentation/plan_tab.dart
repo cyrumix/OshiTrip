@@ -13,6 +13,7 @@ import '../application/itinerary_timeline.dart';
 import '../domain/itinerary_entry.dart';
 import '../domain/itinerary_leg.dart';
 import '../domain/itinerary_plan_aggregate.dart';
+import '../domain/itinerary_schedule.dart';
 import '../domain/itinerary_spot.dart';
 import '../domain/itinerary_spot_link.dart';
 import 'external_link.dart';
@@ -96,7 +97,10 @@ class _PlanTimeline extends ConsumerWidget {
 
     // 公演日のみ会場ヘッダを付ける（会場名。住所はGenbaに項目が無いため名称のみ）。
     final eventDateKey = DateTime(
-        genba.eventDate.year, genba.eventDate.month, genba.eventDate.day,);
+      genba.eventDate.year,
+      genba.eventDate.month,
+      genba.eventDate.day,
+    );
     final venueName = genba.venue?.trim();
     final venue = (venueName != null && venueName.isNotEmpty)
         ? ItineraryVenue(name: venueName)
@@ -458,10 +462,11 @@ class _LegRow extends ConsumerWidget {
   }
 
   void _edit(BuildContext context, WidgetRef ref) {
-    final options = [
-      for (final e in aggregate.entries)
-        ItineraryEntryOption(id: e.id, label: _optionLabel(e)),
-    ];
+    final options = buildLegEntryOptions(
+      aggregate: aggregate,
+      genbaAggregate: genbaAggregate,
+      labelOf: _optionLabel,
+    );
     showItineraryLegEditor(
       context,
       ref,
@@ -673,6 +678,7 @@ class _EntryCard extends ConsumerWidget {
         ItinerarySpotCategory.shopping => Icons.shopping_bag_outlined,
         ItinerarySpotCategory.lodging => Icons.hotel_outlined,
         ItinerarySpotCategory.venue => Icons.stadium_outlined,
+        ItinerarySpotCategory.sacredPlace => Icons.auto_awesome_outlined,
         _ => Icons.place_outlined,
       };
 
@@ -716,16 +722,19 @@ class _EntryCard extends ConsumerWidget {
   }
 
   String _timeLabel(BuildContext context) {
-    final start = item.entry.startAt;
+    // 交通・宿泊は参照元から導出した実効的な日時で表示する（元データの出発
+    // 時刻・チェックイン日を更新すると表示にも反映される, §5.3/点4）。
+    final start = item.effectiveStartAt;
+    final baseDate = item.effectiveLocalDate;
     if (start == null) return '時間未定';
     String fmt(DateTime d) =>
         '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-    final end = item.entry.endAt;
+    final end = item.effectiveEndAt;
     if (end == null) return fmt(start);
-    final crossesDay = item.entry.localDate != null &&
-        (end.year != item.entry.localDate!.year ||
-            end.month != item.entry.localDate!.month ||
-            end.day != item.entry.localDate!.day);
+    final crossesDay = baseDate != null &&
+        (end.year != baseDate.year ||
+            end.month != baseDate.month ||
+            end.day != baseDate.day);
     return '${fmt(start)}–${crossesDay ? '翌日 ' : ''}${fmt(end)}';
   }
 
@@ -832,7 +841,10 @@ class _EntryCard extends ConsumerWidget {
       );
       if (!ok || !context.mounted) return;
     }
-    final failure = await _controller(ref).reorderEntries(next);
+    final failure = await _controller(ref).reorderEntries(
+      planId: next.first.planId,
+      orderedEntryIds: [for (final e in next) e.id],
+    );
     if (context.mounted && failure != null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(failure.message)));
@@ -842,6 +854,8 @@ class _EntryCard extends ConsumerWidget {
   bool _conflictsWithTime(List<ItineraryEntry> order) {
     DateTime? prev;
     for (final e in order) {
+      // メモは時刻整合の判定対象外（Phase 2追補 点6）。
+      if (e.kind == ItineraryEntryKind.note) continue;
       final at = e.startAt;
       if (at == null) continue;
       if (prev != null && at.isBefore(prev)) return true;
@@ -884,6 +898,34 @@ class _MissingRefBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 移動区間の端点候補を作る（メモ(note)は前後接続対象にしないため除外し、
+/// 各項目の実効表示日を持たせて日付導出に使う, Phase 2追補 点3/点6）。
+List<ItineraryEntryOption> buildLegEntryOptions({
+  required ItineraryPlanAggregate aggregate,
+  required GenbaAggregate genbaAggregate,
+  required String Function(ItineraryEntry) labelOf,
+}) {
+  final timeline = buildItineraryTimeline(
+    aggregate: aggregate,
+    genba: genbaAggregate.genba,
+    transports: genbaAggregate.transports,
+    lodgings: genbaAggregate.lodgings,
+  );
+  final items = <ItineraryTimelineEntry>[
+    for (final d in timeline.days) ...d.entries,
+    ...timeline.candidates,
+  ];
+  return [
+    for (final it in items)
+      if (it.entry.kind != ItineraryEntryKind.note)
+        ItineraryEntryOption(
+          id: it.entry.id,
+          label: labelOf(it.entry),
+          date: it.effectiveLocalDate,
+        ),
+  ];
 }
 
 /// 追加メニュー（スポット／メモ／交通・宿泊の取り込み／移動区間）。
@@ -960,11 +1002,35 @@ class _AddMenu extends ConsumerWidget {
         final entries = plan?.entries ?? const <ItineraryEntry>[];
         switch (choice) {
           case 'spot':
+            // 訪問日の初期値は「現在操作中の予定日」を優先し、本日を使わない
+            // （点4）。開始時刻は同日の直前予定（メモを除く）の終了時刻（点5）。
+            final initialDate = resolveInitialVisitDate(
+              genbaEventDate: genbaAggregate.genba.eventDate,
+              planStartDate: plan?.plan.startDate,
+            );
+            DateTime? initialStart;
+            final planAgg = plan;
+            if (initialDate != null && planAgg != null) {
+              final timeline = buildItineraryTimeline(
+                aggregate: planAgg,
+                genba: genbaAggregate.genba,
+                transports: genbaAggregate.transports,
+                lodgings: genbaAggregate.lodgings,
+              );
+              final day =
+                  timeline.days.firstWhereOrNull((d) => d.date == initialDate);
+              if (day != null) {
+                initialStart = resolveInitialStartFromPrevious(day.entries);
+              }
+            }
+            if (!context.mounted) return;
             await showItinerarySpotEditor(
               context,
               ref,
               planId: planId,
               ownerId: owner,
+              initialDate: initialDate,
+              initialStart: initialStart,
             );
           case 'note':
             await showItineraryNoteEditor(
@@ -992,18 +1058,25 @@ class _AddMenu extends ConsumerWidget {
               entries: entries,
             );
           case 'leg':
-            if (entries.length < 2) {
+            final planAgg = plan;
+            final options = planAgg == null
+                ? const <ItineraryEntryOption>[]
+                : buildLegEntryOptions(
+                    aggregate: planAgg,
+                    genbaAggregate: genbaAggregate,
+                    labelOf: _entryLabel,
+                  );
+            // メモは端点にできないため、実予定が2つ以上必要。
+            if (options.length < 2) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('移動区間には2つ以上の予定が必要です')),
+                  const SnackBar(
+                    content: Text('移動区間には2つ以上の予定（メモを除く）が必要です'),
+                  ),
                 );
               }
               return;
             }
-            final options = [
-              for (final e in entries)
-                ItineraryEntryOption(id: e.id, label: _entryLabel(e)),
-            ];
             await showItineraryLegEditor(
               context,
               ref,

@@ -66,7 +66,9 @@ void main() {
     await seedGenba(owner);
     final repo = repoFor(owner);
     expect(
-        (await repo.upsertPlan(makeItineraryPlan(ownerId: owner))).isOk, true,);
+      (await repo.upsertPlan(makeItineraryPlan(ownerId: owner))).isOk,
+      true,
+    );
     return repo;
   }
 
@@ -291,6 +293,144 @@ void main() {
       expect(res.isOk, isFalse);
       expect(await linkCount(), 1); // link-1 は削除されず残る
     });
+
+    test('別スポットのリンクIDを removedLinkIds に混ぜると拒否し全ロールバック', () async {
+      final repo = await seedPlan('user-1');
+      // spot-1 とそのリンク link-1、spot-2 とそのリンク link-2 を用意する。
+      expect(
+        (await repo.saveSpotBundle(
+          spot: makeItinerarySpot(id: 'spot-1'),
+          entry: makeItineraryEntry(
+            id: 'entry-1',
+            kind: ItineraryEntryKind.spot,
+            spotId: 'spot-1',
+          ),
+          links: [makeItinerarySpotLink(id: 'link-1', spotId: 'spot-1')],
+        ))
+            .isOk,
+        isTrue,
+      );
+      expect(
+        (await repo.saveSpotBundle(
+          spot: makeItinerarySpot(id: 'spot-2'),
+          entry: makeItineraryEntry(
+            id: 'entry-2',
+            kind: ItineraryEntryKind.spot,
+            spotId: 'spot-2',
+          ),
+          links: [
+            makeItinerarySpotLink(
+              id: 'link-2',
+              spotId: 'spot-2',
+              url: 'https://two.example',
+            ),
+          ],
+        ))
+            .isOk,
+        isTrue,
+      );
+      expect(await linkCount(), 2);
+
+      // spot-1 の保存で、spot-2 のリンク link-2 を削除しようとする → 拒否。
+      final res = await repo.saveSpotBundle(
+        spot: makeItinerarySpot(id: 'spot-1', name: '改名しようとする'),
+        entry: makeItineraryEntry(
+          id: 'entry-1',
+          kind: ItineraryEntryKind.spot,
+          spotId: 'spot-1',
+        ),
+        links: const [],
+        removedLinkIds: ['link-2'],
+      );
+      expect(res.isOk, isFalse);
+      expect(res.failureOrNull, isA<ValidationFailure>());
+      // 別スポットのリンクは消えず、spot-1 の改名も rollback される。
+      expect(await linkCount(), 2);
+      final spot1 = (await db.select(db.itinerarySpots).get())
+          .firstWhere((s) => s.id == 'spot-1');
+      expect(spot1.name, isNot('改名しようとする'));
+    });
+
+    test('存在しないリンクIDを removedLinkIds に指定すると拒否し全ロールバック', () async {
+      final repo = await seedPlan('user-1');
+      expect(
+        (await repo.saveSpotBundle(
+          spot: makeItinerarySpot(id: 'spot-1'),
+          entry: makeItineraryEntry(
+            id: 'entry-1',
+            kind: ItineraryEntryKind.spot,
+            spotId: 'spot-1',
+          ),
+          links: [makeItinerarySpotLink(id: 'link-1', spotId: 'spot-1')],
+        ))
+            .isOk,
+        isTrue,
+      );
+      final res = await repo.saveSpotBundle(
+        spot: makeItinerarySpot(id: 'spot-1'),
+        entry: makeItineraryEntry(
+          id: 'entry-1',
+          kind: ItineraryEntryKind.spot,
+          spotId: 'spot-1',
+        ),
+        links: const [],
+        removedLinkIds: ['ghost-link'],
+      );
+      expect(res.isOk, isFalse);
+      expect(res.failureOrNull, isA<ValidationFailure>());
+      expect(await linkCount(), 1); // link-1 は残る
+    });
+
+    test('別ownerのリンクIDを removedLinkIds に指定すると拒否する', () async {
+      final repo = await seedPlan('user-1');
+      expect(
+        (await repo.saveSpotBundle(
+          spot: makeItinerarySpot(id: 'spot-1'),
+          entry: makeItineraryEntry(
+            id: 'entry-1',
+            kind: ItineraryEntryKind.spot,
+            spotId: 'spot-1',
+          ),
+          links: [makeItinerarySpotLink(id: 'link-1', spotId: 'spot-1')],
+        ))
+            .isOk,
+        isTrue,
+      );
+      // 別ownerのスポットとリンクを直接挿入する（同期由来を模す）。
+      await db.into(db.itinerarySpots).insert(
+            spotToCompanion(
+              makeItinerarySpot(
+                id: 'spot-b',
+                planId: 'plan-b',
+                ownerId: 'user-2',
+              ),
+            ),
+          );
+      await db.into(db.itinerarySpotLinks).insert(
+            spotLinkToCompanion(
+              makeItinerarySpotLink(
+                id: 'link-b',
+                spotId: 'spot-b',
+                ownerId: 'user-2',
+              ),
+            ),
+          );
+      final res = await repo.saveSpotBundle(
+        spot: makeItinerarySpot(id: 'spot-1'),
+        entry: makeItineraryEntry(
+          id: 'entry-1',
+          kind: ItineraryEntryKind.spot,
+          spotId: 'spot-1',
+        ),
+        links: const [],
+        removedLinkIds: ['link-b'],
+      );
+      expect(res.isOk, isFalse);
+      expect(res.failureOrNull, isA<ValidationFailure>());
+      // 別ownerのリンクは消えない。
+      final remaining = await db.select(db.itinerarySpotLinks).get();
+      expect(remaining.where((l) => l.id == 'link-b'), hasLength(1));
+    });
   });
 
   group('reorderEntries: 一括トランザクション', () {
@@ -319,20 +459,49 @@ void main() {
 
     test('正常系: 指定順に sortOrder が振り直される', () async {
       final repo = await seedThreeNotes();
-      final ordered = [
-        makeItineraryEntry(
-            id: 'e2', kind: ItineraryEntryKind.note, sortOrder: 2,),
-        makeItineraryEntry(
-            id: 'e1', kind: ItineraryEntryKind.note, sortOrder: 1,),
-        makeItineraryEntry(
-            id: 'e0', kind: ItineraryEntryKind.note, sortOrder: 0,),
-      ];
-      final res = await repo.reorderEntries(ordered);
+      final res = await repo.reorderEntries(
+        planId: 'plan-1',
+        orderedEntryIds: ['e2', 'e1', 'e0'],
+      );
       expect(res.isOk, isTrue);
       final orders = await sortOrders();
       expect(orders['e2'], 0);
       expect(orders['e1'], 1);
       expect(orders['e0'], 2);
+    });
+
+    test('順序だけ変更し、項目の中身（名称・参照）は upsert しない', () async {
+      final repo = await seedPlan('user-1');
+      // メモ本文つきの項目を作る。
+      expect(
+        (await repo.upsertEntry(
+          makeItineraryEntry(
+            id: 'e0',
+            kind: ItineraryEntryKind.note,
+            sortOrder: 0,
+            memo: '元のメモ',
+          ),
+        ))
+            .isOk,
+        isTrue,
+      );
+      expect(
+        (await repo.upsertEntry(
+          makeItineraryEntry(id: 'e1', kind: ItineraryEntryKind.note),
+        ))
+            .isOk,
+        isTrue,
+      );
+      // 中身が変わったコピーを渡そうとしても、reorder は ID しか受け取らない。
+      final res = await repo.reorderEntries(
+        planId: 'plan-1',
+        orderedEntryIds: ['e1', 'e0'],
+      );
+      expect(res.isOk, isTrue);
+      final row = (await db.select(db.itineraryEntries).get())
+          .firstWhere((r) => r.id == 'e0');
+      expect(row.sortOrder, 1);
+      expect(row.memo, '元のメモ'); // 中身は保持される。
     });
 
     test('途中失敗で全件ロールバック（先に書いた1件も戻る）', () async {
@@ -341,21 +510,144 @@ void main() {
         if (i == 1) throw StateError('boom-reorder');
       };
       // e1→0(書込), e2→1(ここで失敗), e0→2 の順。
-      final ordered = [
-        makeItineraryEntry(
-            id: 'e1', kind: ItineraryEntryKind.note, sortOrder: 1,),
-        makeItineraryEntry(
-            id: 'e2', kind: ItineraryEntryKind.note, sortOrder: 2,),
-        makeItineraryEntry(
-            id: 'e0', kind: ItineraryEntryKind.note, sortOrder: 0,),
-      ];
-      final res = await repo.reorderEntries(ordered);
+      final res = await repo.reorderEntries(
+        planId: 'plan-1',
+        orderedEntryIds: ['e1', 'e2', 'e0'],
+      );
       expect(res.isOk, isFalse);
       // 元の 0/1/2 のまま。
       final orders = await sortOrders();
       expect(orders['e0'], 0);
       expect(orders['e1'], 1);
       expect(orders['e2'], 2);
+      // Outbox にも並び替えの upsert は残らない（全件 rollback）。
+      final ops = await outbox.pendingOps(ownerId: 'user-1');
+      expect(
+        ops.where(
+          (o) =>
+              o.entityTable == SyncEntity.itineraryEntries &&
+              o.entityId != 'e0' &&
+              o.entityId != 'e1' &&
+              o.entityId != 'e2',
+        ),
+        isEmpty,
+      );
+    });
+
+    test('存在しないIDを含むと ValidationFailure で拒否し、何も変更しない', () async {
+      final repo = await seedThreeNotes();
+      final res = await repo.reorderEntries(
+        planId: 'plan-1',
+        orderedEntryIds: ['e2', 'missing', 'e0'],
+      );
+      expect(res.isOk, isFalse);
+      expect(res.failureOrNull, isA<ValidationFailure>());
+      final orders = await sortOrders();
+      expect(orders['e0'], 0);
+      expect(orders['e1'], 1);
+      expect(orders['e2'], 2);
+    });
+
+    test('別ownerの項目IDは AuthFailure で拒否する', () async {
+      final repo = await seedThreeNotes();
+      // 別ownerの計画と項目を用意する。
+      await seedGenba('user-2', id: 'genba-2');
+      final repo2 = repoFor('user-2');
+      expect(
+        (await repo2.upsertPlan(
+          makeItineraryPlan(
+            id: 'plan-2',
+            genbaId: 'genba-2',
+            ownerId: 'user-2',
+          ),
+        ))
+            .isOk,
+        isTrue,
+      );
+      expect(
+        (await repo2.upsertEntry(
+          makeItineraryEntry(
+            id: 'other-owner-entry',
+            planId: 'plan-2',
+            ownerId: 'user-2',
+            kind: ItineraryEntryKind.note,
+          ),
+        ))
+            .isOk,
+        isTrue,
+      );
+      final res = await repo.reorderEntries(
+        planId: 'plan-1',
+        orderedEntryIds: ['e0', 'other-owner-entry'],
+      );
+      expect(res.isOk, isFalse);
+      expect(res.failureOrNull, isA<AuthFailure>());
+    });
+
+    test('別計画の項目IDは拒否する', () async {
+      final repo = await seedThreeNotes();
+      // 同一ownerの別計画と項目。
+      final repoSame = repoFor('user-1');
+      expect(
+        (await repoSame.upsertPlan(
+          makeItineraryPlan(
+            id: 'plan-x',
+            genbaId: 'genba-1',
+            ownerId: 'user-1',
+          ),
+        ))
+            .isOk,
+        isTrue,
+      );
+      expect(
+        (await repoSame.upsertEntry(
+          makeItineraryEntry(
+            id: 'entry-x',
+            planId: 'plan-x',
+            kind: ItineraryEntryKind.note,
+          ),
+        ))
+            .isOk,
+        isTrue,
+      );
+      final res = await repo.reorderEntries(
+        planId: 'plan-1',
+        orderedEntryIds: ['e0', 'entry-x'],
+      );
+      expect(res.isOk, isFalse);
+      expect(res.failureOrNull, isA<ValidationFailure>());
+    });
+
+    test('別日の項目をまとめて並び替えようとすると拒否する', () async {
+      final repo = await seedPlan('user-1');
+      expect(
+        (await repo.upsertEntry(
+          makeItineraryEntry(
+            id: 'd1',
+            kind: ItineraryEntryKind.note,
+            localDate: DateTime(2026, 8, 1),
+          ),
+        ))
+            .isOk,
+        isTrue,
+      );
+      expect(
+        (await repo.upsertEntry(
+          makeItineraryEntry(
+            id: 'd2',
+            kind: ItineraryEntryKind.note,
+            localDate: DateTime(2026, 8, 2),
+          ),
+        ))
+            .isOk,
+        isTrue,
+      );
+      final res = await repo.reorderEntries(
+        planId: 'plan-1',
+        orderedEntryIds: ['d2', 'd1'],
+      );
+      expect(res.isOk, isFalse);
+      expect(res.failureOrNull, isA<ValidationFailure>());
     });
   });
 

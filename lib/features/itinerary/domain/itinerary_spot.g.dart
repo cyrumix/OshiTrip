@@ -92,6 +92,7 @@ const _$ItinerarySpotCategoryEnumMap = {
   ItinerarySpotCategory.airport: 'airport',
   ItinerarySpotCategory.shopping: 'shopping',
   ItinerarySpotCategory.shrineTemple: 'shrine_temple',
+  ItinerarySpotCategory.sacredPlace: 'sacred_place',
   ItinerarySpotCategory.museum: 'museum',
   ItinerarySpotCategory.park: 'park',
   ItinerarySpotCategory.photoSpot: 'photo_spot',

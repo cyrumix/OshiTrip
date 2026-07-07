@@ -169,30 +169,36 @@ void main() {
     final repo = container.read(itineraryRepositoryProvider);
     await repo
         .upsertPlan(makeItineraryPlan(ownerId: ownerId, genbaId: genbaId));
-    await repo.upsertEntry(makeItineraryEntry(
-      id: 'ex',
-      ownerId: ownerId,
-      kind: ItineraryEntryKind.note,
-      titleOverride: 'X地点',
-    ),);
-    await repo.upsertEntry(makeItineraryEntry(
-      id: 'ey',
-      ownerId: ownerId,
-      kind: ItineraryEntryKind.note,
-      titleOverride: 'Y地点',
-    ),);
-    await repo.upsertLeg(makeItineraryLeg(
-      id: 'leg-disp',
-      ownerId: ownerId,
-      originEntryId: 'ex',
-      destinationEntryId: 'ey',
-      durationMinutes: 30,
-      distanceMeters: 1000,
-      fareAmountMinor: 500,
-      fareCurrency: 'JPY',
-      departureAt: DateTime.utc(2026, 8, 1, 0, 0),
-      arrivalAt: DateTime.utc(2026, 8, 1, 0, 30),
-    ),);
+    await repo.upsertEntry(
+      makeItineraryEntry(
+        id: 'ex',
+        ownerId: ownerId,
+        kind: ItineraryEntryKind.note,
+        titleOverride: 'X地点',
+      ),
+    );
+    await repo.upsertEntry(
+      makeItineraryEntry(
+        id: 'ey',
+        ownerId: ownerId,
+        kind: ItineraryEntryKind.note,
+        titleOverride: 'Y地点',
+      ),
+    );
+    await repo.upsertLeg(
+      makeItineraryLeg(
+        id: 'leg-disp',
+        ownerId: ownerId,
+        originEntryId: 'ex',
+        destinationEntryId: 'ey',
+        durationMinutes: 30,
+        distanceMeters: 1000,
+        fareAmountMinor: 500,
+        fareCurrency: 'JPY',
+        departureAt: DateTime.utc(2026, 8, 1, 0, 0),
+        arrivalAt: DateTime.utc(2026, 8, 1, 0, 30),
+      ),
+    );
     await tester.pumpAndSettle();
     // 前提: 計画・項目・区間がDBに保存されている。
     final seeded = (await container
@@ -250,14 +256,16 @@ void main() {
     await repo.upsertPlan(
       makeItineraryPlan(ownerId: ownerId, genbaId: genbaId),
     );
-    await repo.upsertEntry(makeItineraryEntry(
-      id: 'ea',
-      ownerId: ownerId,
-      kind: ItineraryEntryKind.note,
-      titleOverride: '集合してから物販に並ぶ予定',
-      localDate: DateTime(2026, 8, 1),
-      startAt: DateTime.utc(2026, 8, 1, 16, 0),
-    ),);
+    await repo.upsertEntry(
+      makeItineraryEntry(
+        id: 'ea',
+        ownerId: ownerId,
+        kind: ItineraryEntryKind.note,
+        titleOverride: '集合してから物販に並ぶ予定',
+        localDate: DateTime(2026, 8, 1),
+        startAt: DateTime.utc(2026, 8, 1, 16, 0),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 

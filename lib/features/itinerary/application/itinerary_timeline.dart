@@ -4,6 +4,7 @@ import '../../genba/domain/genba.dart';
 import '../domain/itinerary_entry.dart';
 import '../domain/itinerary_leg.dart';
 import '../domain/itinerary_plan_aggregate.dart';
+import '../domain/itinerary_schedule.dart';
 import '../domain/itinerary_spot.dart';
 
 /// 旅程タイムラインを組み立てる純粋関数群（itinerary-plan-spec.md §5）。
@@ -88,14 +89,26 @@ class ItineraryAnchor {
 }
 
 /// タイムラインの1項目（旅程項目＋解決済み参照）。
+///
+/// 交通・宿泊は参照元（[transport] / [lodging]）を複製せず参照するため、表示日・
+/// 開始/終了時刻は参照元から導出した**実効値**（[effectiveLocalDate] /
+/// [effectiveStartAt] / [effectiveEndAt]）を使う。これにより元データの日付・
+/// 出発時刻・チェックイン日を更新すると、名称だけでなく表示日・並び順にも
+/// 反映される（§5.3 / Phase 2レビュー点4）。ユーザーが旅程側で独自の日時を
+/// 指定した場合はその上書きを尊重する（[localDateFollowsSource] 参照）。
 class ItineraryTimelineEntry {
-  const ItineraryTimelineEntry({
+  ItineraryTimelineEntry({
     required this.entry,
     this.spot,
     this.transport,
     this.lodging,
     required this.referenceStatus,
-  });
+  }) : _schedule = effectiveItinerarySchedule(
+          entry,
+          transportDepartAt: transport?.departAt,
+          transportArriveAt: transport?.arriveAt,
+          lodgingCheckinDate: lodging?.checkinDate,
+        );
 
   final ItineraryEntry entry;
 
@@ -109,6 +122,20 @@ class ItineraryTimelineEntry {
   final Lodging? lodging;
 
   final ItineraryReferenceStatus referenceStatus;
+
+  final EffectiveItinerarySchedule _schedule;
+
+  /// 表示日バケットに使う実効的な暦日（参照元から導出／上書き）。
+  DateTime? get effectiveLocalDate => _schedule.localDate;
+
+  /// 日内の時刻順・時刻表示に使う実効的な開始時刻。
+  DateTime? get effectiveStartAt => _schedule.startAt;
+
+  /// 実効的な終了時刻。
+  DateTime? get effectiveEndAt => _schedule.endAt;
+
+  /// 表示日が参照元（交通・宿泊）に追従しているか（上書きしていないか）。
+  bool get localDateFollowsSource => _schedule.localDateFollowsSource;
 
   bool get isReferenceMissing =>
       referenceStatus == ItineraryReferenceStatus.missing;
@@ -229,9 +256,17 @@ ItineraryTimelineEntry resolveItineraryEntry(
 /// 同一日内の旅程項目の決定的比較（startAt→sortOrder→createdAt→id。時刻未定は
 /// 末尾）。localDate は既に日バケットで分離済みのため比較には使わない。
 /// 全ソートキーが同値でも id を最終 tie-breaker にして順序を完全決定的にする。
-int compareItineraryEntriesInDay(ItineraryEntry a, ItineraryEntry b) {
-  final aAt = a.startAt;
-  final bAt = b.startAt;
+///
+/// [startAtOf] は比較に使う開始時刻を返す（既定は entry 自身の startAt。
+/// タイムライン組み立てでは交通・宿泊の**実効的**な開始時刻を渡す, §5.3/点4）。
+int compareItineraryEntriesInDay(
+  ItineraryEntry a,
+  ItineraryEntry b, {
+  DateTime? Function(ItineraryEntry)? startAtOf,
+}) {
+  final resolve = startAtOf ?? (e) => e.startAt;
+  final aAt = resolve(a);
+  final bAt = resolve(b);
   if (aAt != null && bAt != null) {
     final byTime = aAt.compareTo(bAt);
     if (byTime != 0) return byTime;
@@ -247,6 +282,22 @@ int compareItineraryEntriesInDay(ItineraryEntry a, ItineraryEntry b) {
   return a.id.compareTo(b.id);
 }
 
+/// タイムライン項目（参照解決済み）の同一日内比較。交通・宿泊は参照元から
+/// 導出した実効的な開始時刻で並べる。
+int compareTimelineEntriesInDay(
+  ItineraryTimelineEntry a,
+  ItineraryTimelineEntry b,
+) =>
+    compareItineraryEntriesInDay(
+      a.entry,
+      b.entry,
+      startAtOf: (e) => identical(e, a.entry)
+          ? a.effectiveStartAt
+          : identical(e, b.entry)
+              ? b.effectiveStartAt
+              : e.startAt,
+    );
+
 /// 日内の隣接する時刻付き項目間で「間に合わない可能性」がある後続項目の
 /// entryId を返す（§5.4）。前項目の終了(なければ開始)＋出発後余裕＋（区間が
 /// あればその所要分）＋次項目の到着前余裕 が 次項目の開始 を超える場合に警告。
@@ -254,25 +305,50 @@ Set<String> itineraryTightConnections({
   required List<ItineraryTimelineEntry> dayEntries,
   required List<ItineraryLeg> legs,
 }) {
+  // メモ(note)は実際に訪問・移動する予定ではないため、間に合い判定から完全に
+  // 除外する。メモを読み飛ばして残った実予定どうしで判定するので、
+  // 「予定A → メモ → 予定B」では A と B の間を判定する（Phase 2追補 点6）。
+  final realEntries =
+      dayEntries.where((e) => e.entry.kind != ItineraryEntryKind.note).toList();
   final warned = <String>{};
-  for (var i = 0; i + 1 < dayEntries.length; i++) {
-    final a = dayEntries[i].entry;
-    final b = dayEntries[i + 1].entry;
-    final aEnd = a.endAt ?? a.startAt;
-    final bStart = b.startAt;
+  for (var i = 0; i + 1 < realEntries.length; i++) {
+    final a = realEntries[i];
+    final b = realEntries[i + 1];
+    // 交通・宿泊は参照元から導出した実効時刻で間に合い判定する（§5.3/点4）。
+    final aEnd = a.effectiveEndAt ?? a.effectiveStartAt;
+    final bStart = b.effectiveStartAt;
     if (aEnd == null || bStart == null) continue;
     final leg = legs.firstWhereOrNull(
-      (l) => l.originEntryId == a.id && l.destinationEntryId == b.id,
+      (l) =>
+          l.originEntryId == a.entry.id && l.destinationEntryId == b.entry.id,
     );
     final travel = leg?.durationMinutes ?? 0;
     final needed = aEnd.add(
       Duration(
-        minutes: a.bufferAfterMinutes + travel + b.bufferBeforeMinutes,
+        minutes:
+            a.entry.bufferAfterMinutes + travel + b.entry.bufferBeforeMinutes,
       ),
     );
-    if (needed.isAfter(bStart)) warned.add(b.id);
+    if (needed.isAfter(bStart)) warned.add(b.entry.id);
   }
   return warned;
+}
+
+/// 新規予定を追加するときの開始時刻の初期値（Phase 2追補 点5/点6）。
+///
+/// [dayEntriesSorted] はその日の [compareTimelineEntriesInDay] 済みの並び。
+/// 末尾から見て、メモ(note)と「時刻を持たない項目」を読み飛ばし、直前にある
+/// **時刻付きの実予定**の**終了時刻**を返す。終了時刻が無ければ（開始のみ・
+/// 前予定なし）null を返す（開始時刻を安易に流用しない、現在時刻も入れない）。
+DateTime? resolveInitialStartFromPrevious(
+  List<ItineraryTimelineEntry> dayEntriesSorted,
+) {
+  for (final e in dayEntriesSorted.reversed) {
+    if (e.entry.kind == ItineraryEntryKind.note) continue; // メモは対象外
+    if (e.effectiveStartAt == null) continue; // 時刻を持たない実予定は読み飛ばす
+    return e.effectiveEndAt; // 終了があればそれ。無ければ null（開始は流用しない）。
+  }
+  return null;
 }
 
 DateTime _dateKey(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -294,21 +370,24 @@ ItineraryTimeline buildItineraryTimeline({
       ),
   ];
 
-  // 候補（日付未設定）: sortOrder→createdAt→id（id を最終 tie-breaker）。
-  final candidates = resolved.where((r) => r.entry.localDate == null).toList()
-    ..sort((a, b) {
-      final byOrder = a.entry.sortOrder.compareTo(b.entry.sortOrder);
-      if (byOrder != 0) return byOrder;
-      final byCreated = a.entry.createdAt.compareTo(b.entry.createdAt);
-      if (byCreated != 0) return byCreated;
-      return a.entry.id.compareTo(b.entry.id);
-    });
+  // 候補（表示日未設定）: sortOrder→createdAt→id（id を最終 tie-breaker）。
+  // 交通・宿泊は参照元から導出した実効日で判定する（参照切れ・元データ未設定で
+  // 実効日が無いものだけ候補へ, §5.3/点4）。
+  final candidates =
+      resolved.where((r) => r.effectiveLocalDate == null).toList()
+        ..sort((a, b) {
+          final byOrder = a.entry.sortOrder.compareTo(b.entry.sortOrder);
+          if (byOrder != 0) return byOrder;
+          final byCreated = a.entry.createdAt.compareTo(b.entry.createdAt);
+          if (byCreated != 0) return byCreated;
+          return a.entry.id.compareTo(b.entry.id);
+        });
 
-  // 日別バケット。日付は entry の localDate とアンカーの日から集める。
+  // 日別バケット。日付は項目の実効日とアンカーの日から集める。
   final anchors = deriveItineraryAnchors(genba);
   final entriesByDate = <DateTime, List<ItineraryTimelineEntry>>{};
   for (final r in resolved) {
-    final ld = r.entry.localDate;
+    final ld = r.effectiveLocalDate;
     if (ld == null) continue;
     entriesByDate.putIfAbsent(_dateKey(ld), () => []).add(r);
   }
@@ -326,8 +405,7 @@ ItineraryTimeline buildItineraryTimeline({
         date: date,
         anchors: (anchorsByDate[date] ?? [])
           ..sort((a, b) => a.minuteOfDay.compareTo(b.minuteOfDay)),
-        entries: (entriesByDate[date] ?? [])
-          ..sort((a, b) => compareItineraryEntriesInDay(a.entry, b.entry)),
+        entries: (entriesByDate[date] ?? [])..sort(compareTimelineEntriesInDay),
       ),
   ];
 
@@ -385,7 +463,8 @@ List<ItineraryRow> buildItineraryDayRows(
     timed.add((minute: a.minuteOfDay, tiebreak: 0, row: ItineraryAnchorRow(a)));
   }
   for (final e in day.entries) {
-    final at = e.entry.startAt;
+    // 交通・宿泊は参照元から導出した実効的な開始時刻で融合位置を決める。
+    final at = e.effectiveStartAt;
     if (at != null) {
       timed.add(
         (
@@ -447,12 +526,16 @@ List<ItineraryLegPlacement> placeItineraryLegs({
   required List<ItineraryLeg> legs,
   required String Function(ItineraryTimelineEntry) labelOf,
 }) {
+  // メモ(note)は移動の前後接続対象にしない。隣接判定用の連番からメモを除くので、
+  // 「実予定A → メモ → 実予定B」でも A と B は隣接扱いになり、区間が A の直後へ
+  // 差し込まれる（Phase 2追補 点6）。ラベルは全項目分を用意する。
   final indexById = <String, int>{};
   final labelById = <String, String>{};
-  for (var i = 0; i < orderedEntries.length; i++) {
-    final e = orderedEntries[i];
-    indexById[e.entry.id] = i;
+  var realIndex = 0;
+  for (final e in orderedEntries) {
     labelById[e.entry.id] = labelOf(e);
+    if (e.entry.kind == ItineraryEntryKind.note) continue;
+    indexById[e.entry.id] = realIndex++;
   }
   return [
     for (final leg in legs)

@@ -51,10 +51,18 @@ Future<void> showItinerarySpotEditor(
   required String planId,
   required String ownerId,
   SpotEditTarget? existing,
+  DateTime? initialDate,
+  DateTime? initialStart,
 }) =>
     showItinerarySheet(
       context,
-      _SpotEditor(planId: planId, ownerId: ownerId, existing: existing),
+      _SpotEditor(
+        planId: planId,
+        ownerId: ownerId,
+        existing: existing,
+        initialDate: initialDate,
+        initialStart: initialStart,
+      ),
     );
 
 class _SpotEditor extends ConsumerStatefulWidget {
@@ -62,10 +70,19 @@ class _SpotEditor extends ConsumerStatefulWidget {
     required this.planId,
     required this.ownerId,
     this.existing,
+    this.initialDate,
+    this.initialStart,
   });
   final String planId;
   final String ownerId;
   final SpotEditTarget? existing;
+
+  /// 新規追加時の訪問日の初期値（現在操作中の予定日など。§5.5 点4）。
+  /// 編集時は無視し、保存済みの日付を使う。
+  final DateTime? initialDate;
+
+  /// 新規追加時の開始時刻の初期値（直前予定の終了時刻。点5）。編集時は無視。
+  final DateTime? initialStart;
 
   @override
   ConsumerState<_SpotEditor> createState() => _SpotEditorState();
@@ -74,8 +91,6 @@ class _SpotEditor extends ConsumerStatefulWidget {
 class _SpotEditorState extends ConsumerState<_SpotEditor> {
   late final TextEditingController _name;
   late final TextEditingController _address;
-  late final TextEditingController _lat;
-  late final TextEditingController _lng;
   late final TextEditingController _memo;
   late ItinerarySpotCategory _category;
   DateTime? _visitDate;
@@ -96,14 +111,18 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
     final e = widget.existing?.entry;
     _name = TextEditingController(text: s?.name ?? '');
     _address = TextEditingController(text: s?.address ?? '');
-    _lat = TextEditingController(text: s?.latitude?.toString() ?? '');
-    _lng = TextEditingController(text: s?.longitude?.toString() ?? '');
     _memo = TextEditingController(text: s?.memo ?? '');
     _category = s?.category ?? ItinerarySpotCategory.sightseeing;
-    _visitDate = e?.localDate;
-    _start = e?.startAt == null
-        ? null
-        : TimeOfDay(hour: e!.startAt!.hour, minute: e.startAt!.minute);
+    // 編集時は保存済みの日付・時刻をそのまま使う。新規時は初期値
+    // （現在操作中の予定日／直前予定の終了時刻）を使い、端末の本日は使わない。
+    final isNew = widget.existing == null;
+    _visitDate = isNew ? widget.initialDate : e?.localDate;
+    final initialStart = widget.initialStart;
+    _start = e?.startAt != null
+        ? TimeOfDay(hour: e!.startAt!.hour, minute: e.startAt!.minute)
+        : (isNew && _visitDate != null && initialStart != null
+            ? TimeOfDay(hour: initialStart.hour, minute: initialStart.minute)
+            : null);
     _end = e?.endAt == null
         ? null
         : TimeOfDay(hour: e!.endAt!.hour, minute: e.endAt!.minute);
@@ -126,16 +145,8 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
     }
     _name.dispose();
     _address.dispose();
-    _lat.dispose();
-    _lng.dispose();
     _memo.dispose();
     super.dispose();
-  }
-
-  double? _parseCoord(String v) {
-    final t = v.trim();
-    if (t.isEmpty) return null;
-    return double.tryParse(t);
   }
 
   Future<void> _pickImage() async {
@@ -186,13 +197,11 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
           .showSnackBar(const SnackBar(content: Text('施設名を入力してください')));
       return;
     }
-    final lat = _parseCoord(_lat.text);
-    final lng = _parseCoord(_lng.text);
-    final coordFailure = validateItineraryCoordinates(lat, lng);
-    if (coordFailure != null) {
-      if (mounted) _showFailure(context, coordFailure);
-      return;
-    }
+    // 緯度・経度は手動入力画面から廃止した（§4.2）。将来の地図・Google連携用の
+    // nullableフィールドは残すが、この画面からは編集しない。既存スポットの座標は
+    // 保持し（誤ってnullで上書きしない）、新規手動登録では null とする。
+    final lat = widget.existing?.spot.latitude;
+    final lng = widget.existing?.spot.longitude;
     final now = ref.read(clockProvider).now().toUtc();
     final controller =
         ref.read(itineraryActionsControllerProvider(_genbaScopeId).notifier);
@@ -355,37 +364,6 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
             labelText: '住所',
             helperText: '共有時は既定で非公開として扱われます',
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _lat,
-                decoration: const InputDecoration(labelText: '緯度'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _lng,
-                decoration: const InputDecoration(labelText: '経度'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '緯度・経度は両方入力したときだけ座標として保存します。',
-          style: Theme.of(context).textTheme.bodySmall,
         ),
         const Divider(height: 32),
         Text('訪問予定', style: Theme.of(context).textTheme.labelLarge),

@@ -49,9 +49,22 @@ abstract interface class ItineraryRepository {
 
   Future<Result<void>> upsertEntry(ItineraryEntry entry);
 
-  /// 同一計画内の項目の並び替えを**単一トランザクション**で保存する
-  /// （sortOrder を [orderedEntries] の順に振り直す。途中失敗で全件 rollback）。
-  Future<Result<void>> reorderEntries(List<ItineraryEntry> orderedEntries);
+  /// 同一計画・同一日の項目の**並び順だけ**を変更する（Phase 2レビュー点2）。
+  ///
+  /// [orderedEntryIds] は「その順に並べたい項目IDの一覧」。項目の中身
+  /// （名称・日時・参照など）は一切 upsert せず、既存行の `sort_order` を
+  /// 一覧の index に、`updated_at` を現在時刻にだけ更新する。
+  ///
+  /// **単一トランザクション**で以下を検証してから書き込み、いずれか失敗したら
+  /// 行にも Outbox にも触れず全件 rollback する:
+  /// - すべてのIDが実在し、現在owner・[planId] に属する
+  ///   （存在しない／別owner／別計画は型付き [Failure] で拒否）
+  /// - すべてが同一の表示日（交通・宿泊は参照元から導出した実効日）に属する
+  ///   （別日をまたぐ並び替えは型付き [Failure] で拒否）
+  Future<Result<void>> reorderEntries({
+    required String planId,
+    required List<String> orderedEntryIds,
+  });
 
   /// 旅程項目を削除する（この項目を始点/終点とする移動区間も削除する）。
   Future<Result<void>> deleteEntry(String id);

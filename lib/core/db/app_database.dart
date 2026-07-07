@@ -26,6 +26,34 @@ WHERE is_cover = 1 AND EXISTS (
     )
 )''';
 
+/// 同一計画に同じ交通(transport_id)／宿泊(lodging_id)を参照する重複した旅程
+/// 項目を、決定的に1件だけ残して他を選び出す相関サブクエリ（部分ユニーク
+/// インデックス作成前に重複を除去する, schema v9 / Phase 2レビュー点1）。
+///
+/// 保持する1件の選択規則は cover dedup と同じ: `sort_order` 昇順 →
+/// `created_at` 昇順 → `id` 昇順 で最小のもの。それより小さい重複が存在する
+/// 行（＝負け側）の id を返す。transport/lodging それぞれで判定して UNION する。
+const String _itineraryEntryReferenceLoserIdsSql = '''
+SELECT e.id FROM itinerary_entries e
+WHERE e.transport_id IS NOT NULL AND EXISTS (
+  SELECT 1 FROM itinerary_entries o
+  WHERE o.plan_id = e.plan_id AND o.transport_id = e.transport_id
+    AND o.id <> e.id
+    AND (o.sort_order < e.sort_order
+      OR (o.sort_order = e.sort_order AND o.created_at < e.created_at)
+      OR (o.sort_order = e.sort_order AND o.created_at = e.created_at
+          AND o.id < e.id)))
+UNION
+SELECT e.id FROM itinerary_entries e
+WHERE e.lodging_id IS NOT NULL AND EXISTS (
+  SELECT 1 FROM itinerary_entries o
+  WHERE o.plan_id = e.plan_id AND o.lodging_id = e.lodging_id
+    AND o.id <> e.id
+    AND (o.sort_order < e.sort_order
+      OR (o.sort_order = e.sort_order AND o.created_at < e.created_at)
+      OR (o.sort_order = e.sort_order AND o.created_at = e.created_at
+          AND o.id < e.id)))''';
+
 /// ローカルDB（Drift / SQLite, ADR-0005）。
 ///
 /// 役割: 画面用キャッシュ・下書き・Outbox。サーバー（Supabase）のスキーマと
@@ -631,8 +659,13 @@ class AppDatabase extends _$AppDatabase {
   /// itinerary_entries / itinerary_legs（現場詳細「計画」タブの旅程基盤,
   /// itinerary-plan-spec.md）。新規テーブルの追加のみで、既存データには
   /// 一切触れない。
+  /// v9: 同一計画に同じ交通/宿泊を二重参照する項目を禁じる部分ユニーク索引を
+  /// 版付きで必ず作成する（Phase 2レビュー点1）。作成前に既存重複を決定的に
+  /// 1件へ整理し、削除する重複を端点とする移動区間・未送信 Outbox も併せて
+  /// 掃除して参照整合を保つ（v8で `_createOwnerIndices` に紛れていた索引作成を、
+  /// cover 索引と同じ「dedup→版付き作成」方式へ格上げする）。
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -640,6 +673,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
+          await _createItineraryReferenceUniqueIndices(m);
         },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
@@ -696,8 +730,16 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(itineraryEntries);
             await m.createTable(itineraryLegs);
           }
+          if (from < 9) {
+            // 交通/宿泊の部分ユニーク索引を張る前に、同一計画に同じ交通/宿泊を
+            // 二重参照する既存項目を決定的に1件へ整理する（既存重複があっても
+            // 索引作成が失敗しない, Phase 2レビュー点1）。cover 索引と同じ
+            // 「dedup→版付き作成」方式（下の _createItineraryReferenceUniqueIndices）。
+            await _dedupeItineraryEntryReferences(m);
+          }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
+          await _createItineraryReferenceUniqueIndices(m);
         },
       );
 
@@ -710,6 +752,58 @@ class AppDatabase extends _$AppDatabase {
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_photos_cover_unique '
         'ON memory_photos (genba_id) WHERE is_cover',
       );
+
+  /// 同一計画に同じ交通/宿泊を二重追加させない部分ユニーク索引（§5.3 / DB境界,
+  /// schema v9）。作成前に [_dedupeItineraryEntryReferences] で重複を1件へ
+  /// 整理してあるため、既存データに重複があっても作成に失敗しない
+  /// （cover 一意索引と同じ方針）。`IF NOT EXISTS` で onCreate/onUpgrade の
+  /// どちらから呼んでも冪等。
+  Future<void> _createItineraryReferenceUniqueIndices(Migrator m) async {
+    await m.database.customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_itinerary_entries_plan_transport '
+      'ON itinerary_entries (plan_id, transport_id) '
+      'WHERE transport_id IS NOT NULL',
+    );
+    await m.database.customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_itinerary_entries_plan_lodging '
+      'ON itinerary_entries (plan_id, lodging_id) '
+      'WHERE lodging_id IS NOT NULL',
+    );
+  }
+
+  /// v8→v9 で部分ユニーク索引を張る前に、同一計画に同じ交通/宿泊を参照する
+  /// 重複項目を決定的に1件へ整理する（勝手削除の影響を決定的に処理する,
+  /// Phase 2レビュー点1）。負け側（[_itineraryEntryReferenceLoserIdsSql]）を
+  /// 選び、それらを端点とする移動区間(legs)と、重複項目・区間の未送信 Outbox も
+  /// 併せて削除して参照整合を保つ。負け側の項目本体は最後に削除する
+  /// （相関サブクエリの評価対象を保つため順序が重要）。
+  Future<void> _dedupeItineraryEntryReferences(Migrator m) async {
+    final db = m.database;
+    const losers = _itineraryEntryReferenceLoserIdsSql;
+    // 1. 削除対象項目を端点とする移動区間の未送信 Outbox を消す。
+    await db.customStatement(
+      "DELETE FROM outbox_ops WHERE entity_table = 'itinerary_legs' "
+      'AND entity_id IN (SELECT id FROM itinerary_legs '
+      'WHERE origin_entry_id IN ($losers) '
+      'OR destination_entry_id IN ($losers))',
+    );
+    // 2. 移動区間そのものを削除する。
+    await db.customStatement(
+      'DELETE FROM itinerary_legs WHERE origin_entry_id IN ($losers) '
+      'OR destination_entry_id IN ($losers)',
+    );
+    // 3. 削除対象項目の未送信 Outbox を消す。
+    await db.customStatement(
+      "DELETE FROM outbox_ops WHERE entity_table = 'itinerary_entries' "
+      'AND entity_id IN ($losers)',
+    );
+    // 4. 重複項目本体を削除する（負け側だけ）。
+    await db.customStatement(
+      'DELETE FROM itinerary_entries WHERE id IN ($losers)',
+    );
+  }
 
   /// owner 単位の絞り込み・ソートで使う索引（M-04）。
   /// SQLite の `CREATE INDEX IF NOT EXISTS` を使い、onCreate/onUpgrade の
@@ -807,19 +901,9 @@ class AppDatabase extends _$AppDatabase {
       'idx_itinerary_legs_destination',
       'ON itinerary_legs (destination_entry_id)',
     );
-    // 同一計画に同じ交通/宿泊を二重追加させない部分ユニーク（§5.3 / DB境界）。
-    await m.database.customStatement(
-      'CREATE UNIQUE INDEX IF NOT EXISTS '
-      'idx_itinerary_entries_plan_transport '
-      'ON itinerary_entries (plan_id, transport_id) '
-      'WHERE transport_id IS NOT NULL',
-    );
-    await m.database.customStatement(
-      'CREATE UNIQUE INDEX IF NOT EXISTS '
-      'idx_itinerary_entries_plan_lodging '
-      'ON itinerary_entries (plan_id, lodging_id) '
-      'WHERE lodging_id IS NOT NULL',
-    );
+    // 交通/宿泊の二重追加を防ぐ部分ユニーク索引は、重複整理を伴う版付き
+    // マイグレーション（schema v9）として [_createItineraryReferenceUniqueIndices]
+    // で別建てに作成する（cover 一意索引と同じ方針）。ここでは作らない。
     await idx(
       'idx_outbox_ops_owner_status',
       'ON outbox_ops (owner_id, status)',

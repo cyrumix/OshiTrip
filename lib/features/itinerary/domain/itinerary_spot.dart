@@ -43,6 +43,11 @@ enum ItinerarySpotCategory {
   shopping,
   @JsonValue('shrine_temple')
   shrineTemple,
+
+  /// 聖地巡礼の目的地（作品の舞台・ゆかりの地など）。「神社・寺院」「観光地」
+  /// とは統合せず独立カテゴリとして扱う。
+  @JsonValue('sacred_place')
+  sacredPlace,
   @JsonValue('museum')
   museum,
   @JsonValue('park')
@@ -66,6 +71,7 @@ extension ItinerarySpotCategoryLabel on ItinerarySpotCategory {
         ItinerarySpotCategory.airport => '空港',
         ItinerarySpotCategory.shopping => '買い物・グッズ',
         ItinerarySpotCategory.shrineTemple => '神社・寺院',
+        ItinerarySpotCategory.sacredPlace => '聖地',
         ItinerarySpotCategory.museum => '美術館・博物館',
         ItinerarySpotCategory.park => '公園・屋外',
         ItinerarySpotCategory.photoSpot => '撮影スポット',

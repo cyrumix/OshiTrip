@@ -167,12 +167,18 @@ class ItineraryActionsController
                 .failureOrNull,
       );
 
-  /// 同一日内の並び替え。[orderedInDay] の順に sortOrder を 0 から振り直す。
-  /// 保存は Repository の単一トランザクション（途中失敗で全件 rollback）。
-  Future<Failure?> reorderEntries(List<ItineraryEntry> orderedInDay) => _run(
+  /// 同一日内の並び替え。[orderedEntryIds] の順に sortOrder を 0 から振り直す
+  /// （順序だけを変更し、項目の中身は upsert しない）。保存は Repository の
+  /// 単一トランザクション（途中失敗で全件 rollback）。
+  Future<Failure?> reorderEntries({
+    required String planId,
+    required List<String> orderedEntryIds,
+  }) =>
+      _run(
         'reorder',
         () async => (await ref.read(itineraryRepositoryProvider).reorderEntries(
-                  orderedInDay,
+                  planId: planId,
+                  orderedEntryIds: orderedEntryIds,
                 ))
             .failureOrNull,
       );

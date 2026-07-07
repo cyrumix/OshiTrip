@@ -8,6 +8,7 @@ import '../../genba/domain/genba.dart';
 import '../application/itinerary_actions_controller.dart';
 import '../domain/itinerary_entry.dart';
 import '../domain/itinerary_leg.dart';
+import '../domain/itinerary_schedule.dart';
 import 'itinerary_sheet_scaffold.dart';
 
 const _uuid = Uuid();
@@ -66,15 +67,16 @@ class _TransportImportSheetState extends ConsumerState<_TransportImportSheet> {
       if (_busy) return;
       setState(() => _busy = true);
       final now = ref.read(clockProvider).now().toUtc();
-      final date = t.departAt;
+      // 交通は参照元(transports)を複製せず参照する。表示日・出発時刻は毎回
+      // 参照元から導出するため、ここで日時をスナップショットしない（localDate
+      // は null=参照元に追従。ユーザーが後から旅程側で日付を上書きした場合のみ
+      // 非nullになる, §5.3/点4）。
       final entry = ItineraryEntry(
         id: _uuid.v4(),
         planId: widget.planId,
         ownerId: widget.ownerId,
         kind: ItineraryEntryKind.transport,
         transportId: t.id,
-        localDate:
-            date == null ? null : DateTime(date.year, date.month, date.day),
         sortOrder: widget.entries.length,
         createdAt: now,
         updatedAt: now,
@@ -170,15 +172,15 @@ class _LodgingImportSheetState extends ConsumerState<_LodgingImportSheet> {
       if (_busy) return;
       setState(() => _busy = true);
       final now = ref.read(clockProvider).now().toUtc();
-      final date = l.checkinDate;
+      // 宿泊も参照元(lodgings)を参照するだけで日付をスナップショットしない。
+      // 表示日はチェックイン日から毎回導出する（localDate=null で参照元に追従,
+      // §5.3/点4）。
       final entry = ItineraryEntry(
         id: _uuid.v4(),
         planId: widget.planId,
         ownerId: widget.ownerId,
         kind: ItineraryEntryKind.lodging,
         lodgingId: l.id,
-        localDate:
-            date == null ? null : DateTime(date.year, date.month, date.day),
         sortOrder: widget.entries.length,
         createdAt: now,
         updatedAt: now,
@@ -277,10 +279,18 @@ class _ImportScaffold extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 /// タイムライン項目の選択肢（leg の端点選択に使う）。
+///
+/// [date] はその項目の実効表示日（交通・宿泊は参照元から導出済み）。移動区間の
+/// 出発日・到着日はこの端点の日付から内部決定するため保持する（点3）。
 class ItineraryEntryOption {
-  const ItineraryEntryOption({required this.id, required this.label});
+  const ItineraryEntryOption({
+    required this.id,
+    required this.label,
+    this.date,
+  });
   final String id;
   final String label;
+  final DateTime? date;
 }
 
 Future<void> showItineraryLegEditor(
@@ -321,8 +331,11 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
   String? _origin;
   String? _destination;
   ItineraryTravelMode _mode = ItineraryTravelMode.walking;
-  DateTime? _departureAt;
-  DateTime? _arrivalAt;
+  // 移動区間は前後予定を結ぶものなので、日付は入力させず前後予定から内部決定する。
+  // ここでは時刻だけを持つ（点3）。既存データの departureAt/arrivalAt からは
+  // 時刻部分を復元する（互換維持）。
+  TimeOfDay? _departureTime;
+  TimeOfDay? _arrivalTime;
   late final TextEditingController _duration;
   late final TextEditingController _distance;
   late final TextEditingController _fare;
@@ -337,8 +350,12 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
     _origin = l?.originEntryId;
     _destination = l?.destinationEntryId;
     _mode = l?.travelMode ?? ItineraryTravelMode.walking;
-    _departureAt = l?.departureAt?.toLocal();
-    _arrivalAt = l?.arrivalAt?.toLocal();
+    _departureTime = l?.departureAt == null
+        ? null
+        : TimeOfDay.fromDateTime(l!.departureAt!.toLocal());
+    _arrivalTime = l?.arrivalAt == null
+        ? null
+        : TimeOfDay.fromDateTime(l!.arrivalAt!.toLocal());
     _duration =
         TextEditingController(text: l?.durationMinutes?.toString() ?? '');
     _distance =
@@ -349,29 +366,33 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
     _mapsUrl = TextEditingController(text: l?.googleMapsUrl ?? '');
   }
 
-  /// 日付＋時刻を選ばせて DateTime（ローカル）を返す。どちらか未選択なら null。
-  Future<DateTime?> _pickDateTime(DateTime? initial) async {
-    final base = initial ?? DateTime(2020);
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initial ?? DateTime(base.year, base.month, base.day),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (date == null || !mounted) return null;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial ?? DateTime(2020, 1, 1, 9)),
-    );
-    if (time == null) return null;
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
+  /// 時刻だけを選ばせる（日付は前後予定から内部決定するため入力させない, 点3）。
+  Future<TimeOfDay?> _pickTime(TimeOfDay? initial) => showTimePicker(
+        context: context,
+        initialTime: initial ?? const TimeOfDay(hour: 9, minute: 0),
+      );
+
+  DateTime? _dateOf(String? entryId) {
+    if (entryId == null) return null;
+    for (final o in widget.options) {
+      if (o.id == entryId) return o.date;
+    }
+    return null;
   }
+
+  /// 端点の日付と入力時刻から departureAt/arrivalAt を内部決定する（点3）。
+  /// 純粋関数 [deriveLegTimestamps] へ委譲する（本日を勝手に入れない・日跨ぎ考慮）。
+  ({DateTime? departure, DateTime? arrival}) _deriveTimestamps() =>
+      deriveLegTimestamps(
+        originDate: _dateOf(_origin),
+        destinationDate: _dateOf(_destination),
+        departureTime: _departureTime == null
+            ? null
+            : (hour: _departureTime!.hour, minute: _departureTime!.minute),
+        arrivalTime: _arrivalTime == null
+            ? null
+            : (hour: _arrivalTime!.hour, minute: _arrivalTime!.minute),
+      );
 
   @override
   void dispose() {
@@ -399,11 +420,24 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
       _snack(context, '運賃は金額と通貨をどちらも入力するか、どちらも空にしてください');
       return;
     }
-    if (_departureAt != null &&
-        _arrivalAt != null &&
-        _arrivalAt!.isBefore(_departureAt!)) {
+    final derived = _deriveTimestamps();
+    final departureAt = derived.departure;
+    final arrivalAt = derived.arrival;
+    if (departureAt != null &&
+        arrivalAt != null &&
+        arrivalAt.isBefore(departureAt)) {
       _snack(context, '到着は出発より後の時刻にしてください');
       return;
+    }
+    // 時刻を入力したのに前後予定の日付が取れず日時を確定できない場合は、日本語で
+    // 案内する（所要時間など日付を要しない内容は保存できる, 点3）。
+    if ((_departureTime != null && departureAt == null) ||
+        (_arrivalTime != null && arrivalAt == null)) {
+      _snack(
+        context,
+        '前後の予定の日付が未定のため時刻は保存できません。'
+        '所要時間などは保存できます。予定日を設定すると時刻も反映されます。',
+      );
     }
     final now = ref.read(clockProvider).now().toUtc();
     final leg = ItineraryLeg(
@@ -413,8 +447,8 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
       originEntryId: _origin!,
       destinationEntryId: _destination!,
       travelMode: _mode,
-      departureAt: _departureAt?.toUtc(),
-      arrivalAt: _arrivalAt?.toUtc(),
+      departureAt: departureAt?.toUtc(),
+      arrivalAt: arrivalAt?.toUtc(),
       durationMinutes: int.tryParse(_duration.text.trim()),
       distanceMeters: int.tryParse(_distance.text.trim()),
       fareAmountMinor: fareText.isEmpty ? null : int.tryParse(fareText),
@@ -487,25 +521,30 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
           labelOf: (v) => v.label,
           onChanged: (v) => setState(() => _mode = v),
         ),
-        const SizedBox(height: 12),
-        _DateTimeField(
+        const SizedBox(height: 8),
+        Text(
+          '日付は出発元・到着先の予定日から自動で決まります（時刻だけ入力）。',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        _TimeField(
           label: '出発時刻',
-          value: _departureAt,
+          value: _departureTime,
           onPick: () async {
-            final picked = await _pickDateTime(_departureAt);
-            if (picked != null) setState(() => _departureAt = picked);
+            final picked = await _pickTime(_departureTime);
+            if (picked != null) setState(() => _departureTime = picked);
           },
-          onClear: () => setState(() => _departureAt = null),
+          onClear: () => setState(() => _departureTime = null),
         ),
         const SizedBox(height: 12),
-        _DateTimeField(
+        _TimeField(
           label: '到着時刻',
-          value: _arrivalAt,
+          value: _arrivalTime,
           onPick: () async {
-            final picked = await _pickDateTime(_arrivalAt);
-            if (picked != null) setState(() => _arrivalAt = picked);
+            final picked = await _pickTime(_arrivalTime);
+            if (picked != null) setState(() => _arrivalTime = picked);
           },
-          onClear: () => setState(() => _arrivalAt = null),
+          onClear: () => setState(() => _arrivalTime = null),
         ),
         const SizedBox(height: 12),
         Row(
@@ -566,24 +605,19 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
   }
 }
 
-/// 日付＋時刻を選ぶ簡易フィールド（未設定可、クリアボタン付き）。
-class _DateTimeField extends StatelessWidget {
-  const _DateTimeField({
+/// 時刻だけを選ぶ簡易フィールド（未設定可、クリアボタン付き）。日付は前後予定
+/// から内部決定するため入力させない（点3）。
+class _TimeField extends StatelessWidget {
+  const _TimeField({
     required this.label,
     required this.value,
     required this.onPick,
     required this.onClear,
   });
   final String label;
-  final DateTime? value;
+  final TimeOfDay? value;
   final Future<void> Function() onPick;
   final VoidCallback onClear;
-
-  String _format(DateTime v) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${v.year}/${two(v.month)}/${two(v.day)} '
-        '${two(v.hour)}:${two(v.minute)}';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -593,7 +627,7 @@ class _DateTimeField extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(v == null ? '未設定' : _format(v)),
+            child: Text(v == null ? '未設定' : v.format(context)),
           ),
           if (v != null)
             IconButton(
