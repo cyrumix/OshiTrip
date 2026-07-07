@@ -195,7 +195,7 @@ class _PlanTimeline extends ConsumerWidget {
   }
 }
 
-class _DaySection extends StatelessWidget {
+class _DaySection extends ConsumerWidget {
   const _DaySection({
     required this.day,
     required this.rows,
@@ -211,7 +211,7 @@ class _DaySection extends StatelessWidget {
   final Map<String, List<ItineraryLegPlacement>> adjacentByAfterId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tight = itineraryTightConnections(
       dayEntries: day.entries,
       legs: aggregate.legs,
@@ -252,6 +252,23 @@ class _DaySection extends StatelessWidget {
                 genbaAggregate: genbaAggregate,
               ),
         ],
+        // この日に直接スポットを追加する（訪問日の初期値=この日, 点4）。
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => openSpotEditorWithDefaults(
+              context,
+              ref,
+              planId: aggregate.plan.id,
+              ownerId: aggregate.plan.ownerId,
+              genbaAggregate: genbaAggregate,
+              plan: aggregate,
+              contextDate: day.date,
+            ),
+            icon: const Icon(Icons.add, size: 18),
+            label: Text('${day.date.month}/${day.date.day}にスポットを追加'),
+          ),
+        ),
       ],
     );
   }
@@ -900,6 +917,52 @@ class _MissingRefBanner extends StatelessWidget {
   }
 }
 
+/// スポット追加画面を、訪問日・開始時刻の初期値を解決したうえで開く
+/// （Phase 2追補 点4/点5 の優先順位を実画面へ接続する）。
+///
+/// [contextDate] は「現在操作・選択している日」。日別セクションの「この日に追加」
+/// から呼ぶときはその日を渡す（優先順位1）。グローバル追加（右下＋）では null を
+/// 渡し、現場開催日→旅程開始日をフォールバックにする（優先順位3/4）。いずれの
+/// 経路でも端末の本日は初期値に使わない。直前予定の終了時刻も、解決した日付内の
+/// 予定（メモを除く実予定）から取得する（点5）。
+Future<void> openSpotEditorWithDefaults(
+  BuildContext context,
+  WidgetRef ref, {
+  required String planId,
+  required String ownerId,
+  required GenbaAggregate genbaAggregate,
+  required ItineraryPlanAggregate? plan,
+  DateTime? contextDate,
+}) async {
+  final initialDate = resolveInitialVisitDate(
+    currentDay: contextDate,
+    genbaEventDate: genbaAggregate.genba.eventDate,
+    planStartDate: plan?.plan.startDate,
+  );
+  DateTime? initialStart;
+  if (initialDate != null && plan != null) {
+    final timeline = buildItineraryTimeline(
+      aggregate: plan,
+      genba: genbaAggregate.genba,
+      transports: genbaAggregate.transports,
+      lodgings: genbaAggregate.lodgings,
+    );
+    final day = timeline.days.firstWhereOrNull((d) => d.date == initialDate);
+    if (day != null) {
+      initialStart = resolveInitialStartFromPrevious(day.entries);
+    }
+  }
+  if (!context.mounted) return;
+  await showItinerarySpotEditor(
+    context,
+    ref,
+    planId: planId,
+    ownerId: ownerId,
+    initialDate: initialDate,
+    initialStart: initialStart,
+  );
+}
+
 /// 移動区間の端点候補を作る（メモ(note)は前後接続対象にしないため除外し、
 /// 各項目の実効表示日を持たせて日付導出に使う, Phase 2追補 点3/点6）。
 List<ItineraryEntryOption> buildLegEntryOptions({
@@ -1002,35 +1065,16 @@ class _AddMenu extends ConsumerWidget {
         final entries = plan?.entries ?? const <ItineraryEntry>[];
         switch (choice) {
           case 'spot':
-            // 訪問日の初期値は「現在操作中の予定日」を優先し、本日を使わない
-            // （点4）。開始時刻は同日の直前予定（メモを除く）の終了時刻（点5）。
-            final initialDate = resolveInitialVisitDate(
-              genbaEventDate: genbaAggregate.genba.eventDate,
-              planStartDate: plan?.plan.startDate,
-            );
-            DateTime? initialStart;
-            final planAgg = plan;
-            if (initialDate != null && planAgg != null) {
-              final timeline = buildItineraryTimeline(
-                aggregate: planAgg,
-                genba: genbaAggregate.genba,
-                transports: genbaAggregate.transports,
-                lodgings: genbaAggregate.lodgings,
-              );
-              final day =
-                  timeline.days.firstWhereOrNull((d) => d.date == initialDate);
-              if (day != null) {
-                initialStart = resolveInitialStartFromPrevious(day.entries);
-              }
-            }
-            if (!context.mounted) return;
-            await showItinerarySpotEditor(
+            // グローバル追加（右下＋）。現在操作中の日(contextDate)は無いので、
+            // 現場開催日→旅程開始日をフォールバックにする（本日は使わない, 点4）。
+            await openSpotEditorWithDefaults(
               context,
               ref,
               planId: planId,
               ownerId: owner,
-              initialDate: initialDate,
-              initialStart: initialStart,
+              genbaAggregate: genbaAggregate,
+              plan: plan,
+              contextDate: null,
             );
           case 'note':
             await showItineraryNoteEditor(

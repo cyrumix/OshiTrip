@@ -140,6 +140,88 @@ DateTime? _combineDateTime(DateTime? date, ItineraryClockTime? t) =>
   return (departure: departure, arrival: arrival);
 }
 
+/// 移動区間(leg)の保存時に departureAt/arrivalAt を決める純粋関数（High是正）。
+///
+/// - 端点・時刻を一切変更していない編集は、既存の完全な日時を保持する
+///   （運賃・所要時間・メモだけの編集で日時が変化しない）。
+/// - 端点の日付を取得できるときは前後予定から自動合成する（[deriveLegTimestamps]
+///   で日跨ぎ考慮）。
+/// - 端点の日付を取得できないまま時刻を**変更**した場合は、既存日時を黙って削除
+///   せず保存を止め、[block] に日本語の案内を返す。
+/// - ユーザーが時刻をクリアした（[departureTime]/[arrivalTime] が null）場合だけ
+///   その日時を null にする。
+/// - 新規作成（[isNew]）と既存編集を区別する。
+///
+/// 返す departure/arrival は合成時は現地壁時計（UTCフラグ無し）、保持時は既存値
+/// （[existingDeparture]/[existingArrival]、通常UTC）。呼び出し側が保存時に
+/// `toUtc()` する（`toUtc()` は冪等なので既存UTC値はそのまま）。
+({DateTime? departure, DateTime? arrival, String? block})
+    resolveLegTimestampsForSave({
+  required bool isNew,
+  required bool originChanged,
+  required bool destinationChanged,
+  required bool departureTimeChanged,
+  required bool arrivalTimeChanged,
+  required DateTime? originDate,
+  required DateTime? destinationDate,
+  required ItineraryClockTime? departureTime,
+  required ItineraryClockTime? arrivalTime,
+  required DateTime? existingDeparture,
+  required DateTime? existingArrival,
+}) {
+  const blockMsg = '前後予定の日付を設定してから時刻を変更してください';
+
+  // 端点・時刻を一切変更していない編集は、既存日時をそのまま保持する。
+  if (!isNew &&
+      !originChanged &&
+      !destinationChanged &&
+      !departureTimeChanged &&
+      !arrivalTimeChanged) {
+    return (
+      departure: existingDeparture,
+      arrival: existingArrival,
+      block: null,
+    );
+  }
+
+  final derived = deriveLegTimestamps(
+    originDate: originDate,
+    destinationDate: destinationDate,
+    departureTime: departureTime,
+    arrivalTime: arrivalTime,
+  );
+
+  final DateTime? departure;
+  if (departureTime == null) {
+    departure = null; // 明示クリア or 未設定
+  } else if (originDate != null) {
+    departure = derived.departure; // 自動合成（日跨ぎ考慮）
+  } else if (!isNew &&
+      !originChanged &&
+      !departureTimeChanged &&
+      existingDeparture != null) {
+    departure = existingDeparture; // 未変更→既存の完全な日時を保持
+  } else {
+    return (departure: null, arrival: null, block: blockMsg);
+  }
+
+  final DateTime? arrival;
+  if (arrivalTime == null) {
+    arrival = null;
+  } else if (destinationDate != null) {
+    arrival = derived.arrival;
+  } else if (!isNew &&
+      !destinationChanged &&
+      !arrivalTimeChanged &&
+      existingArrival != null) {
+    arrival = existingArrival;
+  } else {
+    return (departure: null, arrival: null, block: blockMsg);
+  }
+
+  return (departure: departure, arrival: arrival, block: null);
+}
+
 /// 実効的な表示日だけが必要な場合の軽量版（並び替えの同一日検証などで使う）。
 DateTime? effectiveItineraryLocalDate(
   ItineraryEntry entry, {

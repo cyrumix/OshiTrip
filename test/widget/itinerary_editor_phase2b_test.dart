@@ -192,4 +192,80 @@ void main() {
     // シート内に日付選択の導線が無い（日付は自動決定。時刻の「選択」だけ）。
     expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(2));
   });
+
+  testWidgets('2日目セクションから追加すると訪問日の初期値が2日目になる（点4 UI接続）', (tester) async {
+    final db = await signedInTestDb();
+    addTearDown(db.close);
+    final container = await boot(tester, db);
+
+    // 1日目・2日目に実予定を1件ずつ。2日目は終了時刻15:00つき。
+    final repo = container.read(itineraryRepositoryProvider);
+    await repo.upsertPlan(
+      makeItineraryPlan(id: 'plan-1', genbaId: genbaId, ownerId: ownerId),
+    );
+    await repo.upsertSpot(
+      makeItinerarySpot(
+        id: 'sp1',
+        planId: 'plan-1',
+        ownerId: ownerId,
+        name: '1日目地点',
+      ),
+    );
+    await repo.upsertEntry(
+      makeItineraryEntry(
+        id: 'e1',
+        planId: 'plan-1',
+        ownerId: ownerId,
+        kind: ItineraryEntryKind.spot,
+        spotId: 'sp1',
+        localDate: DateTime(2026, 8, 1),
+      ),
+    );
+    await repo.upsertSpot(
+      makeItinerarySpot(
+        id: 'sp2',
+        planId: 'plan-1',
+        ownerId: ownerId,
+        name: '2日目地点',
+      ),
+    );
+    await repo.upsertEntry(
+      makeItineraryEntry(
+        id: 'e2',
+        planId: 'plan-1',
+        ownerId: ownerId,
+        kind: ItineraryEntryKind.spot,
+        spotId: 'sp2',
+        localDate: DateTime(2026, 8, 2),
+      ).copyWith(
+        startAt: DateTime.utc(2026, 8, 2, 14),
+        endAt: DateTime.utc(2026, 8, 2, 15),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openPlanTab(tester);
+
+    // 2日目セクションの「この日に追加」を押す。
+    final addBtn = find.text('8/2にスポットを追加');
+    await tester.ensureVisible(addBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(addBtn);
+    await tester.pumpAndSettle();
+
+    // 訪問日の初期値が2日目（本日=2026/7/2 ではない）。
+    expect(find.text('2026-08-02'), findsWidgets);
+
+    // 保存すると、DBの新規項目が2日目・開始15:00（直前予定の終了時刻）で入る。
+    await tester.enterText(find.byType(TextField).first, '2日目に追加');
+    await tester.tap(find.text('保存する'));
+    await tester.pumpAndSettle();
+
+    final entries = await db.select(db.itineraryEntries).get();
+    final created = entries.firstWhere(
+      (e) => e.id != 'e1' && e.id != 'e2',
+    );
+    expect(created.localDate, '2026-08-02');
+    expect(created.startAt, isNotNull);
+    expect(DateTime.parse(created.startAt!).hour, 15);
+  });
 }

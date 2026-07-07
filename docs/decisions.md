@@ -672,3 +672,18 @@ TimeoutHttpClient・「apply がハング→タイムアウトで op が pending
 - `dart format` / `dart analyze lib test integration_test` / `flutter analyze`: 本文の最終報告を参照。
 - `flutter test`（単体+Widget）: 追加・更新した旅程テスト（`itinerary_json_test`「聖地」／`itinerary_phase2b_test`（点3/4/5/6の純粋関数）／`itinerary_editor_phase2b_test`（緯度経度非表示・座標保持・聖地選択・移動区間の日付欄非表示）／既存 `itinerary_timeline_test`・`itinerary_merged_timeline_test`・`itinerary_plan_tab_test` の是正）を含む結果は本文の最終報告を参照。
 - **未実施（成功と報告しない）**: `flutter test integration_test`（実機/エミュレータ・adb 無し）、`supabase db reset` / `supabase test db`（Docker 無し）。`0015` マイグレーションは静的検証のみ（前方専用のCHECK差し替え・既存値を全許可）。実Postgres適用は未確認。
+
+## Phase 2追補レビュー是正（2026-07-07, Claude Opus 4.8）
+
+D-188〜D-193（計画機能の仕様変更）のレビューで見つかった2件を是正した。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-194 | 移動区間(leg)の保存時、既存 departureAt/arrivalAt を消さない。端点・時刻を一切変更していない編集は既存の完全な日時を保持（運賃・所要時間・メモだけの編集で日時不変）。前後予定の日付が取れないまま時刻を「変更」した場合は保存を止め「前後予定の日付を設定してから時刻を変更してください」と案内。時刻の明示クリア時だけ null。新規/編集を区別。判定は純粋関数 `resolveLegTimestampsForSave`（`itinerary_schedule.dart`）へ集約し、TZ依存の時刻復元・変更判定だけを widget に残す | D-190で日付入力を廃止し前後予定から合成する設計にしたが、前後予定の日付が未取得のとき運賃だけ編集しても derived が null になり既存日時をnull上書きしていた（Highバグ）。変更有無で分岐し、確定できない時刻変更はサイレント削除せず保存を止める |
+| D-195 | 訪問日の優先順位（現在表示日→前後予定→現場開催日→旅程開始日）を実画面へ接続。日別セクションに「この日に追加」ボタンを設け `contextDate=その日` を渡す。グローバル追加（右下＋）は `contextDate=null` で現場開催日→旅程開始日をフォールバック。開始時刻の直前予定も解決した日付内の予定から取る。共通導線 `openSpotEditorWithDefaults`（`plan_tab.dart`）に集約 | `resolveInitialVisitDate` に currentDay/adjacentDate を渡していなかったため、UI上は常にフォールバック（現場開催日）になっていた（Medium）。日別導線から currentDay を渡すことで「2日目から追加→2日目が初期値」を実操作で成立させる |
+
+### 検証状況（2026-07-07, Windows host / ASCIIパス）
+
+- `dart format` / `dart analyze lib test integration_test` / `flutter analyze`：本文の最終報告を参照。
+- `flutter test`：追加/更新テスト（`itinerary_phase2b_test` の `resolveLegTimestampsForSave` 6件・`itinerary_editor_phase2b_test` の日別追加Widgetテスト）を含む結果は本文の最終報告を参照。
+- **未実施**: `flutter test integration_test`（実機/エミュレータなし）、`supabase test db`（Dockerなし）。

@@ -277,4 +277,120 @@ void main() {
       );
     });
   });
+
+  group('High: 移動区間の既存日時を消さない（resolveLegTimestampsForSave）', () {
+    final existingDep = DateTime.utc(2026, 8, 1, 9, 0);
+    final existingArr = DateTime.utc(2026, 8, 1, 10, 30);
+
+    test('1. 日付不明の既存区間で運賃だけ編集（端点・時刻不変）→ 既存日時を保持', () {
+      final r = resolveLegTimestampsForSave(
+        isNew: false,
+        originChanged: false,
+        destinationChanged: false,
+        departureTimeChanged: false,
+        arrivalTimeChanged: false,
+        originDate: null, // 前後予定の日付が取得できない
+        destinationDate: null,
+        departureTime: (hour: 9, minute: 0),
+        arrivalTime: (hour: 10, minute: 30),
+        existingDeparture: existingDep,
+        existingArrival: existingArr,
+      );
+      expect(r.block, isNull);
+      expect(r.departure, existingDep);
+      expect(r.arrival, existingArr);
+    });
+
+    test('2. 日付不明のまま時刻を変更 → 保存を止めて日本語で案内（既存を消さない）', () {
+      final r = resolveLegTimestampsForSave(
+        isNew: false,
+        originChanged: false,
+        destinationChanged: false,
+        departureTimeChanged: true, // 出発時刻を変更
+        arrivalTimeChanged: false,
+        originDate: null, // 日付が取得できない
+        destinationDate: null,
+        departureTime: (hour: 8, minute: 0),
+        arrivalTime: (hour: 10, minute: 30),
+        existingDeparture: existingDep,
+        existingArrival: existingArr,
+      );
+      expect(r.block, '前後予定の日付を設定してから時刻を変更してください');
+      // 保存を止めるので departure/arrival は使わない（呼び出し側は保存しない）。
+    });
+
+    test('3. 明示的に時刻を消したときだけ null になる', () {
+      final r = resolveLegTimestampsForSave(
+        isNew: false,
+        originChanged: false,
+        destinationChanged: false,
+        departureTimeChanged: true, // クリアも「変更」
+        arrivalTimeChanged: false,
+        originDate: null,
+        destinationDate: null,
+        departureTime: null, // ← クリア
+        arrivalTime: (hour: 10, minute: 30),
+        existingDeparture: existingDep,
+        existingArrival: existingArr,
+      );
+      expect(r.block, isNull);
+      expect(r.departure, isNull); // クリアで null
+      expect(r.arrival, existingArr); // 到着は未変更で保持
+    });
+
+    test('4a. 日付を取得できる通常編集は前後予定から自動合成する', () {
+      final r = resolveLegTimestampsForSave(
+        isNew: false,
+        originChanged: false,
+        destinationChanged: false,
+        departureTimeChanged: true,
+        arrivalTimeChanged: true,
+        originDate: DateTime(2026, 8, 1),
+        destinationDate: DateTime(2026, 8, 1),
+        departureTime: (hour: 9, minute: 0),
+        arrivalTime: (hour: 10, minute: 0),
+        existingDeparture: existingDep,
+        existingArrival: existingArr,
+      );
+      expect(r.block, isNull);
+      expect(r.departure, DateTime(2026, 8, 1, 9, 0));
+      expect(r.arrival, DateTime(2026, 8, 1, 10, 0));
+    });
+
+    test('4b. 日付を取得できるとき、同日で到着<出発は日跨ぎとして翌日にする', () {
+      final r = resolveLegTimestampsForSave(
+        isNew: false,
+        originChanged: false,
+        destinationChanged: false,
+        departureTimeChanged: true,
+        arrivalTimeChanged: true,
+        originDate: DateTime(2026, 8, 1),
+        destinationDate: DateTime(2026, 8, 1),
+        departureTime: (hour: 23, minute: 30),
+        arrivalTime: (hour: 0, minute: 30),
+        existingDeparture: existingDep,
+        existingArrival: existingArr,
+      );
+      expect(r.block, isNull);
+      expect(r.departure, DateTime(2026, 8, 1, 23, 30));
+      expect(r.arrival, DateTime(2026, 8, 2, 0, 30)); // 翌日
+    });
+
+    test('新規作成で日付が取得できないのに時刻を入れると保存を止める', () {
+      final r = resolveLegTimestampsForSave(
+        isNew: true,
+        originChanged: true,
+        destinationChanged: true,
+        departureTimeChanged: true,
+        arrivalTimeChanged: false,
+        originDate: null,
+        destinationDate: null,
+        departureTime: (hour: 9, minute: 0),
+        arrivalTime: null,
+        existingDeparture: null,
+        existingArrival: null,
+      );
+      expect(r.block, isNotNull);
+    });
+  });
 }

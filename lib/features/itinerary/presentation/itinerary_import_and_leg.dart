@@ -380,19 +380,49 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
     return null;
   }
 
-  /// 端点の日付と入力時刻から departureAt/arrivalAt を内部決定する（点3）。
-  /// 純粋関数 [deriveLegTimestamps] へ委譲する（本日を勝手に入れない・日跨ぎ考慮）。
-  ({DateTime? departure, DateTime? arrival}) _deriveTimestamps() =>
-      deriveLegTimestamps(
-        originDate: _dateOf(_origin),
-        destinationDate: _dateOf(_destination),
-        departureTime: _departureTime == null
-            ? null
-            : (hour: _departureTime!.hour, minute: _departureTime!.minute),
-        arrivalTime: _arrivalTime == null
-            ? null
-            : (hour: _arrivalTime!.hour, minute: _arrivalTime!.minute),
-      );
+  /// 保存時の departureAt/arrivalAt を決める（High是正）。
+  ///
+  /// - 端点・時刻を一切変更していない編集は、既存の完全な日時をそのまま保持する
+  ///   （運賃・所要時間・メモだけの編集で日時が変化しない）。
+  /// - 端点の日付を取得できるときは前後予定から自動合成する（日跨ぎ考慮, 点3）。
+  /// - 端点の日付を取得できないまま時刻を「変更」した場合は、既存日時を黙って
+  ///   削除せず保存を止め、[block] に日本語の案内を返す。
+  /// - ユーザーが時刻をクリアした場合だけ null にできる。
+  /// - 新規作成と既存編集を区別する。
+  /// 保存時の departureAt/arrivalAt を決める。TZ依存の時刻復元・変更判定だけを
+  /// ここで行い、判定ロジックは純粋関数 [resolveLegTimestampsForSave] へ委譲する。
+  ({DateTime? departure, DateTime? arrival, String? block}) _resolveForSave() {
+    final existing = widget.existing;
+    final isNew = existing == null;
+
+    bool sameTime(TimeOfDay? a, TimeOfDay? b) =>
+        (a == null && b == null) ||
+        (a != null && b != null && a.hour == b.hour && a.minute == b.minute);
+
+    ItineraryClockTime? toClock(TimeOfDay? t) =>
+        t == null ? null : (hour: t.hour, minute: t.minute);
+
+    final origDepTime = (isNew || existing.departureAt == null)
+        ? null
+        : TimeOfDay.fromDateTime(existing.departureAt!.toLocal());
+    final origArrTime = (isNew || existing.arrivalAt == null)
+        ? null
+        : TimeOfDay.fromDateTime(existing.arrivalAt!.toLocal());
+
+    return resolveLegTimestampsForSave(
+      isNew: isNew,
+      originChanged: isNew || _origin != existing.originEntryId,
+      destinationChanged: isNew || _destination != existing.destinationEntryId,
+      departureTimeChanged: !sameTime(_departureTime, origDepTime),
+      arrivalTimeChanged: !sameTime(_arrivalTime, origArrTime),
+      originDate: _dateOf(_origin),
+      destinationDate: _dateOf(_destination),
+      departureTime: toClock(_departureTime),
+      arrivalTime: toClock(_arrivalTime),
+      existingDeparture: existing?.departureAt,
+      existingArrival: existing?.arrivalAt,
+    );
+  }
 
   @override
   void dispose() {
@@ -420,24 +450,19 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
       _snack(context, '運賃は金額と通貨をどちらも入力するか、どちらも空にしてください');
       return;
     }
-    final derived = _deriveTimestamps();
-    final departureAt = derived.departure;
-    final arrivalAt = derived.arrival;
+    final resolved = _resolveForSave();
+    // 前後予定の日付が取れないまま時刻を変更した場合は、既存日時を消さず保存を止める。
+    if (resolved.block != null) {
+      _snack(context, resolved.block!);
+      return;
+    }
+    final departureAt = resolved.departure;
+    final arrivalAt = resolved.arrival;
     if (departureAt != null &&
         arrivalAt != null &&
         arrivalAt.isBefore(departureAt)) {
       _snack(context, '到着は出発より後の時刻にしてください');
       return;
-    }
-    // 時刻を入力したのに前後予定の日付が取れず日時を確定できない場合は、日本語で
-    // 案内する（所要時間など日付を要しない内容は保存できる, 点3）。
-    if ((_departureTime != null && departureAt == null) ||
-        (_arrivalTime != null && arrivalAt == null)) {
-      _snack(
-        context,
-        '前後の予定の日付が未定のため時刻は保存できません。'
-        '所要時間などは保存できます。予定日を設定すると時刻も反映されます。',
-      );
     }
     final now = ref.read(clockProvider).now().toUtc();
     final leg = ItineraryLeg(
