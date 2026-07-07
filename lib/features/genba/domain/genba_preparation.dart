@@ -18,6 +18,25 @@ extension CategoryPrepStateLabel on CategoryPrepState {
       this == CategoryPrepState.inProgress;
 }
 
+/// 持ち物専用の準備状態（§持ち物の準備ステータス）。
+///
+/// チケット/交通/宿泊と違い「不要」の概念を持たない（持ち物は常に対象で、
+/// 要否を答える項目ではない）。ラベルもTodo系とは別語（「未対応」）にするため
+/// [CategoryPrepState] を流用せず専用のenumとして定義する。
+enum BelongingPrepState { notRegistered, pending, ready }
+
+extension BelongingPrepStateLabel on BelongingPrepState {
+  String get label => switch (this) {
+        BelongingPrepState.notRegistered => '未登録',
+        BelongingPrepState.pending => '未対応',
+        BelongingPrepState.ready => '準備OK',
+      };
+
+  bool get needsAttention =>
+      this == BelongingPrepState.notRegistered ||
+      this == BelongingPrepState.pending;
+}
+
 /// 現場の準備サマリ（ホームカード表示用）。
 class GenbaPreparation {
   const GenbaPreparation({
@@ -25,12 +44,17 @@ class GenbaPreparation {
     required this.transport,
     required this.lodging,
     required this.incompleteTodoCount,
+    required this.belonging,
   });
 
   final CategoryPrepState ticket;
   final CategoryPrepState transport;
   final CategoryPrepState lodging;
   final int incompleteTodoCount;
+
+  /// 持ち物の準備状態（未登録/未対応/準備OK）。件数ではなく状態で示す
+  /// （Todoは「残り件数」、持ち物は「対応状況」という別集計のため, §集計）。
+  final BelongingPrepState belonging;
 
   /// リマインド対象となる未完了項目数。「不要」は含めない。
   int get attentionCount {
@@ -53,7 +77,17 @@ class GenbaPreparation {
         aggregate.lodgings,
       ),
       incompleteTodoCount: aggregate.incompleteTodoCount,
+      belonging: _belongingState(aggregate.todos),
     );
+  }
+
+  static BelongingPrepState _belongingState(List<GenbaTodo> todos) {
+    final belongings =
+        todos.where((t) => t.type == TodoItemType.belonging).toList();
+    if (belongings.isEmpty) return BelongingPrepState.notRegistered;
+    return belongings.every((t) => t.isDone)
+        ? BelongingPrepState.ready
+        : BelongingPrepState.pending;
   }
 
   static CategoryPrepState _ticketState(List<Ticket> tickets) {
@@ -125,8 +159,10 @@ NextAction? deriveNextAction(GenbaAggregate aggregate, DateTime now) {
     return const NextAction('チケット情報を登録する', NextActionKind.ticket);
   }
 
+  // 持ち物には期限・重要度が無いため対象外にする（§「次にやる」判定）。
+  // 持ち物の状況は独立した準備ステータス（[BelongingPrepState]）で知らせる。
   final urgentTodo = aggregate.todos
-      .where((t) => !t.isDone)
+      .where((t) => t.type == TodoItemType.todo && !t.isDone)
       .where(
         (t) =>
             t.priority == TodoPriority.high ||

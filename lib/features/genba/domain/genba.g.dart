@@ -281,6 +281,8 @@ _$GenbaTodoImpl _$$GenbaTodoImplFromJson(Map<String, dynamic> json) =>
       genbaId: json['genba_id'] as String,
       ownerId: json['owner_id'] as String,
       name: json['name'] as String,
+      type: $enumDecodeNullable(_$TodoItemTypeEnumMap, json['type']) ??
+          TodoItemType.todo,
       dueDate: const NullableDateOnlyConverter()
           .fromJson(json['due_date'] as String?),
       isDone: json['is_done'] as bool? ?? false,
@@ -301,6 +303,7 @@ Map<String, dynamic> _$$GenbaTodoImplToJson(_$GenbaTodoImpl instance) =>
       'genba_id': instance.genbaId,
       'owner_id': instance.ownerId,
       'name': instance.name,
+      'type': _$TodoItemTypeEnumMap[instance.type]!,
       'due_date': const NullableDateOnlyConverter().toJson(instance.dueDate),
       'is_done': instance.isDone,
       'assignee': instance.assignee,
@@ -310,6 +313,11 @@ Map<String, dynamic> _$$GenbaTodoImplToJson(_$GenbaTodoImpl instance) =>
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
     };
+
+const _$TodoItemTypeEnumMap = {
+  TodoItemType.todo: 'todo',
+  TodoItemType.belonging: 'belonging',
+};
 
 const _$TodoPriorityEnumMap = {
   TodoPriority.low: 'low',

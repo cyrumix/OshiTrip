@@ -57,6 +57,59 @@ void main() {
       expect(GenbaPreparation.of(aggregate).attentionCount, 1);
     });
 
+    test('Todo残数と持ち物残数は種別ごとに独立して数える（持ち物を誤って含めない）', () {
+      final aggregate = GenbaAggregate(
+        genba: makeGenba(eventDate: eventDate),
+        todos: [
+          makeTodo(id: 't1', type: TodoItemType.todo, isDone: false),
+          makeTodo(id: 't2', type: TodoItemType.todo, isDone: true),
+          makeTodo(id: 'b1', type: TodoItemType.belonging, isDone: false),
+          makeTodo(id: 'b2', type: TodoItemType.belonging, isDone: false),
+          makeTodo(id: 'b3', type: TodoItemType.belonging, isDone: true),
+        ],
+      );
+      expect(aggregate.incompleteTodoCount, 1);
+      expect(aggregate.incompleteBelongingCount, 2);
+      // 準備サマリの「Todo残り」相当の値にも持ち物を含めない。
+      expect(GenbaPreparation.of(aggregate).incompleteTodoCount, 1);
+    });
+
+    test('持ち物0件なら未登録', () {
+      final aggregate = GenbaAggregate(genba: makeGenba(eventDate: eventDate));
+      expect(
+        GenbaPreparation.of(aggregate).belonging,
+        BelongingPrepState.notRegistered,
+      );
+    });
+
+    test('未チェックの持ち物が1件でもあれば未対応', () {
+      final aggregate = GenbaAggregate(
+        genba: makeGenba(eventDate: eventDate),
+        todos: [
+          makeTodo(id: 'b1', type: TodoItemType.belonging, isDone: true),
+          makeTodo(id: 'b2', type: TodoItemType.belonging, isDone: false),
+        ],
+      );
+      expect(
+        GenbaPreparation.of(aggregate).belonging,
+        BelongingPrepState.pending,
+      );
+    });
+
+    test('登録された持ち物がすべてチェック済みなら準備OK', () {
+      final aggregate = GenbaAggregate(
+        genba: makeGenba(eventDate: eventDate),
+        todos: [
+          makeTodo(id: 'b1', type: TodoItemType.belonging, isDone: true),
+          makeTodo(id: 'b2', type: TodoItemType.belonging, isDone: true),
+        ],
+      );
+      expect(
+        GenbaPreparation.of(aggregate).belonging,
+        BelongingPrepState.ready,
+      );
+    });
+
     test('往復が揃うと交通は準備OK', () {
       final base = makeGenba(
         eventDate: eventDate,
@@ -116,6 +169,29 @@ void main() {
       final action = deriveNextAction(aggregate, now);
       expect(action?.kind, NextActionKind.todo);
       expect(action?.label, contains('うちわを作る'));
+    });
+
+    test('持ち物は重要度が付いていても「次にやる」の対象に含めない', () {
+      final aggregate = GenbaAggregate(
+        genba: makeGenba(
+          eventDate: eventDate,
+          transportRequirement: RequirementStatus.notRequired,
+          lodgingRequirement: RequirementStatus.notRequired,
+        ),
+        tickets: [makeTicket(acquisition: TicketAcquisition.acquired)],
+        todos: [
+          // 通常UIでは持ち物にpriorityは付かないが、防御的に混入していても
+          // 種別で除外されることを確認する。
+          makeTodo(
+            id: 'b1',
+            name: 'ペンライト',
+            type: TodoItemType.belonging,
+            priority: TodoPriority.high,
+          ),
+        ],
+      );
+      // 持ち物しか無いので「次にやる」は出ない（独立した準備ステータスで示す）。
+      expect(deriveNextAction(aggregate, now), isNull);
     });
 
     test('交通必要・未登録なら交通登録を促す', () {

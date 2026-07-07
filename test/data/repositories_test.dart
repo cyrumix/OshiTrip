@@ -6,8 +6,10 @@ import 'package:oshi_trip/core/logging/app_logger.dart';
 import 'package:oshi_trip/core/network/connectivity.dart';
 import 'package:oshi_trip/core/sync/outbox_operation.dart';
 import 'package:oshi_trip/core/sync/outbox_store.dart';
+import 'package:oshi_trip/core/sync/remote_pull.dart';
 import 'package:oshi_trip/core/sync/sync_engine.dart';
 import 'package:oshi_trip/core/time/clock.dart';
+import 'package:oshi_trip/features/genba/data/genba_mappers.dart';
 import 'package:oshi_trip/features/genba/data/genba_repository_impl.dart';
 import 'package:oshi_trip/features/genba/domain/genba.dart';
 import 'package:oshi_trip/features/memory/data/memory_repository_impl.dart';
@@ -98,6 +100,139 @@ void main() {
 
     final ops = await outbox.pendingOps(ownerId: 'user-1');
     expect(ops.where((o) => o.entityTable == SyncEntity.todos), hasLength(2));
+  });
+
+  test('Todo削除でentity_table=todos、op_type=deleteのOutboxが1件作られる', () async {
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 8, 1)));
+    await genbaRepo.upsertTodo(makeTodo(id: 'todo-del-1'));
+
+    final result = await genbaRepo.deleteTodo('todo-del-1');
+    expect(result.isOk, isTrue);
+
+    final aggregate = (await genbaRepo.watchAll().first).first;
+    expect(aggregate.todos, isEmpty);
+
+    final ops = await outbox.pendingOps(ownerId: 'user-1');
+    final deleteOps = ops.where(
+      (o) =>
+          o.entityTable == SyncEntity.todos && o.opType == OutboxOpType.delete,
+    );
+    expect(deleteOps, hasLength(1));
+    expect(deleteOps.single.entityId, 'todo-del-1');
+  });
+
+  test(
+      'ローカルのどのownerにも存在しないIDのTodo削除は成功し、'
+      '同期用にOutboxへdeleteを積む（冪等削除の維持）', () async {
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 8, 1)));
+    // 'todo-ghost' はローカルのどのownerにも存在しない（例: 別端末で既に
+    // 削除済み、あるいはリモートの変更をまだpullしていない等）。この場合は
+    // 「別ownerのデータがローカルに存在する」ケースには当たらないため、
+    // 従来どおり成功として扱い、同期のためのdelete Outboxを積む。
+    final result = await genbaRepo.deleteTodo('todo-ghost');
+    expect(result.isOk, isTrue);
+
+    final ops = await outbox.pendingOps(ownerId: 'user-1');
+    final deleteOps = ops.where(
+      (o) =>
+          o.entityTable == SyncEntity.todos &&
+          o.opType == OutboxOpType.delete &&
+          o.entityId == 'todo-ghost',
+    );
+    expect(deleteOps, hasLength(1));
+  });
+
+  test('未ログインでのTodo削除はAuthFailureで、Outboxも作られない（削除失敗）', () async {
+    final unauth = GenbaRepositoryImpl(
+      db: db,
+      outbox: outbox,
+      syncEngine: engine,
+      clock: clock,
+      ownerIdResolver: () => null,
+      remoteResolver: () => null,
+    );
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 8, 1)));
+    await genbaRepo.upsertTodo(makeTodo(id: 'todo-del-2'));
+
+    final result = await unauth.deleteTodo('todo-del-2');
+    expect(result.isOk, isFalse);
+    expect(result.failureOrNull?.message, contains('ログイン'));
+
+    // Outboxにdelete opは積まれず、元データも残る。
+    final ops = await outbox.pendingOps(ownerId: 'user-1');
+    expect(
+      ops.where(
+        (o) =>
+            o.entityTable == SyncEntity.todos &&
+            o.opType == OutboxOpType.delete,
+      ),
+      isEmpty,
+    );
+    final aggregate = (await genbaRepo.watchAll().first).first;
+    expect(aggregate.todos, hasLength(1));
+  });
+
+  test('持ち物として保存・再読み込みしても種別が維持され、Outbox payloadにも含まれる', () async {
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 8, 1)));
+    await genbaRepo.upsertTodo(makeTodo(type: TodoItemType.belonging));
+
+    final aggregate = (await genbaRepo.watchAll().first).first;
+    expect(aggregate.todos.single.type, TodoItemType.belonging);
+    expect(aggregate.incompleteTodoCount, 0);
+    expect(aggregate.incompleteBelongingCount, 1);
+
+    final ops = await outbox.pendingOps(ownerId: 'user-1');
+    final todoOp = ops.singleWhere((o) => o.entityTable == SyncEntity.todos);
+    expect(todoOp.payload['type'], 'belonging');
+  });
+
+  test('リモートからpullした行の種別がローカルへ反映される（種別欠落時はtodoへ後方互換）', () async {
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 8, 1)));
+
+    final rows = <Map<String, dynamic>>[
+      {
+        'id': 'todo-remote-1',
+        'genba_id': 'genba-1',
+        'owner_id': 'user-1',
+        'name': 'リモートの持ち物',
+        'type': 'belonging',
+        'is_done': false,
+        'priority': 'normal',
+        'sort_order': 0,
+        'created_at': fixedCreatedAt.toIso8601String(),
+        'updated_at': fixedCreatedAt.toIso8601String(),
+      },
+      {
+        // 種別キー自体が無い古い形式のサーバー行（移行前）でも todo として扱う。
+        'id': 'todo-remote-2',
+        'genba_id': 'genba-1',
+        'owner_id': 'user-1',
+        'name': 'リモートの旧形式Todo',
+        'is_done': false,
+        'priority': 'normal',
+        'sort_order': 1,
+        'created_at': fixedCreatedAt.toIso8601String(),
+        'updated_at': fixedCreatedAt.toIso8601String(),
+      },
+    ];
+    await applyPulledRowsInto(
+      db: db,
+      outbox: outbox,
+      owner: 'user-1',
+      tableName: SyncEntity.todos,
+      rows: rows,
+      toCompanion: (json) => todoToCompanion(GenbaTodo.fromJson(json)),
+      table: db.todos,
+      idColumn: (t) => t.id,
+      ownerColumn: (t) => t.ownerId,
+      idOf: (r) => r.id,
+    );
+
+    final aggregate = (await genbaRepo.watchAll().first).first;
+    final remote1 = aggregate.todos.firstWhere((t) => t.id == 'todo-remote-1');
+    final remote2 = aggregate.todos.firstWhere((t) => t.id == 'todo-remote-2');
+    expect(remote1.type, TodoItemType.belonging);
+    expect(remote2.type, TodoItemType.todo);
   });
 
   test('メモは区分ごとに1件が維持される（upsert）', () async {
@@ -252,7 +387,7 @@ void main() {
       expect(seenByB, isNull);
     });
 
-    test('別ownerの同一IDに対する削除は何も変更しない（負例）', () async {
+    test('別ownerの同一IDに対する削除はAuthFailureで拒否され、原本もOutboxも変更しない（負例）', () async {
       await genbaRepo.upsertGenba(
         makeGenba(
           id: 'genba-x',
@@ -260,12 +395,27 @@ void main() {
           eventDate: DateTime(2026, 8, 1),
         ),
       );
-      // user-2 の視点から同じID を削除しようとしても、owner が一致しないため
-      // WHERE 句にヒットせず user-1 の行は残る。
+      // user-2 の視点から同じID を削除しようとしても、実削除自体は owner付き
+      // WHERE 句にヒットせず user-1 の行は残る。しかし事前チェック無しでは
+      // 「削除対象0件でも成功」となり、実行していないuser-2側に不要な
+      // delete Outboxが積まれてしまうため、ローカルに別ownerの同一IDが
+      // 存在する削除自体を型付きFailureで拒否する。
       final result = await genbaRepoB.deleteGenba('genba-x');
-      expect(result.isOk, isTrue); // 削除対象0件でも操作自体は成功として扱う
+      expect(result.isOk, isFalse);
+      expect(result.failureOrNull?.message, contains('別ユーザー'));
+
       final stillThere = await genbaRepo.watchById('genba-x').first;
       expect(stillThere, isNotNull);
+
+      final bOps = await outbox.pendingOps(ownerId: 'user-2');
+      expect(
+        bOps.where(
+          (o) =>
+              o.entityTable == SyncEntity.genbas &&
+              o.opType == OutboxOpType.delete,
+        ),
+        isEmpty,
+      );
     });
 
     test('別ownerの同一IDに対するTodo upsertは拒否され、原本は変更されない（負例）', () async {
@@ -297,10 +447,45 @@ void main() {
       );
       expect(result.isOk, isFalse);
       expect(result.failureOrNull?.message, contains('別ユーザー'));
+    });
 
-      final aAggregate = await genbaRepo.watchById('genba-x').first;
-      expect(aAggregate!.todos.single.name, '原本');
-      expect(aAggregate.todos.single.ownerId, 'user-1');
+    test('別ownerの同一IDに対するTodo削除はAuthFailureで拒否され、原本もOutboxも変更しない（負例）',
+        () async {
+      await genbaRepo.upsertGenba(
+        makeGenba(
+          id: 'genba-x',
+          ownerId: 'user-1',
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      await genbaRepo.upsertTodo(
+        makeTodo(
+          id: 'todo-x',
+          genbaId: 'genba-x',
+          ownerId: 'user-1',
+          name: '原本',
+        ),
+      );
+      // user-2 の視点から同じID 'todo-x' を削除しようとしても、ローカルに
+      // 別owner（user-1）の同一IDが存在するため型付きFailureで拒否される
+      // （削除対象0件でも成功扱いにすると、不要な delete Outboxが積まれる）。
+      final result = await genbaRepoB.deleteTodo('todo-x');
+      expect(result.isOk, isFalse);
+      expect(result.failureOrNull?.message, contains('別ユーザー'));
+
+      final stillThere = await genbaRepo.watchById('genba-x').first;
+      expect(stillThere!.todos, hasLength(1));
+      expect(stillThere.todos.single.name, '原本');
+
+      final bOps = await outbox.pendingOps(ownerId: 'user-2');
+      expect(
+        bOps.where(
+          (o) =>
+              o.entityTable == SyncEntity.todos &&
+              o.opType == OutboxOpType.delete,
+        ),
+        isEmpty,
+      );
     });
 
     test('owner不一致のupsertはAuthFailureで拒否される（推測ID/なりすまし対策）', () async {

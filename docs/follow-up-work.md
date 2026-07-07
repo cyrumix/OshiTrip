@@ -96,6 +96,16 @@ Claude Opus 4.8 で R8-A → R8-C → R8-B の順に是正した（`docs/decisio
     macOS実機/CIでのXcodeビルド・アーカイブ検証のみ未実施（macOS 必須工程、setup.md §6）。
 15. **分析・クラッシュレポート・ストア提出自動化**
 
+## フェーズF: 計画タブ・推し活遠征旅程（§7.9）
+
+16. **旅程ドメイン・DB・同期基盤**
+17. **手動旅程・フォールバックUI**（日別タイムライン、スポット、交通・宿泊参照、手動経路、余裕時間）
+18. **Google Maps／Places MVP連携**（サーバー仲介、Field Mask、session token、帰属、クォータ）
+19. **Google Routes MVP連携**（公共交通、手動フォールバック、キャッシュ、明示再計算）
+20. **旅程共有・共同編集・通知・思い出連携**
+
+詳細仕様は `docs/itinerary-plan-spec.md`、技術判断はADR-0010、実装指示は `docs/itinerary-implementation-prompts.md` を参照する。16〜19を旅程MVPとし、Google連携を含めて完成判定する。AI旅程、混雑予測、ルート最適化、本課金はこのフェーズの対象外。
+
 ## 検証の未完了項目（環境依存）
 
 - `flutter build apk --flavor development`: 現行の開発機に Android SDK が

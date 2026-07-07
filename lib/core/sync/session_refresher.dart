@@ -24,13 +24,19 @@ class SessionRefresher {
     required ScopedRefresh refreshGenba,
     required ScopedRefresh refreshMemory,
     required ScopedRefresh refreshOshi,
+    required ScopedRefresh refreshTemplate,
+    required ScopedRefresh refreshItinerary,
   })  : _refreshGenba = refreshGenba,
         _refreshMemory = refreshMemory,
-        _refreshOshi = refreshOshi;
+        _refreshOshi = refreshOshi,
+        _refreshTemplate = refreshTemplate,
+        _refreshItinerary = refreshItinerary;
 
   final ScopedRefresh _refreshGenba;
   final ScopedRefresh _refreshMemory;
   final ScopedRefresh _refreshOshi;
+  final ScopedRefresh _refreshTemplate;
+  final ScopedRefresh _refreshItinerary;
 
   int _generation = 0;
   String? _activeOwner;
@@ -113,12 +119,15 @@ class SessionRefresher {
     bool isStale() => _paused || _generation != myGeneration;
     lastResults.clear();
     if (isStale()) return;
-    // genba（親集約）を先に取り込む。
+    // genba（親集約）を先に取り込む。計画（itinerary）は genba に属するため
+    // genba の後、その他の子集約と並行して取り込む。
     lastResults.add(await _refreshGenba(isStale));
     if (isStale()) return;
     final rest = await Future.wait([
       _refreshMemory(isStale),
       _refreshOshi(isStale),
+      _refreshTemplate(isStale),
+      _refreshItinerary(isStale),
     ]);
     lastResults.addAll(rest);
     // 完了時点でも current なら「この owner は pull 済み」と記録する。

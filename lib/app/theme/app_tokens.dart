@@ -56,40 +56,40 @@ class AppTokens extends ThemeExtension<AppTokens> {
   final Color todayGradientMid;
   final Color todayGradientEnd;
 
-  /// ライトテーマ「朝靄」（design-spec §2 / HOME刷新デザイン案）。
+  /// ライトテーマ（デザイン刷新: 明るいラベンダーの面に白カードを浮かべる）。
   ///
   /// textSecondary は白面で AA（4.5:1）以上を維持する値に調整している。
   static const light = AppTokens(
-    textSecondary: Color(0xFF6E6787),
-    divider: Color(0xFFE7E3F0),
-    primarySoft: Color(0xFFEEE9FF),
-    heroGradientStart: Color(0xFF2B2350),
-    heroGradientMid: Color(0xFF453796),
-    heroGradientEnd: Color(0xFF6A56D9),
-    heroOverlay: Color(0x8A171130),
+    textSecondary: Color(0xFF716B8A),
+    divider: Color(0xFFEDEAF6),
+    primarySoft: Color(0xFFEFEBFD),
+    heroGradientStart: Color(0xFF9180F0),
+    heroGradientMid: Color(0xFF7A64E6),
+    heroGradientEnd: Color(0xFF5F49D2),
+    heroOverlay: Color(0x8A241C4E),
     favorite: Color(0xFFE85A8A),
     dawn: Color(0xFFF2A98F),
-    backgroundTop: Color(0xFFF1EDF7),
-    backgroundBottom: Color(0xFFF8F6F1),
-    todayGradientStart: Color(0xFF4D3BB0),
+    backgroundTop: Color(0xFFF3F0FB),
+    backgroundBottom: Color(0xFFFAF9FE),
+    todayGradientStart: Color(0xFF7A5FE0),
     todayGradientMid: Color(0xFFC078AB),
     todayGradientEnd: Color(0xFFE59A7F),
   );
 
-  /// ダークテーマ「未明」。色反転ではなく、同じ空の時間帯違いとして変換する。
+  /// ダークテーマ。色反転ではなく、同じ情報階層を暗色面へ変換する。
   static const dark = AppTokens(
     textSecondary: Color(0xFF9B94B8),
     divider: Color(0xFF322B47),
-    primarySoft: Color(0xFF352B52),
-    heroGradientStart: Color(0xFF2B2350),
-    heroGradientMid: Color(0xFF453796),
-    heroGradientEnd: Color(0xFF6A56D9),
-    heroOverlay: Color(0x99110D26),
+    primarySoft: Color(0xFF372D5C),
+    heroGradientStart: Color(0xFF7C68E4),
+    heroGradientMid: Color(0xFF5F49D2),
+    heroGradientEnd: Color(0xFF453494),
+    heroOverlay: Color(0x99120D2A),
     favorite: Color(0xFFFF8AB0),
     dawn: Color(0xFFE88FA0),
-    backgroundTop: Color(0xFF171226),
-    backgroundBottom: Color(0xFF131020),
-    todayGradientStart: Color(0xFF4D3BB0),
+    backgroundTop: Color(0xFF17122A),
+    backgroundBottom: Color(0xFF121022),
+    todayGradientStart: Color(0xFF6A50D0),
     todayGradientMid: Color(0xFFB06E9E),
     todayGradientEnd: Color(0xFFD98F76),
   );
@@ -169,11 +169,11 @@ abstract final class AppSpace {
   static const double xl = 24;
 }
 
-/// カード角丸の基準（HOME刷新: カード16dp、ヒーロー24dp＝空の面）。
+/// カード角丸の基準（カード18dp・ヒーロー24dp・チップ12dp）。
 abstract final class AppRadius {
-  static const double card = 16;
+  static const double card = 18;
   static const double hero = 24;
-  static const double chip = 8;
+  static const double chip = 12;
 }
 
 /// モーションの基準（design-spec §13: 150〜250ms・控えめ）。

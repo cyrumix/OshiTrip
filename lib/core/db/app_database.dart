@@ -26,6 +26,34 @@ WHERE is_cover = 1 AND EXISTS (
     )
 )''';
 
+/// 同一計画に同じ交通(transport_id)／宿泊(lodging_id)を参照する重複した旅程
+/// 項目を、決定的に1件だけ残して他を選び出す相関サブクエリ（部分ユニーク
+/// インデックス作成前に重複を除去する, schema v9 / Phase 2レビュー点1）。
+///
+/// 保持する1件の選択規則は cover dedup と同じ: `sort_order` 昇順 →
+/// `created_at` 昇順 → `id` 昇順 で最小のもの。それより小さい重複が存在する
+/// 行（＝負け側）の id を返す。transport/lodging それぞれで判定して UNION する。
+const String _itineraryEntryReferenceLoserIdsSql = '''
+SELECT e.id FROM itinerary_entries e
+WHERE e.transport_id IS NOT NULL AND EXISTS (
+  SELECT 1 FROM itinerary_entries o
+  WHERE o.plan_id = e.plan_id AND o.transport_id = e.transport_id
+    AND o.id <> e.id
+    AND (o.sort_order < e.sort_order
+      OR (o.sort_order = e.sort_order AND o.created_at < e.created_at)
+      OR (o.sort_order = e.sort_order AND o.created_at = e.created_at
+          AND o.id < e.id)))
+UNION
+SELECT e.id FROM itinerary_entries e
+WHERE e.lodging_id IS NOT NULL AND EXISTS (
+  SELECT 1 FROM itinerary_entries o
+  WHERE o.plan_id = e.plan_id AND o.lodging_id = e.lodging_id
+    AND o.id <> e.id
+    AND (o.sort_order < e.sort_order
+      OR (o.sort_order = e.sort_order AND o.created_at < e.created_at)
+      OR (o.sort_order = e.sort_order AND o.created_at = e.created_at
+          AND o.id < e.id)))''';
+
 /// ローカルDB（Drift / SQLite, ADR-0005）。
 ///
 /// 役割: 画面用キャッシュ・下書き・Outbox。サーバー（Supabase）のスキーマと
@@ -145,6 +173,9 @@ class Todos extends Table {
   TextColumn get genbaId => text()();
   TextColumn get ownerId => text()();
   TextColumn get name => text()();
+
+  /// 項目種別（'todo'/'belonging', schema v6）。既存データは 'todo' 扱い。
+  TextColumn get type => text().withDefault(const Constant('todo'))();
   TextColumn get dueDate => text().nullable()();
   BoolColumn get isDone => boolean().withDefault(const Constant(false))();
   TextColumn get assignee => text().nullable()();
@@ -311,6 +342,42 @@ class OshiMembers extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Todo・持ち物のテンプレート（owner 単位, schema v7）。マイ推しと同じく
+/// 現場に属さず owner に属する。item_type で Todo/持ち物の種別が固定される。
+@DataClassName('TodoTemplateRow')
+class TodoTemplates extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get name => text()();
+
+  /// 種別（'todo'/'belonging'）。テンプレート内の全項目がこの種別。
+  TextColumn get itemType => text()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// テンプレートに含まれる項目（schema v7）。適用時に現場の Todo/持ち物へ複製。
+/// priority は Todo テンプレートのみ（持ち物は null）。期限・担当・完了状態は
+/// 現場固有情報なので保存しない。
+@DataClassName('TodoTemplateItemRow')
+class TodoTemplateItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get templateId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get name => text()();
+  TextColumn get priority => text().nullable()();
+  TextColumn get memo => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// ユーザー定義の記念日（design-spec §10/§12.1, schema v5）。グループに属し、
 /// 任意でメンバーへ紐づく。誕生日・推し始めた日とは別に自由登録する。
 @DataClassName('OshiAnniversaryRow')
@@ -321,6 +388,155 @@ class OshiAnniversaries extends Table {
   TextColumn get memberId => text().nullable()();
   TextColumn get label => text()();
   TextColumn get date => text()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 現場の計画（旅程）。1現場につき既定で1件だが、DBは将来の複数旅程に
+/// 備えて1対多を許容する（schema v8, itinerary-plan-spec.md §12.1）。
+@DataClassName('ItineraryPlanRow')
+class ItineraryPlans extends Table {
+  TextColumn get id => text()();
+  TextColumn get genbaId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get title => text()();
+  TextColumn get memo => text().nullable()();
+  TextColumn get startDate => text().nullable()();
+  TextColumn get endDate => text().nullable()();
+  TextColumn get timeZoneId => text()();
+  TextColumn get coverImageLocalPath => text().nullable()();
+  TextColumn get coverImageStoragePath => text().nullable()();
+  TextColumn get coverImageUploadStatus =>
+      text().withDefault(const Constant('local_only'))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 計画に登録するスポット（施設・訪問先）。訪問予定（[ItineraryEntries]）とは
+/// 分離し、同じスポットを複数回予定できる（schema v8, §12.2）。
+@DataClassName('ItinerarySpotRow')
+class ItinerarySpots extends Table {
+  TextColumn get id => text()();
+  TextColumn get planId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get source => text().withDefault(const Constant('manual'))();
+  TextColumn get googlePlaceId => text().nullable()();
+  TextColumn get name => text()();
+  TextColumn get category => text()();
+  TextColumn get address => text().nullable()();
+
+  /// 永続する名称・住所の出典・権利根拠（既定はユーザー入力, §12.2）。
+  TextColumn get dataOrigin =>
+      text().withDefault(const Constant('user_provided'))();
+  TextColumn get rightsBasis => text().nullable()();
+  RealColumn get latitude => real().nullable()();
+  RealColumn get longitude => real().nullable()();
+  TextColumn get phoneNumber => text().nullable()();
+  TextColumn get websiteUrl => text().nullable()();
+  TextColumn get openingHoursText => text().nullable()();
+  TextColumn get googleMapsUrl => text().nullable()();
+  TextColumn get googleFetchedAt => text().nullable()();
+  TextColumn get googlePhotoName => text().nullable()();
+  TextColumn get googlePhotoAttribution => text().nullable()();
+  TextColumn get userImageLocalPath => text().nullable()();
+  TextColumn get userImageStoragePath => text().nullable()();
+  TextColumn get userImageUploadStatus =>
+      text().withDefault(const Constant('local_only'))();
+  TextColumn get userImageAltText => text().nullable()();
+  TextColumn get memo => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// スポットに複数保持できる種別つきURL（schema v8, §12.3/§4.5）。
+@DataClassName('ItinerarySpotLinkRow')
+class ItinerarySpotLinks extends Table {
+  TextColumn get id => text()();
+  TextColumn get spotId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get kind => text()();
+  TextColumn get url => text()();
+  TextColumn get label => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 旅程タイムラインの1項目（schema v8, §12.4）。kind に応じて spot_id /
+/// transport_id / lodging_id のうち1つだけを持つ（ドメイン層で検証）。
+/// transport_id / lodging_id は他機能（genba）のテーブルを参照するだけで
+/// FK を張らない（参照元削除時に勝手に消さず「参照切れ」として検出する
+/// 設計のため。§5.3）。
+@DataClassName('ItineraryEntryRow')
+class ItineraryEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get planId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get kind => text()();
+  TextColumn get spotId => text().nullable()();
+  TextColumn get transportId => text().nullable()();
+  TextColumn get lodgingId => text().nullable()();
+  TextColumn get titleOverride => text().nullable()();
+  TextColumn get startAt => text().nullable()();
+  TextColumn get endAt => text().nullable()();
+  TextColumn get localDate => text().nullable()();
+  TextColumn get timeZoneId => text().nullable()();
+  IntColumn get bufferBeforeMinutes =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get bufferAfterMinutes =>
+      integer().withDefault(const Constant(0))();
+  TextColumn get memo => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// スポット間の移動区間（schema v8, §12.5/§6.2）。
+@DataClassName('ItineraryLegRow')
+class ItineraryLegs extends Table {
+  TextColumn get id => text()();
+  TextColumn get planId => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get originEntryId => text()();
+  TextColumn get destinationEntryId => text()();
+  TextColumn get source => text().withDefault(const Constant('manual'))();
+  TextColumn get travelMode => text().withDefault(const Constant('other'))();
+  TextColumn get departureAt => text().nullable()();
+  TextColumn get arrivalAt => text().nullable()();
+  IntColumn get durationMinutes => integer().nullable()();
+  IntColumn get distanceMeters => integer().nullable()();
+  IntColumn get fareAmountMinor => integer().nullable()();
+  TextColumn get fareCurrency => text().nullable()();
+
+  /// 永続する概算経路値の出典・権利根拠・代表時刻帯・最終確認（§12.5）。
+  TextColumn get valueOrigin =>
+      text().withDefault(const Constant('user_provided'))();
+  TextColumn get rightsBasis => text().nullable()();
+  TextColumn get representativeTimeBucket => text().nullable()();
+  TextColumn get lastVerifiedAt => text().nullable()();
+  TextColumn get routeSummary => text().nullable()();
+  TextColumn get transitStepsJson => text().nullable()();
+  TextColumn get encodedPolyline => text().nullable()();
+  TextColumn get googleMapsUrl => text().nullable()();
+  TextColumn get fetchedAt => text().nullable()();
+  TextColumn get cacheKey => text().nullable()();
+  BoolColumn get isStale => boolean().withDefault(const Constant(false))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
@@ -410,6 +626,13 @@ class FormDrafts extends Table {
     OshiGroups,
     OshiMembers,
     OshiAnniversaries,
+    TodoTemplates,
+    TodoTemplateItems,
+    ItineraryPlans,
+    ItinerarySpots,
+    ItinerarySpotLinks,
+    ItineraryEntries,
+    ItineraryLegs,
     OutboxOps,
     AppKvs,
     FormDrafts,
@@ -428,8 +651,21 @@ class AppDatabase extends _$AppDatabase {
   /// 思い出isFavorite・推しグループ画像/alt/favorite・推しメンalt・
   /// 記念日テーブル・cover一意インデックス。既存データは安全な既定値へ移行し、
   /// is_canceled=true は attendance_status=canceled へ明示移行する。
+  /// v6: todos.type（Todo/持ち物の種別）。既存行は既定値 'todo' のまま扱う
+  /// （後方互換, nullable にせず安全な既定値を持つ列として追加）。
+  /// v7: todo_templates / todo_template_items（Todo・持ち物のテンプレート）。
+  /// 新規テーブルの追加のみで、既存データには一切触れない。
+  /// v8: itinerary_plans / itinerary_spots / itinerary_spot_links /
+  /// itinerary_entries / itinerary_legs（現場詳細「計画」タブの旅程基盤,
+  /// itinerary-plan-spec.md）。新規テーブルの追加のみで、既存データには
+  /// 一切触れない。
+  /// v9: 同一計画に同じ交通/宿泊を二重参照する項目を禁じる部分ユニーク索引を
+  /// 版付きで必ず作成する（Phase 2レビュー点1）。作成前に既存重複を決定的に
+  /// 1件へ整理し、削除する重複を端点とする移動区間・未送信 Outbox も併せて
+  /// 掃除して参照整合を保つ（v8で `_createOwnerIndices` に紛れていた索引作成を、
+  /// cover 索引と同じ「dedup→版付き作成」方式へ格上げする）。
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -437,6 +673,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
+          await _createItineraryReferenceUniqueIndices(m);
         },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
@@ -476,8 +713,33 @@ class AppDatabase extends _$AppDatabase {
             // R6独立レビュー#5）。既存写真は削除せず is_cover のみ修正する。
             await m.database.customStatement(dedupeMemoryCoversSql);
           }
+          if (from < 6) {
+            // 既存Todoはすべて 'todo' 種別として扱う（後方互換）。
+            await m.addColumn(todos, todos.type);
+          }
+          if (from < 7) {
+            // 新規テーブルの追加のみ（既存データには触れない）。
+            await m.createTable(todoTemplates);
+            await m.createTable(todoTemplateItems);
+          }
+          if (from < 8) {
+            // 新規テーブルの追加のみ（既存データには触れない）。
+            await m.createTable(itineraryPlans);
+            await m.createTable(itinerarySpots);
+            await m.createTable(itinerarySpotLinks);
+            await m.createTable(itineraryEntries);
+            await m.createTable(itineraryLegs);
+          }
+          if (from < 9) {
+            // 交通/宿泊の部分ユニーク索引を張る前に、同一計画に同じ交通/宿泊を
+            // 二重参照する既存項目を決定的に1件へ整理する（既存重複があっても
+            // 索引作成が失敗しない, Phase 2レビュー点1）。cover 索引と同じ
+            // 「dedup→版付き作成」方式（下の _createItineraryReferenceUniqueIndices）。
+            await _dedupeItineraryEntryReferences(m);
+          }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
+          await _createItineraryReferenceUniqueIndices(m);
         },
       );
 
@@ -490,6 +752,58 @@ class AppDatabase extends _$AppDatabase {
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_photos_cover_unique '
         'ON memory_photos (genba_id) WHERE is_cover',
       );
+
+  /// 同一計画に同じ交通/宿泊を二重追加させない部分ユニーク索引（§5.3 / DB境界,
+  /// schema v9）。作成前に [_dedupeItineraryEntryReferences] で重複を1件へ
+  /// 整理してあるため、既存データに重複があっても作成に失敗しない
+  /// （cover 一意索引と同じ方針）。`IF NOT EXISTS` で onCreate/onUpgrade の
+  /// どちらから呼んでも冪等。
+  Future<void> _createItineraryReferenceUniqueIndices(Migrator m) async {
+    await m.database.customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_itinerary_entries_plan_transport '
+      'ON itinerary_entries (plan_id, transport_id) '
+      'WHERE transport_id IS NOT NULL',
+    );
+    await m.database.customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_itinerary_entries_plan_lodging '
+      'ON itinerary_entries (plan_id, lodging_id) '
+      'WHERE lodging_id IS NOT NULL',
+    );
+  }
+
+  /// v8→v9 で部分ユニーク索引を張る前に、同一計画に同じ交通/宿泊を参照する
+  /// 重複項目を決定的に1件へ整理する（勝手削除の影響を決定的に処理する,
+  /// Phase 2レビュー点1）。負け側（[_itineraryEntryReferenceLoserIdsSql]）を
+  /// 選び、それらを端点とする移動区間(legs)と、重複項目・区間の未送信 Outbox も
+  /// 併せて削除して参照整合を保つ。負け側の項目本体は最後に削除する
+  /// （相関サブクエリの評価対象を保つため順序が重要）。
+  Future<void> _dedupeItineraryEntryReferences(Migrator m) async {
+    final db = m.database;
+    const losers = _itineraryEntryReferenceLoserIdsSql;
+    // 1. 削除対象項目を端点とする移動区間の未送信 Outbox を消す。
+    await db.customStatement(
+      "DELETE FROM outbox_ops WHERE entity_table = 'itinerary_legs' "
+      'AND entity_id IN (SELECT id FROM itinerary_legs '
+      'WHERE origin_entry_id IN ($losers) '
+      'OR destination_entry_id IN ($losers))',
+    );
+    // 2. 移動区間そのものを削除する。
+    await db.customStatement(
+      'DELETE FROM itinerary_legs WHERE origin_entry_id IN ($losers) '
+      'OR destination_entry_id IN ($losers)',
+    );
+    // 3. 削除対象項目の未送信 Outbox を消す。
+    await db.customStatement(
+      "DELETE FROM outbox_ops WHERE entity_table = 'itinerary_entries' "
+      'AND entity_id IN ($losers)',
+    );
+    // 4. 重複項目本体を削除する（負け側だけ）。
+    await db.customStatement(
+      'DELETE FROM itinerary_entries WHERE id IN ($losers)',
+    );
+  }
 
   /// owner 単位の絞り込み・ソートで使う索引（M-04）。
   /// SQLite の `CREATE INDEX IF NOT EXISTS` を使い、onCreate/onUpgrade の
@@ -535,10 +849,61 @@ class AppDatabase extends _$AppDatabase {
       'idx_oshi_anniversaries_group',
       'ON oshi_anniversaries (group_id)',
     );
+    await idx('idx_todo_templates_owner', 'ON todo_templates (owner_id)');
+    await idx(
+      'idx_todo_template_items_owner',
+      'ON todo_template_items (owner_id)',
+    );
+    await idx(
+      'idx_todo_template_items_template',
+      'ON todo_template_items (template_id)',
+    );
     await idx(
       'idx_genbas_owner_oshi_group',
       'ON genbas (owner_id, oshi_group_id)',
     );
+    await idx('idx_itinerary_plans_owner', 'ON itinerary_plans (owner_id)');
+    await idx('idx_itinerary_plans_genba', 'ON itinerary_plans (genba_id)');
+    await idx('idx_itinerary_spots_owner', 'ON itinerary_spots (owner_id)');
+    await idx('idx_itinerary_spots_plan', 'ON itinerary_spots (plan_id)');
+    await idx(
+      'idx_itinerary_spot_links_owner',
+      'ON itinerary_spot_links (owner_id)',
+    );
+    await idx(
+      'idx_itinerary_spot_links_spot',
+      'ON itinerary_spot_links (spot_id)',
+    );
+    await idx(
+      'idx_itinerary_entries_owner',
+      'ON itinerary_entries (owner_id)',
+    );
+    await idx('idx_itinerary_entries_plan', 'ON itinerary_entries (plan_id)');
+    await idx(
+      'idx_itinerary_entries_spot',
+      'ON itinerary_entries (spot_id)',
+    );
+    await idx(
+      'idx_itinerary_entries_transport',
+      'ON itinerary_entries (transport_id)',
+    );
+    await idx(
+      'idx_itinerary_entries_lodging',
+      'ON itinerary_entries (lodging_id)',
+    );
+    await idx('idx_itinerary_legs_owner', 'ON itinerary_legs (owner_id)');
+    await idx('idx_itinerary_legs_plan', 'ON itinerary_legs (plan_id)');
+    await idx(
+      'idx_itinerary_legs_origin',
+      'ON itinerary_legs (origin_entry_id)',
+    );
+    await idx(
+      'idx_itinerary_legs_destination',
+      'ON itinerary_legs (destination_entry_id)',
+    );
+    // 交通/宿泊の二重追加を防ぐ部分ユニーク索引は、重複整理を伴う版付き
+    // マイグレーション（schema v9）として [_createItineraryReferenceUniqueIndices]
+    // で別建てに作成する（cover 一意索引と同じ方針）。ここでは作らない。
     await idx(
       'idx_outbox_ops_owner_status',
       'ON outbox_ops (owner_id, status)',

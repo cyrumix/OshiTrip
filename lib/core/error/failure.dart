@@ -52,3 +52,11 @@ class UnknownFailure extends Failure {
   const UnknownFailure({String? message, super.cause})
       : super(message ?? '予期しないエラーが発生しました');
 }
+
+/// 同一キーの操作が既に進行中で、今回の呼び出しは実行されなかった
+/// （二重タップ防止のガードに阻まれた状態）。成功でも他の失敗でもない、
+/// 「未実行」を明示するための専用の型。
+class OperationInProgressFailure extends Failure {
+  const OperationInProgressFailure({String? message, super.cause})
+      : super(message ?? '処理中です。しばらく待ってから再試行してください');
+}

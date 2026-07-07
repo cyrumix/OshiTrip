@@ -56,41 +56,64 @@ class GenbaOverviewTab extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  GenbaStatusChip(status: status),
-                  const SizedBox(width: AppSpace.sm),
                   Expanded(
                     child: Text(
-                      genba.artistName,
-                      style: theme.textTheme.titleMedium,
-                      overflow: TextOverflow.ellipsis,
+                      '概要',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
+                  ),
+                  _EditPill(
+                    onPressed: () => context.push('/genba/${genba.id}/edit'),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpace.sm),
-              Text(
-                [
-                  '${genba.eventDate.year}/${genba.eventDate.month}/${genba.eventDate.day}',
-                  if (genba.doorTimeMinutes != null)
-                    '開場 ${formatMinutes(genba.doorTimeMinutes!)}',
-                  if (genba.startTimeMinutes != null)
-                    '開演 ${formatMinutes(genba.startTimeMinutes!)}',
-                  if (genba.endTimeMinutes != null)
-                    '終演 ${formatMinutes(genba.endTimeMinutes!)}',
-                ].join('　'),
+              const SizedBox(height: AppSpace.md),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      genba.title,
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpace.sm),
+                  GenbaStatusChip(status: status),
+                ],
               ),
-              if (genba.venue != null) ...[
-                const SizedBox(height: AppSpace.xs),
-                Text('会場: ${genba.venue}'),
-              ],
-              if (genba.performanceType != null) ...[
-                const SizedBox(height: AppSpace.xs),
-                Text('種別: ${genba.performanceType}'),
-              ],
+              const SizedBox(height: AppSpace.md),
+              _InfoRow(
+                label: '日付',
+                value:
+                    '${genba.eventDate.year}/${genba.eventDate.month}/${genba.eventDate.day}',
+              ),
+              _InfoRow(label: 'グループ', value: genba.artistName),
+              if (genba.venue != null)
+                _InfoRow(label: '会場', value: genba.venue!),
+              if (genba.doorTimeMinutes != null ||
+                  genba.startTimeMinutes != null ||
+                  genba.endTimeMinutes != null)
+                _InfoRow(
+                  label: '開場 / 開演',
+                  value: [
+                    if (genba.doorTimeMinutes != null)
+                      formatMinutes(genba.doorTimeMinutes!),
+                    if (genba.startTimeMinutes != null)
+                      formatMinutes(genba.startTimeMinutes!),
+                    if (genba.endTimeMinutes != null)
+                      '終演 ${formatMinutes(genba.endTimeMinutes!)}',
+                  ].join(' / '),
+                ),
+              if (genba.performanceType != null)
+                _InfoRow(label: '種別', value: genba.performanceType!),
               _StatusActionsSection(genba: genba, status: status),
             ],
           ),
         ),
+        const SizedBox(height: AppSpace.md),
+        _TodoPreviewCard(aggregate: aggregate, now: now),
         const SizedBox(height: AppSpace.md),
         _AttendanceCard(genba: genba),
         const SizedBox(height: AppSpace.md),
@@ -101,22 +124,52 @@ class GenbaOverviewTab extends ConsumerWidget {
               Text(
                 '準備サマリ',
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: AppSpace.sm),
-              Wrap(
-                spacing: AppSpace.sm,
-                runSpacing: AppSpace.xs,
-                children: [
-                  PrepChip(label: 'チケット', state: prep.ticket),
-                  PrepChip(label: '交通', state: prep.transport),
-                  PrepChip(label: '宿泊', state: prep.lodging),
+              const SizedBox(height: AppSpace.md),
+              // Wrap ではなく常に等分割の Row にし、件数が3〜4件で
+              // 変動しても最終行が左詰めにならないようにする。
+              PrepStatusRow(
+                tiles: [
                   if (aggregate.incompleteTodoCount > 0)
-                    Chip(
-                      avatar: const Icon(Icons.check_box_outlined, size: 16),
-                      label: Text('Todo残り${aggregate.incompleteTodoCount}'),
-                      visualDensity: VisualDensity.compact,
+                    PrepStatusTile(
+                      icon: Icons.check_box_outlined,
+                      label: 'Todo',
+                      value: '残り${aggregate.incompleteTodoCount}',
+                      attention: true,
+                      onTap: () =>
+                          DefaultTabController.of(context).animateTo(1),
                     ),
+                  // 持ち物はTodoとは別集計（対応状況）で常に表示する
+                  // （§持ち物の準備ステータス）。
+                  PrepStatusTile(
+                    icon: Icons.backpack_outlined,
+                    label: '持ち物',
+                    value: prep.belonging.label,
+                    attention: prep.belonging.needsAttention,
+                    onTap: () => DefaultTabController.of(context).animateTo(1),
+                  ),
+                  PrepStatusTile(
+                    icon: Icons.confirmation_number_outlined,
+                    label: 'チケット',
+                    value: prep.ticket.label,
+                    attention: prep.ticket.needsAttention,
+                    onTap: () => DefaultTabController.of(context).animateTo(2),
+                  ),
+                  PrepStatusTile(
+                    icon: Icons.train_outlined,
+                    label: '交通',
+                    value: prep.transport.label,
+                    attention: prep.transport.needsAttention,
+                    onTap: () => DefaultTabController.of(context).animateTo(3),
+                  ),
+                  PrepStatusTile(
+                    icon: Icons.hotel_outlined,
+                    label: '宿泊',
+                    value: prep.lodging.label,
+                    attention: prep.lodging == CategoryPrepState.notRegistered,
+                    onTap: () => DefaultTabController.of(context).animateTo(4),
+                  ),
                 ],
               ),
               if (nextAction != null) ...[
@@ -133,6 +186,240 @@ class GenbaOverviewTab extends ConsumerWidget {
         const SizedBox(height: AppSpace.md),
         _HeroImageManageCard(genba: genba),
       ],
+    );
+  }
+}
+
+/// 概要カード右上の小さな「編集」ピル（モックアップ準拠）。
+class _EditPill extends StatelessWidget {
+  const _EditPill({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonal(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        minimumSize: const Size(0, 32),
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+      child: const Text('編集'),
+    );
+  }
+}
+
+/// 「ラベル: 値」の整った1行（モックアップの概要カード準拠）。
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 84,
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 概要タブ内の「やることリスト」プレビュー（モックアップ準拠）。
+///
+/// 直近の未完了を先頭に最大5件。チェックは楽観更新し、失敗時は
+/// 実データへ戻して理由を示す（TodoTab と同じ扱い）。期限超過は
+/// Error 色の「期限」表示で示す（色だけに依存しない, §14）。
+class _TodoPreviewCard extends ConsumerStatefulWidget {
+  const _TodoPreviewCard({required this.aggregate, required this.now});
+
+  final GenbaAggregate aggregate;
+  final DateTime now;
+
+  @override
+  ConsumerState<_TodoPreviewCard> createState() => _TodoPreviewCardState();
+}
+
+class _TodoPreviewCardState extends ConsumerState<_TodoPreviewCard> {
+  final Map<String, bool> _optimistic = {};
+
+  Future<void> _toggle(GenbaTodo todo, bool checked) async {
+    setState(() => _optimistic[todo.id] = checked);
+    final failure = await ref
+        .read(
+          genbaActionsControllerProvider(widget.aggregate.genba.id).notifier,
+        )
+        .toggleTodo(todo, checked);
+    if (!mounted) return;
+    setState(() => _optimistic.remove(todo.id));
+    if (failure != null) handleActionResult(context, failure);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    // 「やることリスト」プレビューはTodo種別のみ（持ち物は含めない。
+    // 持ち物の状況はTodo・持ち物タブの専用セクションで確認する）。
+    final todos = widget.aggregate.todos
+        .where((t) => t.type == TodoItemType.todo)
+        .toList(growable: false);
+    final total = todos.length;
+    final remaining = widget.aggregate.incompleteTodoCount;
+    // 未完了（期限が近い順・期限なしは後ろ）→ 完了の順に並べ、先頭5件。
+    final sorted = [...todos]..sort((a, b) {
+        if (a.isDone != b.isDone) return a.isDone ? 1 : -1;
+        final ad = a.dueDate, bd = b.dueDate;
+        if (ad == null && bd == null) return 0;
+        if (ad == null) return 1;
+        if (bd == null) return -1;
+        return ad.compareTo(bd);
+      });
+    final preview = sorted.take(5).toList();
+    final today = DateTime(widget.now.year, widget.now.month, widget.now.day);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'やることリスト',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(width: AppSpace.sm),
+              if (total > 0)
+                Text(
+                  '未完了 $remaining/$total',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: tokens.textSecondary),
+                ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => DefaultTabController.of(context).animateTo(1),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: const Text('すべて見る ›'),
+              ),
+            ],
+          ),
+          if (preview.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpace.xs),
+              child: Text(
+                'Todoはまだありません。Todoタブから準備リストを作りましょう。',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: tokens.textSecondary),
+              ),
+            )
+          else
+            for (final todo in preview)
+              _TodoPreviewRow(
+                todo: todo,
+                checked: _optimistic[todo.id] ?? todo.isDone,
+                overdue: !(_optimistic[todo.id] ?? todo.isDone) &&
+                    todo.dueDate != null &&
+                    todo.dueDate!.isBefore(today),
+                onChanged: (v) => _toggle(todo, v),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodoPreviewRow extends StatelessWidget {
+  const _TodoPreviewRow({
+    required this.todo,
+    required this.checked,
+    required this.overdue,
+    required this.onChanged,
+  });
+
+  final GenbaTodo todo;
+  final bool checked;
+  final bool overdue;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    final scheme = theme.colorScheme;
+    final due = todo.dueDate;
+    return InkWell(
+      onTap: () => onChanged(!checked),
+      borderRadius: BorderRadius.circular(AppRadius.chip),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Checkbox(
+              value: checked,
+              onChanged: (v) => onChanged(v ?? false),
+              visualDensity: VisualDensity.compact,
+            ),
+            Expanded(
+              child: Text(
+                todo.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  decoration: checked ? TextDecoration.lineThrough : null,
+                  color: checked
+                      ? tokens.textSecondary
+                      : overdue
+                          ? scheme.error
+                          : null,
+                  fontWeight: overdue ? FontWeight.w700 : FontWeight.w500,
+                ),
+                semanticsLabel: '${todo.name}、${checked ? '完了済み' : '未完了'}'
+                    '${overdue ? '、期限超過' : ''}',
+              ),
+            ),
+            if (due != null)
+              Padding(
+                padding: const EdgeInsets.only(left: AppSpace.sm),
+                child: Text(
+                  overdue
+                      ? '期限: ${due.year}/${due.month}/${due.day}'
+                      : '${due.year}/${due.month}/${due.day}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: overdue ? scheme.error : tokens.textSecondary,
+                    fontWeight: overdue ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

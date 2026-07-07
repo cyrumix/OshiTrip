@@ -68,6 +68,11 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
               slivers: [
                 SliverAppBar(
                   pinned: true,
+                  // AppBarTheme.backgroundColor は transparent（AppScaffold の
+                  // 背景を透過させるため）。pinned な SliverAppBar は
+                  // スクロール中の本文を隠す必要があるため、ここだけ不透明にする
+                  // （透明のままだと本文がタイトル行に透けて重なる）。
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                   title: Text(genba.title, overflow: TextOverflow.ellipsis),
                 ),
                 if (bundle.photos.isNotEmpty)

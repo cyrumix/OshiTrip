@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:oshi_trip/core/error/failure.dart';
+import 'package:oshi_trip/core/error/result.dart';
 import 'package:oshi_trip/core/images/image_store.dart';
 import 'package:oshi_trip/core/logging/app_logger.dart';
 import 'package:oshi_trip/core/network/connectivity.dart';
@@ -128,12 +131,15 @@ void main() {
 
       final c = controller('g3');
       final first = c.markEnded(genba); // await しない = 連打を模す
-      final second = c.markEnded(genba); // 進行中なので無視されるはず
+      final second = c.markEnded(genba); // 進行中なので実行されないはず
 
       final results = await Future.wait([first, second]);
       expect(fakeRepo.upsertGenbaCallCount, 1);
-      // 2回目は「二重タップで無視」= null を返す（失敗ではない）。
-      expect(results.where((f) => f == null).length, 2);
+      // 1回目は実際に実行され成功（null）。2回目は実行されず、成功とは
+      // 区別できる OperationInProgressFailure を返す（「成功」と「未実行」を
+      // null 同士で混同しない: レビュー指摘の回帰）。
+      expect(results[0], isNull);
+      expect(results[1], isA<OperationInProgressFailure>());
     });
 
     test('二重タップ防止は操作キー単位: 別の現場・別操作は同時に進められる', () async {
@@ -283,6 +289,143 @@ void main() {
       final reloaded = (await fakeRepo.watchById('g-merge-2').first)!.genba;
       expect(reloaded.isCanceled, isTrue);
       expect(reloaded.transportRequirement, RequirementStatus.required);
+    });
+  });
+
+  group('Todo・持ち物削除をapplication層へ集約する', () {
+    Future<void> seedTodo(GenbaTodo todo) async {
+      final result = await fakeRepo.upsertTodo(todo);
+      expect(result.isOk, isTrue);
+    }
+
+    test('Todo削除が成功するとRepositoryから消える', () async {
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'g-del-1',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      final todo = makeTodo(
+        id: 't-del-1',
+        genbaId: genba.id,
+        ownerId: ownerId,
+        type: TodoItemType.todo,
+      );
+      await seedTodo(todo);
+
+      final failure = await controller(genba.id).deleteTodo(todo);
+      expect(failure, isNull);
+
+      final aggregate = await fakeRepo.watchById(genba.id).first;
+      expect(aggregate!.todos, isEmpty);
+    });
+
+    test('持ち物削除が成功するとRepositoryから消える', () async {
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'g-del-2',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      final belonging = makeTodo(
+        id: 't-del-2',
+        genbaId: genba.id,
+        ownerId: ownerId,
+        type: TodoItemType.belonging,
+      );
+      await seedTodo(belonging);
+
+      final failure = await controller(genba.id).deleteTodo(belonging);
+      expect(failure, isNull);
+
+      final aggregate = await fakeRepo.watchById(genba.id).first;
+      expect(aggregate!.todos, isEmpty);
+    });
+
+    test('削除失敗ではFailureが返り、データは残る（成功表示しない）', () async {
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'g-del-3',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      final todo = makeTodo(id: 't-del-3', genbaId: genba.id, ownerId: ownerId);
+      await seedTodo(todo);
+      fakeRepo.failNextDeleteTodo = true;
+
+      final failure = await controller(genba.id).deleteTodo(todo);
+      expect(failure, isNotNull);
+
+      final aggregate = await fakeRepo.watchById(genba.id).first;
+      expect(aggregate!.todos, hasLength(1));
+      expect(aggregate.todos.single.id, 't-del-3');
+    });
+
+    test('同一Todoの削除を同時に呼ぶと、1回目だけ実行され2回目は処理中のFailureになる', () async {
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'g-del-4',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      final todo = makeTodo(id: 't-del-4', genbaId: genba.id, ownerId: ownerId);
+      await seedTodo(todo);
+
+      // 1回目の削除がまだ進行中である window を、実時間 delay ではなく
+      // Completer ゲートで安定して作る。
+      final gate = Completer<Result<void>>();
+      fakeRepo.nextDeleteTodoGate = gate;
+
+      final c = controller(genba.id);
+      final first = c.deleteTodo(todo); // 進行中（ゲート待ち）
+      final second = c.deleteTodo(todo); // 同一キーが処理中のため実行されない
+
+      // 2回目は成功(null)ではなく、未実行であることを示すFailureになる
+      // （レビュー指摘: 「成功」と「未実行」をnull同士で混同しない）。
+      expect(await second, isA<OperationInProgressFailure>());
+      gate.complete(const Ok(null));
+      // 1回目は実際に実行され、正常終了する。
+      expect(await first, isNull);
+
+      // Repositoryの実削除は1回だけ呼ばれる（2回目は届いていない）。
+      expect(fakeRepo.deleteTodoCallCount, 1);
+      final aggregate = await fakeRepo.watchById(genba.id).first;
+      expect(aggregate!.todos, isEmpty);
+    });
+
+    test('toggleTodo実行中に同じTodoをdeleteTodoすると、削除は実行されず処理中のFailureになる', () async {
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'g-del-5',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+        ),
+      );
+      final todo = makeTodo(id: 't-del-5', genbaId: genba.id, ownerId: ownerId);
+      await seedTodo(todo);
+
+      // toggleTodo は upsertTodo 経由なので、そのゲートで進行中を作る。
+      final gate = Completer<Result<void>>();
+      fakeRepo.nextUpsertTodoGate = gate;
+
+      final c = controller(genba.id);
+      final toggle = c.toggleTodo(todo, true); // 進行中（ゲート待ち）
+      final delete = c.deleteTodo(todo); // 同一キーが処理中のため実行されない
+
+      // 削除は実行されず、処理中のFailureになる（削除成功として扱われない）。
+      expect(await delete, isA<OperationInProgressFailure>());
+      expect(fakeRepo.deleteTodoCallCount, 0);
+      gate.complete(const Ok(null));
+      expect(await toggle, isNull);
+
+      // 削除は未実行のためTodoは残り、完了切替だけが反映される。
+      final aggregate = await fakeRepo.watchById(genba.id).first;
+      expect(aggregate!.todos, hasLength(1));
+      expect(aggregate.todos.single.isDone, isTrue);
     });
   });
 }

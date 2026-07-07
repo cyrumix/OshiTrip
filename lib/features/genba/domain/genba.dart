@@ -336,6 +336,25 @@ extension TodoPriorityLabel on TodoPriority {
       };
 }
 
+/// やることリスト項目の種別（Todo/持ち物）。
+///
+/// 任意文字列のタグではなく型安全な分類として扱う。DB上の値（JSON値）は
+/// 'todo'/'belonging' で安定させ、既存データ（種別列なし）は 'todo' として
+/// 扱う（後方互換, ローカルDB・Supabase双方でデフォルト値を設定）。
+enum TodoItemType {
+  @JsonValue('todo')
+  todo,
+  @JsonValue('belonging')
+  belonging,
+}
+
+extension TodoItemTypeLabel on TodoItemType {
+  String get label => switch (this) {
+        TodoItemType.todo => 'Todo',
+        TodoItemType.belonging => '持ち物',
+      };
+}
+
 @freezed
 abstract class GenbaTodo with _$GenbaTodo {
   @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
@@ -344,6 +363,7 @@ abstract class GenbaTodo with _$GenbaTodo {
     required String genbaId,
     required String ownerId,
     required String name,
+    @Default(TodoItemType.todo) TodoItemType type,
     @NullableDateOnlyConverter() DateTime? dueDate,
     @Default(false) bool isDone,
     String? assignee,
@@ -413,7 +433,13 @@ abstract class GenbaAggregate with _$GenbaAggregate {
     @Default(<GenbaMemo>[]) List<GenbaMemo> memos,
   }) = _GenbaAggregate;
 
-  int get incompleteTodoCount => todos.where((t) => !t.isDone).length;
+  /// 未完了のTodo件数（種別=Todoのみ。持ち物は含めない）。
+  int get incompleteTodoCount =>
+      todos.where((t) => t.type == TodoItemType.todo && !t.isDone).length;
+
+  /// 未完了の持ち物件数（種別=持ち物のみ）。
+  int get incompleteBelongingCount =>
+      todos.where((t) => t.type == TodoItemType.belonging && !t.isDone).length;
 
   GenbaMemo? memoOf(MemoCategory category) =>
       memos.where((m) => m.category == category).firstOrNull;

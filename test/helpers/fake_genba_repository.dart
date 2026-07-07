@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:oshi_trip/core/error/failure.dart';
 import 'package:oshi_trip/core/error/result.dart';
 import 'package:oshi_trip/features/genba/domain/genba.dart';
@@ -92,8 +94,23 @@ class FakeGenbaRepository implements GenbaRepository {
   /// 一度使うと自動的に false へ戻る（Todo楽観更新のロールバック回帰テスト用）。
   bool failNextUpsertTodo = false;
 
+  /// 次回の [upsertTodo] を明示的に「停止」できるゲート。設定すると、次の
+  /// upsertTodo 呼び出しは委譲せずこの Completer の future を返し、テストが
+  /// complete するまで未完了のまま留まる。これにより楽観更新の途中状態を
+  /// 安定して観測でき、保存結果（成功/失敗）を実時間 delay に依存せず注入できる。
+  Completer<Result<void>>? nextUpsertTodoGate;
+
   @override
   Future<Result<void>> upsertTodo(GenbaTodo todo) async {
+    final gate = nextUpsertTodoGate;
+    if (gate != null) {
+      nextUpsertTodoGate = null;
+      // テストが gate.complete(...) するまで保存は完了しない（微小遅延にも
+      // 依存しない）。成功で complete された場合のみ実データへ委譲する。
+      final result = await gate.future;
+      if (result.isOk) return _inner.upsertTodo(todo);
+      return result;
+    }
     if (failNextUpsertTodo) {
       failNextUpsertTodo = false;
       return const Err(StorageFailure(message: 'テスト用のTodo保存失敗'));
@@ -101,8 +118,35 @@ class FakeGenbaRepository implements GenbaRepository {
     return _inner.upsertTodo(todo);
   }
 
+  /// true の間、次回の [deleteTodo] 呼び出しは実行前に失敗を返す（委譲しない）。
+  /// 一度使うと自動的に false へ戻る（Todo/持ち物削除の失敗回帰テスト用）。
+  bool failNextDeleteTodo = false;
+
+  /// 次回の [deleteTodo] を明示的に「停止」できるゲート。設定すると、次の
+  /// deleteTodo 呼び出しは委譲せずこの Completer の future を返し、テストが
+  /// complete するまで未完了のまま留まる（実時間 delay に依存しない）。
+  Completer<Result<void>>? nextDeleteTodoGate;
+
+  /// [deleteTodo] の総呼び出し回数（二重実行防止で「実際には呼ばれていない」
+  /// ことを検証するため）。
+  int deleteTodoCallCount = 0;
+
   @override
-  Future<Result<void>> deleteTodo(String id) => _inner.deleteTodo(id);
+  Future<Result<void>> deleteTodo(String id) async {
+    deleteTodoCallCount++;
+    final gate = nextDeleteTodoGate;
+    if (gate != null) {
+      nextDeleteTodoGate = null;
+      final result = await gate.future;
+      if (result.isOk) return _inner.deleteTodo(id);
+      return result;
+    }
+    if (failNextDeleteTodo) {
+      failNextDeleteTodo = false;
+      return const Err(StorageFailure(message: 'テスト用のTodo削除失敗'));
+    }
+    return _inner.deleteTodo(id);
+  }
 
   @override
   Future<Result<void>> upsertMemo(GenbaMemo memo) => _inner.upsertMemo(memo);

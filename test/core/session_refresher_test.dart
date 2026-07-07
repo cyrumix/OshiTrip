@@ -35,6 +35,8 @@ void main() {
       refreshGenba: (isStale) => g.forOwner(currentOwner)(isStale),
       refreshMemory: (_) async => const Ok(null),
       refreshOshi: (_) async => const Ok(null),
+      refreshTemplate: (_) async => const Ok(null),
+      refreshItinerary: (_) async => const Ok(null),
     );
 
     // A のセッション確定 → A の pull 開始（genba refresh が gate で停止）。
@@ -74,6 +76,8 @@ void main() {
         return const Ok(null);
       },
       refreshOshi: (_) async => const Ok(null),
+      refreshTemplate: (_) async => const Ok(null),
+      refreshItinerary: (_) async => const Ok(null),
     );
 
     refresher.onAuthenticated('A');
@@ -97,6 +101,8 @@ void main() {
       },
       refreshMemory: (_) async => const Ok(null),
       refreshOshi: (_) async => const Ok(null),
+      refreshTemplate: (_) async => const Ok(null),
+      refreshItinerary: (_) async => const Ok(null),
     );
 
     refresher.onAuthenticated('A');
@@ -122,6 +128,8 @@ void main() {
       },
       refreshMemory: (_) async => const Ok(null),
       refreshOshi: (_) async => const Ok(null),
+      refreshTemplate: (_) async => const Ok(null),
+      refreshItinerary: (_) async => const Ok(null),
     );
 
     await refresher.pauseForAuthTransition();

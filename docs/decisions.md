@@ -615,3 +615,75 @@ TimeoutHttpClient・「apply がハング→タイムアウトで op が pending
 - Docker 導入環境で `supabase db reset` → `supabase test db` を実行し、0005 pgTAP（43件）と0008マイグレーションの適用・既存0001〜0004の回帰を実機確認する。
 - R8-A/B/C完了により High 3件・Medium 3件（E-2/F-1/F-3）は解消。残 Medium（C-1: `child_editors.dart` 分割）と Low（A-1/A-2 のCI文書整合, D-1/D-2 の同日ソート二次キー, B-1 通知許可の後続実装）は保守セッションで対応する。
 - 本是正後にR8監査手順（`fable-post-implementation-review-prompt.md`）を再実施し、Critical/High 0件を独立確認してからリリース判定へ進む。
+## 旅程Google API低コスト・保存規約方針（2026-07-06）
+
+確認した公式資料:
+
+- [Places API policies and attributions](https://developers.google.com/maps/documentation/places/web-service/policies)（確認日: 2026-07-06）
+- [Place IDs](https://developers.google.com/maps/documentation/places/web-service/place-id)（確認日: 2026-07-06）
+- [Places API usage and billing](https://developers.google.com/maps/documentation/places/web-service/usage-and-billing)（確認日: 2026-07-06）
+- [Routes API Compute Routes](https://developers.google.com/maps/documentation/routes/compute_route_directions)（確認日: 2026-07-06）
+- [Google Maps Platform Service Specific Terms](https://cloud.google.com/maps-platform/terms/maps-service-terms)（確認日: 2026-07-06）
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-178 | Places MVPの取得Field MaskをPlace ID・名称・住所・表示に必要な帰属情報へ限定し、電話、Web、営業時間、写真、評価、レビュー、primary type、座標は取得しない。Place IDは永続保存・再利用し、名称・住所はGoogle応答のユーザー横断恒久キャッシュにしない | Places公式ポリシーは原則としてPlacesコンテンツの事前取得・キャッシュ・保存を禁じ、Place IDだけをキャッシュ制限の例外としている。Field Maskは要求中の最高SKUに課金されるため、最小allowlistが費用と規約の両面で安全 |
+| D-179 | 共有施設DBと共有概算経路DBは、ユーザー入力、施設提供、オープンデータ、契約データ等、保存・再利用権限を説明できるデータのみを正本とする。Google応答から名称・住所・経路内容を自動転記して共有キャッシュへ昇格させない。Place IDは照合キーとして利用可能 | 「誰かが一度取得したGoogle施設情報を全ユーザーで再利用する」構成はGoogle API呼び出しの代替となり、現行のキャッシュ制限に適合しない。出典・権利根拠を持つ独立データなら、API費用を抑えつつ共有再利用できる |
+| D-180 | Google Routesは、プレミアムユーザーが経路詳細を開くか`最新ルートを更新`を押した場合だけ呼ぶ。通常表示は権利確認済みの保存済み概算経路を優先する。Googleライブ応答は一時表示とし、書面許諾等が無い限り共有DBへ永続キャッシュしない | Routesの現行個別規約で明示されるキャッシュ許可は緯度・経度の最長30日であり、経路概要・所要時間・路線・運賃等を恒久DB化してAPIを代替する許可は確認できない。明示操作・single-flight・クォータ・kill switchで呼出しを抑える |
+| D-181 | Google由来の緯度・経度を一時保存する場合は、取得元・取得日時・失効日時を持ち、最長30日で自動削除する。無料／プレミアムにかかわらず同じ保存・帰属制約を適用し、規約確認をリリース前・四半期ごとに行う | Google Maps Platformの規約・料金・製品仕様は更新され得る。課金権限は保存権限を意味しないため、entitlementとcomplianceを分離して強制する |
+
+## Phase 2最終レビュー是正（2026-07-07, Claude Opus 4.8）
+
+`feat/todo-belonging-templates` の「計画タブ Phase 2」最終レビュー指摘6件を是正した。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-182 | ローカルDBを **schema v8→v9** へ更新し、交通/宿泊の部分ユニーク索引 `idx_itinerary_entries_plan_transport` / `..._plan_lodging` を、cover索引と同じ「dedup→版付き作成」方式（`_dedupeItineraryEntryReferences` → `_createItineraryReferenceUniqueIndices`）へ格上げした。索引作成前に、同一計画に同じ交通/宿泊を参照する重複項目を `(sort_order, created_at, id)` 昇順の最小1件へ決定的に整理し、負け側を端点とする leg と、負け項目/leg の未送信 Outbox も掃除する | v8では索引作成が汎用 `_createOwnerIndices` に紛れており、既存重複があると `CREATE UNIQUE INDEX` が失敗して起動不能になり得た。版付きの dedup→作成にすることで、既存重複があっても決定的に整理してから索引を張れる。移行検証は `test/data/itinerary_v9_migration_test.dart` が **v8ファイルDB作成→v9再open→索引存在→重複INSERT拒否** をfile-backedで確認 |
+| D-183 | `ItineraryRepository.reorderEntries` を「順序だけ変更するAPI」へ変更（`{planId, orderedEntryIds}`）。全IDの実在・同一owner・同一計画・**同一実効表示日**を単一トランザクション内で検証し、`sort_order` と `updated_at` **のみ** を UPDATE（項目内容を upsert しない）。存在しないID・別owner・別計画・別日は型付き Failure で拒否し、途中失敗は行とOutboxを全rollback | 旧実装は呼び出し側の entry 全体を `insertOnConflictUpdate` していたため、並び替えのつもりで中身も上書きし得た。ID一覧受け取り＋UPDATE限定にして副作用を排除。Outbox payload は更新後のDB行から作り、並び順以外を書き換えない保証を持たせた |
+| D-184 | `saveSpotBundle` の `removedLinkIds` を、対象スポットかつ同一ownerに属するリンクだけに限定。別スポット・別owner・存在しないIDは一貫した型付き `ValidationFailure`（存在推測を防ぐ共通文言）で拒否し、不正が1件でもあれば spot/entry/links/Outbox を全rollback | 旧実装は id+owner だけで delete し、別スポットのリンク削除や、存在しないID指定時の空振り delete Outbox を許していた。トランザクション先頭で所属を検証して原子性と越境防止を両立 |
+| D-185 | 交通・宿泊の元データ更新を**導出（derive）方式**で即時反映する（§5.3.1/§5.3.2）。取り込み時に日時をスナップショットせず、タイムラインの表示日・時刻順・融合・間に合い判定を参照元から毎回導出。ユーザー上書きは entry の `local_date`/`start_at`/`end_at` の非nullで明示モデル化（null=参照元に追従）。純粋関数 `effectiveItinerarySchedule` に集約 | 「参照するだけで複製しない」（§5.3）を名称だけでなく表示順に関係する日付・出発時刻・チェックイン日にも適用。同期更新方式は交通/宿泊更新経路への逆依存とOutbox増を招くため不採用。`test/domain/itinerary_source_reflection_test.dart` が「元データ変更で別日へ移動」「時刻変更で同一日内の並びが変わる」を検証 |
+| D-186 | Supabase `0014` に、部分ユニーク索引作成前の**決定的dedup**（`(sort_order, created_at, id)` 最小1件保持、負け側を端点とする leg は FK `ON DELETE CASCADE` で自動掃除）を追加。pgTAP `tests/0010_itinerary_entry_reference_unique.sql`（plan 16）で、直接INSERT/UPDATE重複拒否（23505）・apply_mutation経由の重複拒否・別計画での同一参照許可・spot/note非回帰・既存重複からの移行方針を検証 | サーバー側でも UI/ローカルと同じく重複を弾き、既存重複があっても `0014` 適用が失敗しないようにする。ローカル v9 dedup と保持規則を一致させて端末・サーバーで同じ勝者を残す |
+| D-187 | 実端末統合テスト `integration_test/itinerary_offline_encrypted_sync_test.dart` を追加。本番と同じ暗号化オープン（`prepareSqlCipher` + `openEncryptedExecutor` + `openVerifiedDatabase`）でfile-backed暗号化DBを開き、オフライン編集→Outbox保存→**DB完全close→正鍵で再open→データ/未送信復元→SyncEngine送信でpending解消・（擬似リモートで）反映** を検証。Windows非ASCII TEMP問題の回避手順（ASCIIパス配置／TEMP再設定／実機実行）をヘッダに文書化 | `openEncryptedExecutor` は SQLCipher `PRAGMA key` を使い host winsqlite3 で検証不可のため device/emulator 実行（encryption_sqlcipher_test と同方針）。実バックエンド反映は CI の pgTAP と手動E2Eで別途確認する |
+
+### 検証状況（2026-07-07, Windows host / ASCIIパス `C:\Users\naman\StudioProjects\OshiTrip`）
+
+- `dart analyze lib test integration_test`: 本文の最終報告を参照。
+- `flutter test`（単体+Widget）: 本是正の新規/更新テスト（`itinerary_bundle_test` の reorder順序限定・removedLinkIds越境／`itinerary_v9_migration_test`／`itinerary_source_reflection_test`）を含む結果は本文の最終報告を参照。
+- **未実施（成功と報告しない）**:
+  - `flutter test integration_test --flavor development`: エミュレータ/実機・adb が無く未実行。`itinerary_offline_encrypted_sync_test` / `app_flow_test` / `encryption_sqlcipher_test` は静的にコンパイル確認のみ。
+  - `supabase db reset` / `supabase test db`（pgTAP）: Docker 未導入で `supabase start` 不可。`0014` マイグレーションと `tests/0010`（plan 16）は**静的検証のみ**（plan数＝アサーション数、UUIDリテラルが16進、参照列がスキーマに実在、`begin;`/`rollback;` 対応）。実Postgres上での実行は未確認。
+
+## Phase 2追補「計画」機能の仕様変更（2026-07-07, Claude Opus 4.8）
+
+`feat/todo-belonging-templates` の計画機能に、Phase 2最終レビュー是正（D-182〜D-187）へ
+追加する形で以下の仕様変更を実装した（既存の未コミット差分を保持したまま追加）。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-188 | スポットカテゴリに「聖地」(`sacred_place`) を独立カテゴリとして追加（enum・JSON wire・DBラベル・アイコン）。「神社・寺院」「観光地」とは統合しない。DB制約はローカルDrift（`itinerary_spots.category` は text で制約無し・enum往復で担保）とSupabaseの追加マイグレーション `0015_itinerary_spot_category_sacred_place.sql`（0012のCHECKを前方専用で差し替え、既存値を全許可のまま追加）で許可 | 聖地巡礼は推し活遠征の主要目的の一つで、神社・寺院や観光地と区別して集計・表示したい。追加のみで後方互換を壊さない |
+| D-189 | 緯度・経度をスポット作成・編集画面から削除（入力欄・バリデーション・エラーを出さない）。ドメイン／DBの nullable な座標フィールドは将来の地図・Google連携用に残す。編集保存時は既存座標を保持（`widget.existing?.spot.latitude/longitude` を渡し、誤って null 上書きしない）、新規手動登録は null | MVPの手動入力で緯度・経度を求めるのはUX負荷が高く誤入力の温床。座標は将来Google Places/地図から取得する設計（D-178/D-179）なので、手動UIから外しつつ列は温存する |
+| D-190 | 移動区間(leg)編集から日付入力を廃止し時刻のみ入力。出発日=出発元予定日、到着日=到着先予定日を内部決定し、同日で到着<出発なら日跨ぎで翌日。前後予定日が取れなければ本日を入れず日時はnull（所要時間等は保存可・日本語で案内）。純粋関数 `deriveLegTimestamps` に集約。既存 departureAt/arrivalAt 互換維持（ローカル壁時計→toUtc） | 移動区間は隣接する前後予定を結ぶ設計。別日付を自由入力できると前後予定と矛盾し得る。前後から導出すれば入力を減らしつつ整合を保てる |
+| D-191 | スポット訪問の新規追加時、訪問日の初期値を「本日」ではなく現在操作中の予定日にする。優先: 現在表示日→前後予定日→現場開催日→旅程開始日。いずれも無ければ未設定（候補）。編集時は保存値を使用。純粋関数 `resolveInitialVisitDate` | 遠征の予定は開催日周辺に集中する。本日を初期値にすると毎回日付を直す手間が生じ、誤って本日で保存する事故も招く |
+| D-192 | 新規予定の開始時刻の初期値を、同日タイムラインで直前にある「時刻付きの実予定」の終了時刻にする。メモ・時刻なし項目は読み飛ばす。直前実予定に終了時刻が無い／前予定が無ければ未設定。現在時刻・固定時刻は入れない。保存時の自動連動はしない。純粋関数 `resolveInitialStartFromPrevious` | 予定は前の予定の終了後から始めることが多く、初期値があると入力が速い。ただし開始のみ・前予定なしで安易に埋めると誤りになるため未設定に倒す |
+| D-193 | `ItineraryEntryKind.note` を時間整合の全警告（時刻重複・移動時間不足・間に合わない可能性・余裕不足・leg自動前後接続・開始時刻の直前予定）から完全除外。`itineraryTightConnections` は実予定だけで判定（メモを読み飛ばし A→メモ→B は A-B で判定）、`placeItineraryLegs` の隣接連番からメモを除外、leg端点候補からメモを除外、`_conflictsWithTime` もメモを除外。メモの表示・日時入力・形式検証は維持 | メモは実際の訪問・移動ではないため、時間整合の警告対象にすると誤警告になる。表示や単体の形式検証は残し、「他予定との時間整合判定」だけ除外する |
+
+### 検証状況（2026-07-07, Windows host / ASCIIパス `C:\Users\naman\StudioProjects\OshiTrip`）
+
+- `dart format` / `dart analyze lib test integration_test` / `flutter analyze`: 本文の最終報告を参照。
+- `flutter test`（単体+Widget）: 追加・更新した旅程テスト（`itinerary_json_test`「聖地」／`itinerary_phase2b_test`（点3/4/5/6の純粋関数）／`itinerary_editor_phase2b_test`（緯度経度非表示・座標保持・聖地選択・移動区間の日付欄非表示）／既存 `itinerary_timeline_test`・`itinerary_merged_timeline_test`・`itinerary_plan_tab_test` の是正）を含む結果は本文の最終報告を参照。
+- **未実施（成功と報告しない）**: `flutter test integration_test`（実機/エミュレータ・adb 無し）、`supabase db reset` / `supabase test db`（Docker 無し）。`0015` マイグレーションは静的検証のみ（前方専用のCHECK差し替え・既存値を全許可）。実Postgres適用は未確認。
+
+## Phase 2追補レビュー是正（2026-07-07, Claude Opus 4.8）
+
+D-188〜D-193（計画機能の仕様変更）のレビューで見つかった2件を是正した。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-194 | 移動区間(leg)の保存時、既存 departureAt/arrivalAt を消さない。端点・時刻を一切変更していない編集は既存の完全な日時を保持（運賃・所要時間・メモだけの編集で日時不変）。前後予定の日付が取れないまま時刻を「変更」した場合は保存を止め「前後予定の日付を設定してから時刻を変更してください」と案内。時刻の明示クリア時だけ null。新規/編集を区別。判定は純粋関数 `resolveLegTimestampsForSave`（`itinerary_schedule.dart`）へ集約し、TZ依存の時刻復元・変更判定だけを widget に残す | D-190で日付入力を廃止し前後予定から合成する設計にしたが、前後予定の日付が未取得のとき運賃だけ編集しても derived が null になり既存日時をnull上書きしていた（Highバグ）。変更有無で分岐し、確定できない時刻変更はサイレント削除せず保存を止める |
+| D-195 | 訪問日の優先順位（現在表示日→前後予定→現場開催日→旅程開始日）を実画面へ接続。日別セクションに「この日に追加」ボタンを設け `contextDate=その日` を渡す。グローバル追加（右下＋）は `contextDate=null` で現場開催日→旅程開始日をフォールバック。開始時刻の直前予定も解決した日付内の予定から取る。共通導線 `openSpotEditorWithDefaults`（`plan_tab.dart`）に集約 | `resolveInitialVisitDate` に currentDay/adjacentDate を渡していなかったため、UI上は常にフォールバック（現場開催日）になっていた（Medium）。日別導線から currentDay を渡すことで「2日目から追加→2日目が初期値」を実操作で成立させる |
+
+### 検証状況（2026-07-07, Windows host / ASCIIパス）
+
+- `dart format` / `dart analyze lib test integration_test` / `flutter analyze`：本文の最終報告を参照。
+- `flutter test`：追加/更新テスト（`itinerary_phase2b_test` の `resolveLegTimestampsForSave` 6件・`itinerary_editor_phase2b_test` の日別追加Widgetテスト）を含む結果は本文の最終報告を参照。
+- **未実施**: `flutter test integration_test`（実機/エミュレータなし）、`supabase test db`（Dockerなし）。

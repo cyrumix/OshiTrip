@@ -69,11 +69,6 @@ class HeroEventCard extends StatelessWidget {
         : Color.lerp(tokens.dawn, accentColor, .55)!;
     // 写真上でもグラデーション上でも可読な白系文字。
     const fg = Colors.white;
-    final daysLabel = daysUntil == 0
-        ? '本日'
-        : daysUntil > 0
-            ? 'あと$daysUntil日'
-            : '${-daysUntil}日前';
     final daysSemantics = daysUntil == 0
         ? '公演は本日です'
         : daysUntil > 0
@@ -149,139 +144,109 @@ class HeroEventCard extends StatelessWidget {
                   ),
                 ),
               ),
-              // 暁のヘアライン（署名）: 底辺にひとすじ、推しカラーを帯びた
-              // 夜明けの光。装飾であり情報は持たない。
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: IgnorePointer(
-                  child: FractionallySizedBox(
-                    widthFactor: .8,
-                    child: Container(
-                      height: 2,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(2),
-                        gradient: LinearGradient(
-                          colors: [
-                            dawnLight.withValues(alpha: 0),
-                            dawnLight.withValues(alpha: .95),
-                            dawnLight.withValues(alpha: 0),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
               Semantics(
                 label: daysSemantics,
                 excludeSemantics: false,
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpace.lg),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      ExcludeSemantics(
-                        child: Text(
-                          leadLabel,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            letterSpacing: 2.2,
-                            color: fg.withValues(alpha: 0.88),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      // 残日数: 大きさを一段抑えた細身のタビュラー数字
-                      // （叫ばない数字。高揚は細さと余白で表す）。
-                      Text.rich(
-                        TextSpan(
-                          children: daysUntil == 0
-                              ? [
-                                  const TextSpan(
-                                    text: '本日',
-                                    style: TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 1,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (leadLabel.isNotEmpty) ...[
+                                  ExcludeSemantics(
+                                    child: Text(
+                                      leadLabel,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        letterSpacing: 1.8,
+                                        color: fg.withValues(alpha: 0.85),
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                ]
-                              : [
-                                  TextSpan(
-                                    text: daysUntil > 0 ? 'あと ' : '',
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: .5,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: '${daysUntil.abs()}',
-                                    style: const TextStyle(
-                                      fontSize: 52,
-                                      fontWeight: FontWeight.w300,
-                                      height: 1.0,
-                                      letterSpacing: -1,
-                                      fontFeatures: [
-                                        FontFeature.tabularFigures(),
-                                      ],
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: daysUntil > 0 ? ' 日' : ' 日前',
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: .5,
-                                    ),
-                                  ),
+                                  const SizedBox(height: 6),
                                 ],
-                          style: const TextStyle(color: fg),
-                        ),
-                        semanticsLabel: daysLabel,
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    color: fg,
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.35,
+                                    letterSpacing: .2,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  artistName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: fg.withValues(alpha: 0.88),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpace.md),
+                          // 残日数は白い円形バッジで示す（読み上げは
+                          // 親の daysSemantics が担う）。
+                          ExcludeSemantics(
+                            child: _CountdownBadge(daysUntil: daysUntil),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: AppSpace.md),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: fg,
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w700,
-                          height: 1.4,
-                          letterSpacing: .2,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        artistName,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: fg.withValues(alpha: 0.9),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: AppSpace.xs),
+                      const SizedBox(height: AppSpace.lg),
                       Text(
                         [
                           dateLabel,
                           if (timeLabel != null) timeLabel!,
-                          if (venue != null) venue!,
                         ].join('　'),
                         style: TextStyle(
-                          fontSize: 11,
-                          color: fg.withValues(alpha: 0.9),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: fg.withValues(alpha: 0.95),
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (venue != null) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.place_outlined,
+                              size: 13,
+                              color: fg.withValues(alpha: 0.85),
+                            ),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                venue!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: fg.withValues(alpha: 0.9),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       if (statusItems.isNotEmpty) ...[
                         const SizedBox(height: AppSpace.lg),
                         // 状態ショートカットの4分割（§6.2）。磨りガラス風の帯に
@@ -312,6 +277,69 @@ class HeroEventCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 残日数を示す白い円形バッジ（デザイン刷新）。
+/// 写真・グラデーションのどちらの上でも読めるよう白面に菫の文字で固定する。
+class _CountdownBadge extends StatelessWidget {
+  const _CountdownBadge({required this.daysUntil});
+
+  final int daysUntil;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppTokens.of(context);
+    final accent = tokens.heroGradientEnd;
+    final (String? top, String main) = daysUntil == 0
+        ? (null, '本日')
+        : daysUntil > 0
+            ? ('あと', '$daysUntil日')
+            : (null, '${-daysUntil}日前');
+    return Container(
+      width: 66,
+      height: 66,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: .97),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .18),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (top != null)
+            Text(
+              top,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: accent.withValues(alpha: .75),
+                height: 1.1,
+              ),
+            ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              main,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: accent,
+                height: 1.15,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

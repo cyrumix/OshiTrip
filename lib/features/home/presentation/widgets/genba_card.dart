@@ -76,15 +76,16 @@ class GenbaCard extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  PrepChip(label: 'チケット', state: prep.ticket),
-                  PrepChip(label: '交通', state: prep.transport),
-                  PrepChip(label: '宿泊', state: prep.lodging),
                   if (aggregate.incompleteTodoCount > 0)
                     Chip(
                       avatar: const Icon(Icons.check_box_outlined, size: 16),
                       label: Text('Todo残り${aggregate.incompleteTodoCount}'),
                       visualDensity: VisualDensity.compact,
                     ),
+                  BelongingPrepChip(state: prep.belonging),
+                  PrepChip(label: 'チケット', state: prep.ticket),
+                  PrepChip(label: '交通', state: prep.transport),
+                  PrepChip(label: '宿泊', state: prep.lodging),
                 ],
               ),
               if (nextAction != null) ...[
@@ -183,6 +184,31 @@ class PrepChip extends StatelessWidget {
       child: Chip(
         avatar: Icon(icon, size: 16),
         label: Text('$label ${state.label}'),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
+/// 持ち物の準備状態チップ（未登録/未対応/準備OK）。Todoの残数表示とは別集計
+/// なので、[PrepChip]（チケット/交通/宿泊用）とは別の状態型を受け取る。
+class BelongingPrepChip extends StatelessWidget {
+  const BelongingPrepChip({super.key, required this.state});
+
+  final BelongingPrepState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = switch (state) {
+      BelongingPrepState.ready => Icons.check_circle_outline,
+      BelongingPrepState.pending => Icons.hourglass_bottom,
+      BelongingPrepState.notRegistered => Icons.radio_button_unchecked,
+    };
+    return Semantics(
+      label: '持ち物: ${state.label}',
+      child: Chip(
+        avatar: Icon(icon, size: 16),
+        label: Text('持ち物 ${state.label}'),
         visualDensity: VisualDensity.compact,
       ),
     );

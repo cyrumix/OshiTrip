@@ -30,8 +30,8 @@ class HomeScreen extends ConsumerWidget {
         ref.watch(nowProvider).valueOrNull ?? ref.watch(clockProvider).now();
 
     return AppScaffold(
-      // ホームはタイトルの代わりにロゴ（夜明けの一番星＋地平線）を掲げる。
-      showLogo: true,
+      // ホームはロゴ・タイトルを掲げず、次の現場のヒーローから始める
+      // （デザイン刷新: コンテンツが主役）。
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(genbaRepositoryProvider).refreshFromRemote();
@@ -70,7 +70,7 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 for (final today in todayItems)
                   TodayCard(aggregate: today, now: now),
-                if (hero != null)
+                if (hero != null) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpace.lg,
@@ -80,6 +80,16 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     child: _NextGenbaHero(aggregate: hero, now: now),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpace.lg,
+                      AppSpace.md,
+                      AppSpace.lg,
+                      0,
+                    ),
+                    child: _QuickStatusRow(aggregate: hero),
+                  ),
+                ],
                 if (upcomingRest.isNotEmpty) ...[
                   const SectionHeader(title: '今後の現場'),
                   for (final aggregate in upcomingRest)
@@ -122,7 +132,6 @@ class _NextGenbaHero extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final genba = aggregate.genba;
-    final prep = GenbaPreparation.of(aggregate);
     // 設定済みヒーロー画像の状態（present/missing/inaccessible）を確認し、
     // 表示できない場合は fallback だけで隠さず理由を明示する（§12）。
     final localRef = genba.heroImageLocalPath;
@@ -171,36 +180,61 @@ class _NextGenbaHero extends ConsumerWidget {
       imageAltText: genba.heroImageAltText,
       imageUnavailableNote: unavailableNote,
       onTap: () => context.push('/genba/${genba.id}'),
-      statusItems: [
-        StatusIconItem(
+    );
+  }
+}
+
+/// ヒーロー直下の準備状況タイル（モックアップ準拠の白タイル5分割）。
+/// タップで現場詳細へ移動する。状態は色だけでなく文言でも示す（§14）。
+class _QuickStatusRow extends StatelessWidget {
+  const _QuickStatusRow({required this.aggregate});
+
+  final GenbaAggregate aggregate;
+
+  @override
+  Widget build(BuildContext context) {
+    final prep = GenbaPreparation.of(aggregate);
+    final genbaId = aggregate.genba.id;
+    void open() => context.push('/genba/$genbaId');
+    return PrepStatusRow(
+      tiles: [
+        PrepStatusTile(
           icon: Icons.check_box_outlined,
           label: 'Todo',
           value: aggregate.incompleteTodoCount == 0
               ? '完了'
               : '残り${aggregate.incompleteTodoCount}',
-          emphasized: aggregate.incompleteTodoCount > 0,
-          onSurface: Colors.white,
+          attention: aggregate.incompleteTodoCount > 0,
+          onTap: open,
         ),
-        StatusIconItem(
+        // 持ち物はTodoとは別集計（対応状況）で表示する（§持ち物の準備ステータス）。
+        PrepStatusTile(
+          icon: Icons.backpack_outlined,
+          label: '持ち物',
+          value: prep.belonging.label,
+          attention: prep.belonging.needsAttention,
+          onTap: open,
+        ),
+        PrepStatusTile(
           icon: Icons.train_outlined,
           label: '交通',
           value: prep.transport.label,
-          emphasized: prep.transport.needsAttention,
-          onSurface: Colors.white,
+          attention: prep.transport.needsAttention,
+          onTap: open,
         ),
-        StatusIconItem(
+        PrepStatusTile(
           icon: Icons.hotel_outlined,
           label: '宿泊',
           value: prep.lodging.label,
-          emphasized: prep.lodging == CategoryPrepState.notRegistered,
-          onSurface: Colors.white,
+          attention: prep.lodging == CategoryPrepState.notRegistered,
+          onTap: open,
         ),
-        StatusIconItem(
+        PrepStatusTile(
           icon: Icons.confirmation_number_outlined,
           label: 'チケット',
           value: prep.ticket.label,
-          emphasized: prep.ticket.needsAttention,
-          onSurface: Colors.white,
+          attention: prep.ticket.needsAttention,
+          onTap: open,
         ),
       ],
     );

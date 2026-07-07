@@ -7,6 +7,7 @@ import '../../../core/images/image_status_provider.dart';
 import '../../../core/images/image_store.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
+import '../../itinerary/presentation/plan_tab.dart';
 import '../application/genba_actions_controller.dart';
 import '../application/genba_providers.dart';
 import '../domain/genba.dart';
@@ -25,7 +26,7 @@ class GenbaDetailScreen extends ConsumerWidget {
 
   final String genbaId;
 
-  static const _tabs = ['概要', 'Todo', 'チケット', '交通', '宿泊', 'メモ'];
+  static const _tabs = ['概要', 'Todo・持ち物', '計画', 'チケット', '交通', '宿泊', 'メモ'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,14 +43,23 @@ class GenbaDetailScreen extends ConsumerWidget {
         data: (aggregate) {
           final a = aggregate!;
           final genba = a.genba;
+          final topInset = MediaQuery.paddingOf(context).top;
           return DefaultTabController(
             length: _tabs.length,
             child: NestedScrollView(
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 SliverAppBar(
                   pinned: true,
-                  expandedHeight: 240,
-                  title: Text(genba.title, overflow: TextOverflow.ellipsis),
+                  expandedHeight: 292,
+                  // グローバルテーマは AppBarTheme.backgroundColor を
+                  // transparent にしている（AppScaffold の背景グラデーションを
+                  // 透過させるため）。だがこの画面は pinned な SliverAppBar が
+                  // スクロール中の本文を隠す必要があるため、ここだけ画面背景色で
+                  // 不透明にする（透明のままだと本文がタブ行に透けて重なる）。
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  // 画面名は固定し、公演名はヒーローカード側が担う
+                  // （モックアップ準拠。二重表示にしない）。
+                  title: const Text('現場詳細'),
                   actions: [
                     IconButton(
                       tooltip: '現場を編集',
@@ -63,12 +73,59 @@ class GenbaDetailScreen extends ConsumerWidget {
                   ],
                   flexibleSpace: FlexibleSpaceBar(
                     collapseMode: CollapseMode.pin,
-                    background: _GenbaHeroHeader(genba: genba, now: now),
+                    // ヒーローは端まで貼らず、余白を持つ浮かぶカードにする。
+                    // 折りたたみ中の高さ不足はクリップで吸収する
+                    // （Column のオーバーフローを出さない）。
+                    background: ClipRect(
+                      child: OverflowBox(
+                        alignment: Alignment.topCenter,
+                        minHeight: 0,
+                        maxHeight: double.infinity,
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            AppSpace.lg,
+                            topInset + kToolbarHeight + AppSpace.xs,
+                            AppSpace.lg,
+                            AppSpace.md,
+                          ),
+                          child: _GenbaHeroHeader(genba: genba, now: now),
+                        ),
+                      ),
+                    ),
                   ),
-                  bottom: TabBar(
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    tabs: [for (final t in _tabs) Tab(text: t)],
+                  bottom: PreferredSize(
+                    preferredSize: const Size.fromHeight(56),
+                    child: Padding(
+                      // ヒーロー・カード類と同じ左右余白に揃える（§3のリズム統一）。
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpace.lg,
+                        0,
+                        AppSpace.lg,
+                        AppSpace.sm,
+                      ),
+                      // 6タブは端末幅によって収まらないことがあるため
+                      // isScrollable は維持しつつ、収まる幅では中央寄せにして
+                      // 左詰め・右側の余白だけが目立つ見た目を避ける
+                      // （収まらない幅では自動的に横スクロールへ切り替わる）。
+                      child: TabBar(
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.center,
+                        padding: EdgeInsets.zero,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        tabs: [
+                          for (final t in _tabs)
+                            Tab(
+                              height: 40,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Text(t),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -76,6 +133,7 @@ class GenbaDetailScreen extends ConsumerWidget {
                 children: [
                   GenbaOverviewTab(aggregate: a, now: now),
                   TodoTab(aggregate: a),
+                  PlanTab(genbaAggregate: a),
                   TicketTab(aggregate: a),
                   TransportTab(aggregate: a),
                   LodgingTab(aggregate: a),
@@ -138,7 +196,8 @@ class _GenbaHeroHeader extends ConsumerWidget {
             ].join(' / '),
       venue: genba.venue,
       daysUntil: days,
-      leadLabel: days >= 0 ? '公演まで' : 'この公演は',
+      // 残日数はバッジが担うためリードは出さない（モックアップ準拠）。
+      leadLabel: '',
       imageFile: file,
       imageAltText: genba.heroImageAltText,
       imageUnavailableNote: unavailableNote,

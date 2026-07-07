@@ -81,6 +81,7 @@ lib/
     auth/                        # 登録・ログイン(§14)
     home/                        # ホーム/当日ホーム(§6)
     genba/                       # 現場: 作成/詳細/状態(§7) — ticket/transport/lodging/todo/memo
+    itinerary/                   # 現場の計画: spot/entry/leg/map連携(§7.9)
     memory/                      # 思い出(§8)
     oshi/                        # マイ推し(§9)
     performance_db/              # ユーザー投稿型公演DB(§10)
@@ -122,12 +123,15 @@ supabase/
 - リポジトリは **Result型**（`Result<T, Failure>`）を返し、例外を上位へ素通ししない。ネットワーク/認可/バリデーション/競合の各Failureを型で区別する。
 - DTO（Supabase行 ↔ JSON）とドメインエンティティを分離し、マッピング層で変換。センシティブ項目はDTO→ログ出力時にマスク。
 - 読み取りは **ローカルキャッシュ優先→バックグラウンド同期**（§15.3）。書き込みは即ローカル反映→Outbox→サーバー同期（§15.3 自動保存/通信復旧後同期）。
+- Places／Routesは`itinerary` domainから直接呼ばず、`PlacesGateway`／`RoutesGateway`抽象をapplication層から利用する。Web Service用Google APIキーはクライアントへ置かず、認証・クォータ・Field Mask allowlistを持つEdge Function等のサーバー境界から呼ぶ（[ADR-0010](adr/0010-google-maps-platform.md)）。
+- Google DTOを永続ドメインへ漏らさず、欠落フィールドを許容するアプリ内スナップショットへ変換する。手動データと外部取得データのsource・取得日時・stale状態を区別する。
 
 ## 7. ローカルキャッシュ / オフライン
 
 **採用: Drift（SQLite）** — [ADR-0005](adr/0005-local-persistence-drift.md)。
 
 - 当日重要情報（チケット表示メタ、座席/整理番号、開場・開演・終演、交通、宿泊, §6.2）をローカルへキャッシュし、オフライン閲覧可能にする。
+- 保存済み旅程、スポット、ユーザー画像サムネイル、最後に取得した経路概要もローカルへ保持する。Google検索、Google写真の新規取得、経路再計算はオフライン対象外だが、手動旅程の閲覧・編集を止めない。
 - **Outboxパターン**: 変更をローカルにコミット＋未同期キューへ。接続回復で冪等に再送（`client_mutation_id` で二重送信防止, §15.3 再試行）。
 - チケット**画像**はSupabase Storageの署名付きURLで取得し、端末側は認可付きキャッシュに保存。画像バイト列はログに出さない（§15.2）。
 - 外部チケットサービスへのリンクと保存済みチケット画像はデータモデル上も別項目として区別（§6.2）。

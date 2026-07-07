@@ -60,6 +60,8 @@ void main() {
 
     // 準備状態は実データから導出（チケット未登録）。
     expect(find.text('チケット 未登録'), findsNWidgets(2));
+    // 持ち物はTodoとは別に、独立した準備チップとして一覧にも出る。
+    expect(find.text('持ち物 未登録'), findsNWidgets(2));
 
     // 未来の中止現場は一覧から消えず「中止」と分かる（H-07）。
     expect(find.text('中止になった公演'), findsOneWidget);

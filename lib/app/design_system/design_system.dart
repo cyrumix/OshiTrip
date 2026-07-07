@@ -17,6 +17,7 @@ export 'loading_skeleton.dart';
 export 'oshi_avatar.dart';
 export 'oshitrip_logo.dart';
 export 'photo_memory_card.dart';
+export 'prep_status_tile.dart';
 export 'section_header.dart';
 export 'segment_tabs.dart';
 export 'settings_row.dart';

@@ -22,6 +22,13 @@ class SyncEntity {
   static const oshiGroups = 'oshi_groups';
   static const oshiMembers = 'oshi_members';
   static const oshiAnniversaries = 'oshi_anniversaries';
+  static const todoTemplates = 'todo_templates';
+  static const todoTemplateItems = 'todo_template_items';
+  static const itineraryPlans = 'itinerary_plans';
+  static const itinerarySpots = 'itinerary_spots';
+  static const itinerarySpotLinks = 'itinerary_spot_links';
+  static const itineraryEntries = 'itinerary_entries';
+  static const itineraryLegs = 'itinerary_legs';
 
   static const all = [
     genbas,
@@ -38,6 +45,13 @@ class SyncEntity {
     oshiGroups,
     oshiMembers,
     oshiAnniversaries,
+    todoTemplates,
+    todoTemplateItems,
+    itineraryPlans,
+    itinerarySpots,
+    itinerarySpotLinks,
+    itineraryEntries,
+    itineraryLegs,
   ];
 
   /// 競合解決UI等でエンティティ種別を日本語表示するためのラベル。
@@ -56,6 +70,13 @@ class SyncEntity {
         oshiGroups => '推しグループ',
         oshiMembers => '推しメンバー',
         oshiAnniversaries => '記念日',
+        todoTemplates => 'テンプレート',
+        todoTemplateItems => 'テンプレート項目',
+        itineraryPlans => '計画',
+        itinerarySpots => 'スポット',
+        itinerarySpotLinks => 'スポットのリンク',
+        itineraryEntries => '旅程項目',
+        itineraryLegs => '移動区間',
         _ => 'データ',
       };
 }

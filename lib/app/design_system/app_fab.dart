@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_tokens.dart';
 
-/// 共通FAB（HOME刷新デザイン案）。
+/// 共通FAB（デザイン刷新）。
 ///
-/// 「＋」アイコンのみの正方形寄り角丸。菫のグラデーション面に、下端へ
-/// かすかな暁の縁光をにじませる（夜明けの光＝これから増える現場の予感）。
-/// 中身は [FloatingActionButton] のままなのでタップ領域・Semantics・
-/// Tooltip の挙動は標準どおり。
+/// 「＋」アイコンのみの円形。菫のグラデーション面＋やわらかい紫の影で
+/// 画面に浮かべる。中身は [FloatingActionButton] のままなので
+/// タップ領域・Semantics・Tooltip の挙動は標準どおり。
 class AppFab extends StatelessWidget {
   const AppFab({
     super.key,
@@ -25,27 +24,19 @@ class AppFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppTokens.of(context);
-    const radius = 19.0;
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
+        shape: BoxShape.circle,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [tokens.heroGradientEnd, tokens.heroGradientMid],
+          colors: [tokens.heroGradientStart, tokens.heroGradientEnd],
         ),
         boxShadow: [
           BoxShadow(
-            color: tokens.heroGradientMid.withValues(alpha: .4),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-          // 下端の暁の縁光。
-          BoxShadow(
-            color: tokens.dawn.withValues(alpha: .45),
-            blurRadius: 6,
-            spreadRadius: -2,
-            offset: const Offset(0, 3),
+            color: tokens.heroGradientMid.withValues(alpha: .38),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -57,10 +48,8 @@ class AppFab extends StatelessWidget {
         highlightElevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radius),
-        ),
-        child: Icon(icon),
+        shape: const CircleBorder(),
+        child: Icon(icon, size: 26),
       ),
     );
   }
