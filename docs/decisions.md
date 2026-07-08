@@ -750,3 +750,19 @@ D-188〜D-193（計画機能の仕様変更）のレビューで見つかった2
   - Issue3（`memory_album_test` ドメイン＋`repositories_test`）: 形状不変条件の許可/拒否マトリクス／food→spot・場所→food の category 不一致拒否／event+subject 拒否／別genba 参照拒否。
 - **未実施**: `supabase test db`（0019/0020 の pgTAP。Docker 未導入で起動不可。CLI は有）。integration_test は本修正専用シナリオ無し・デスクトッププラグイン依存のため未実行（unit/widget 677件で担保）。
 - **DB migration**: Drift **v14**（`pending_image_deletions` 追加のみ・既存不変）、Supabase **0020**（検証トリガ追加）。いずれも追加専用で過去 migration は不変。
+
+## Phase 3前調整（再レビュー指摘対応, 2026-07-08, Claude Haiku 4.5）: アルバム2件修正
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-205 | **[High] `memory_photos.subject_id` を text→uuid へ統一**（Supabase **0021**・前方専用）。参照先 `goods_items.id`/`visited_places.id` は uuid のため、0020 トリガの `id = new.subject_id` が uuid=text で `operator does not exist` になり得た。列を uuid にすることでトリガは **uuid 同士**で比較（文字列連結・動的SQL・キャスト回避はしない）。既存データ移行: NULL はそのまま／正しい UUID 文字列は uuid へ変換／不正な文字列は先に `subject_type`・`subject_id` を NULL へ戻して「関連解除済み」にしてから `alter … type uuid using subject_id::uuid`（クラッシュさせない・album_category と写真は維持・写真は消さない）。ローカル Drift(SQLite) は subject_id を TEXT のまま（uuid型なし・同期は文字列往復、`jsonb_populate_record` が uuid へ復元）。pgTAP `0011` は実検査数と `plan` を一致（**plan(17)**：UPDATE 正例と apply_mutation 正例を追加） | uuid 列同士の比較にすることが最も直截で、回避策（連結・動的SQL）を持ち込まない。不正既存値は写真を失わせず安全に関連解除する |
+| D-206 | **[Medium] 画像削除キューの自動再試行**。`flushPendingImageDeletions` を認証確定時（起動・セッション復元・ユーザー切替）に `sessionSyncProvider` からバックグラウンド起動（`unawaited`＋sync/async 例外を握って認証フローを妨げない・UI をブロックしない）。owner スコープ・多重実行防止（`_flushingImages` ガード）・冪等（`deleteRefStrict` は対象無しでも成功）・自動再試行上限（`_maxImageDeletionAttempts=8` 以上は自動処理せず残す＝短時間の無限再試行を避ける）・1件失敗で他を止めない・別 owner のファイルに触れない。`local_data_purge`（アカウント削除／purge 再開）で対象 owner の `pending_image_deletions` を削除（実ファイルは `imageStore.purgeOwner` が owner 単位で全削除・他 owner のキュー/ファイルは残す） | 削除直後だけでなく後続の起動でも確実に片付ける。背景保守は失敗しても本流（認証・起動）を絶対に壊さない。ログアウト後に旧 owner の削除予定情報を放置しない |
+
+### 検証状況（再レビュー2件修正）
+
+- `dart format` 差分なし、`dart analyze lib test integration_test` クリーン、`flutter test` **684件 全パス**、`git diff --check` クリーン。
+- 新規/更新テスト（Issue2）: `repositories_test`（成功行だけ消える／失敗行は attempts・lastError 増・残存／1件失敗でも他処理／別owner不干渉／多重実行安全／purge で対象owner キュー削除）、`image_deletion_retry_startup_test`（認証確定でキューを背景処理）。
+- **subject_id 型**: 変更前 **text** → 変更後 **uuid**（Supabase）。ローカル SQLite は TEXT のまま。
+- **pgTAP 実検査数**: **17**（`plan(17)` と一致）。event/goods/visited_place/food の保存・UPDATE正例・apply_mutation正例・各種負例（片方だけ/種別不一致/category不一致/別owner/別genba/存在しない）を含む。
+- **未実施**: `supabase db reset` / `supabase test db`（0019/0020/0021 の適用と pgTAP。Docker 未導入で起動不可・CLI は有）。integration_test は本修正専用シナリオ無し・デスクトッププラグイン依存のため未実行（unit/widget 684件で担保）。
+- **DB migration**: Supabase **0021**（subject_id を uuid 化・前方専用）。Drift 変更なし（SQLite は TEXT 継続）。過去 migration は不変。

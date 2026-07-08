@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oshi_trip/core/db/app_database.dart';
+import 'package:oshi_trip/core/db/local_data_purge.dart';
 import 'package:oshi_trip/core/error/failure.dart';
 import 'package:oshi_trip/core/images/image_store.dart';
 import 'package:oshi_trip/core/logging/app_logger.dart';
@@ -30,6 +32,19 @@ class _ThrowingImageStore extends ImageStore {
   @override
   Future<void> deleteRefStrict(String ownerId, String ref) async {
     throw const FileSystemException('forced delete failure');
+  }
+}
+
+/// ref に 'FAIL' を含むときだけ削除に失敗する ImageStore（Issue2: 1件失敗でも
+/// 他の行が処理されることの検証）。それ以外は成功（冪等・実ファイル不要）。
+class _SelectiveFailImageStore extends ImageStore {
+  _SelectiveFailImageStore(super.baseDir);
+
+  @override
+  Future<void> deleteRefStrict(String ownerId, String ref) async {
+    if (ref.contains('FAIL')) {
+      throw const FileSystemException('forced delete failure');
+    }
   }
 }
 
@@ -595,6 +610,110 @@ void main() {
       expect(await queueCount(), 0);
       // アルバムのグッズ分類から引き続き確認できる。
       expect(bundle.photosInAlbum(MemoryAlbumCategory.goods), hasLength(3));
+    });
+  });
+
+  // --------------------------------------------------------------------
+  // Issue2: 画像削除キューの自動再試行（flush）
+  // --------------------------------------------------------------------
+  group('画像削除キューの再試行（Issue2）', () {
+    MemoryRepositoryImpl repoWith(ImageStore store) => MemoryRepositoryImpl(
+          db: db,
+          outbox: outbox,
+          syncEngine: engine,
+          clock: clock,
+          ownerIdResolver: () => 'user-1',
+          imageStoreResolver: () => store,
+        );
+
+    Future<void> seedQueue(
+      String id,
+      String owner,
+      String ref, {
+      int attempts = 0,
+    }) =>
+        db.into(db.pendingImageDeletions).insert(
+              PendingImageDeletionsCompanion.insert(
+                id: id,
+                ownerId: owner,
+                ref: ref,
+                attempts: Value(attempts),
+                createdAt: fixedCreatedAt.toIso8601String(),
+                updatedAt: fixedCreatedAt.toIso8601String(),
+              ),
+            );
+
+    Future<List<PendingImageDeletionRow>> queueRows() =>
+        db.select(db.pendingImageDeletions).get();
+
+    ImageStore workingStore() =>
+        ImageStore(Directory.systemTemp.createTempSync('oshi_img_ok'));
+
+    test('3. 成功した行だけキューから消える', () async {
+      await seedQueue('q1', 'user-1', 'images/user-1/memory_photo/a.jpg');
+      await seedQueue('q2', 'user-1', 'images/user-1/memory_photo/b.jpg');
+      await repoWith(workingStore()).flushPendingImageDeletions('user-1');
+      expect(await queueRows(), isEmpty);
+    });
+
+    test('2. 失敗した行は残り、attempts と lastError が増える', () async {
+      await seedQueue('q1', 'user-1', 'images/user-1/memory_photo/a.jpg');
+      final dir = Directory.systemTemp.createTempSync('oshi_img_fail');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      await repoWith(_ThrowingImageStore(dir))
+          .flushPendingImageDeletions('user-1');
+      final rows = await queueRows();
+      expect(rows, hasLength(1));
+      expect(rows.single.attempts, 1);
+      expect((rows.single.lastError ?? '').isNotEmpty, isTrue);
+    });
+
+    test('4. 複数行のうち1件失敗しても他は処理される', () async {
+      await seedQueue('q1', 'user-1', 'images/user-1/memory_photo/ok1.jpg');
+      await seedQueue('q2', 'user-1', 'images/user-1/memory_photo/FAIL.jpg');
+      await seedQueue('q3', 'user-1', 'images/user-1/memory_photo/ok2.jpg');
+      final dir = Directory.systemTemp.createTempSync('oshi_img_sel');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      await repoWith(_SelectiveFailImageStore(dir))
+          .flushPendingImageDeletions('user-1');
+      final rows = await queueRows();
+      // 失敗した1件だけ残る。
+      expect(rows.map((r) => r.id), ['q2']);
+      expect(rows.single.attempts, 1);
+    });
+
+    test('5. 別 owner のキューには触れない', () async {
+      await seedQueue('q1', 'user-1', 'images/user-1/memory_photo/a.jpg');
+      await seedQueue('q2', 'user-2', 'images/user-2/memory_photo/b.jpg');
+      await repoWith(workingStore()).flushPendingImageDeletions('user-1');
+      final rows = await queueRows();
+      // user-2 の行は残る。
+      expect(rows.map((r) => r.id), ['q2']);
+    });
+
+    test('7. 多重実行しても例外や二重削除が起きない', () async {
+      await seedQueue('q1', 'user-1', 'images/user-1/memory_photo/a.jpg');
+      await seedQueue('q2', 'user-1', 'images/user-1/memory_photo/b.jpg');
+      final repo = repoWith(workingStore());
+      // 並行実行（ガードで一方はスキップ）＋逐次再実行（冪等）でも安全。
+      await Future.wait([
+        repo.flushPendingImageDeletions('user-1'),
+        repo.flushPendingImageDeletions('user-1'),
+      ]);
+      await repo.flushPendingImageDeletions('user-1');
+      expect(await queueRows(), isEmpty);
+    });
+
+    test('6. ローカルデータ削除で対象 owner のキューだけ消える', () async {
+      await seedQueue('q1', 'user-1', 'images/user-1/memory_photo/a.jpg');
+      await seedQueue('q2', 'user-2', 'images/user-2/memory_photo/b.jpg');
+      await purgeLocalDataForOwner(
+        db,
+        'user-1',
+        imageStore: workingStore(),
+      );
+      final rows = await queueRows();
+      expect(rows.map((r) => r.id), ['q2']);
     });
   });
 

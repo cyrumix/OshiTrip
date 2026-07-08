@@ -25,6 +25,12 @@ Future<void> purgeLocalDataForOwner(
         .go();
     await (db.delete(db.memoryPhotos)..where((t) => t.ownerId.equals(ownerId)))
         .go();
+    // 画像削除の再試行キューも対象 owner 分を消す（Issue2）。実ファイルは下の
+    // imageStore.purgeOwner が owner 単位で全削除するため、キュー行は不要になる。
+    // 他 owner のキューには触れない。
+    await (db.delete(db.pendingImageDeletions)
+          ..where((t) => t.ownerId.equals(ownerId)))
+        .go();
     await (db.delete(db.setlistItems)..where((t) => t.ownerId.equals(ownerId)))
         .go();
     await (db.delete(db.goodsItems)..where((t) => t.ownerId.equals(ownerId)))

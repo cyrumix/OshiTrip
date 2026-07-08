@@ -51,6 +51,13 @@ class MemoryRepositoryImpl implements MemoryRepository {
   /// `outbox`（Outbox 登録時）。本番経路では常に null。
   String? deleteFailStage;
 
+  /// 画像削除キューの flush 実行中フラグ（多重実行・二重削除を防ぐ）。
+  bool _flushingImages = false;
+
+  /// 自動再試行の上限。これ以上失敗した行は自動処理せず残す（短時間の無限
+  /// 再試行を避ける）。
+  static const _maxImageDeletionAttempts = 8;
+
   static const _uuid = Uuid();
 
   DateTime get _now => _clock.now().toUtc();
@@ -491,32 +498,47 @@ class MemoryRepositoryImpl implements MemoryRepository {
   }
 
   /// 画像削除キューを処理する。成功した行は除去し、失敗した行は試行回数と理由を
-  /// 記録して残す（再試行対象, Issue1）。[ImageStore] 未設定時は何もしない
-  /// （後続の起動などで再試行される）。
+  /// 記録して残す（再試行対象, Issue1）。owner スコープで別ユーザーのファイルには
+  /// 触れない。1件の失敗で他の処理を止めない。多重実行は [_flushingImages] で防ぐ
+  /// （二重削除を避ける）。[deleteRefStrict] は対象が無ければ成功扱い（冪等）。
+  /// 試行回数が [_maxImageDeletionAttempts] 以上の行は自動再試行しない
+  /// （短時間の無限再試行を避ける。行自体は残す）。[ImageStore] 未設定時は何も
+  /// しない（後続の起動などで再試行される）。
   @override
   Future<void> flushPendingImageDeletions(String owner) async {
     final store = _imageStore();
     if (store == null) return;
-    final rows = await (_db.select(_db.pendingImageDeletions)
-          ..where((t) => t.ownerId.equals(owner)))
-        .get();
-    for (final r in rows) {
-      try {
-        await store.deleteRefStrict(owner, r.ref);
-        await (_db.delete(_db.pendingImageDeletions)
-              ..where((t) => t.id.equals(r.id)))
-            .go();
-      } catch (e) {
-        await (_db.update(_db.pendingImageDeletions)
-              ..where((t) => t.id.equals(r.id)))
-            .write(
-          PendingImageDeletionsCompanion(
-            attempts: Value(r.attempts + 1),
-            lastError: Value(e.toString()),
-            updatedAt: Value(_now.toIso8601String()),
-          ),
-        );
+    if (_flushingImages) return; // 多重実行防止
+    _flushingImages = true;
+    try {
+      final rows = await (_db.select(_db.pendingImageDeletions)
+            ..where(
+              (t) =>
+                  t.ownerId.equals(owner) &
+                  t.attempts.isSmallerThanValue(_maxImageDeletionAttempts),
+            ))
+          .get();
+      for (final r in rows) {
+        try {
+          await store.deleteRefStrict(owner, r.ref);
+          await (_db.delete(_db.pendingImageDeletions)
+                ..where((t) => t.id.equals(r.id)))
+              .go();
+        } catch (e) {
+          // 1件の失敗で他を止めない。試行回数と理由を記録して残す。
+          await (_db.update(_db.pendingImageDeletions)
+                ..where((t) => t.id.equals(r.id)))
+              .write(
+            PendingImageDeletionsCompanion(
+              attempts: Value(r.attempts + 1),
+              lastError: Value(e.toString()),
+              updatedAt: Value(_now.toIso8601String()),
+            ),
+          );
+        }
       }
+    } finally {
+      _flushingImages = false;
     }
   }
 

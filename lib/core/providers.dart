@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
@@ -310,6 +312,20 @@ final sessionSyncProvider = Provider<void>((ref) {
       if (next is LocalDataScopeAuthenticated) {
         coordinator.onAuthenticated();
         refresher.onAuthenticated(next.ownerId);
+        // 認証確定時（起動・セッション復元・ユーザー切替）に、前回失敗した画像
+        // ファイル削除をバックグラウンドで再試行する（owner スコープ・非ブロッキング・
+        // 多重実行安全, Issue2）。UI 起動は待たせない。背景保守は認証フローを
+        // 決して妨げない（同期例外・非同期エラーとも握って無視する）。
+        try {
+          unawaited(
+            ref
+                .read(memoryRepositoryProvider)
+                .flushPendingImageDeletions(next.ownerId)
+                .catchError((Object _) {}),
+          );
+        } catch (_) {
+          // 背景処理の起動失敗は無視する。
+        }
       } else if (next is LocalDataScopeUnauthenticated) {
         refresher.reset();
       }

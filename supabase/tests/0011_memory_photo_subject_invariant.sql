@@ -9,7 +9,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(16);
+select plan(17);
 
 insert into auth.users (id, email)
 values
@@ -33,7 +33,10 @@ values ('a1111111-0000-0000-0000-000000000001',
 insert into public.goods_items (id, genba_id, owner_id, name)
 values ('90000000-0000-0000-0000-000000000001',
         'a1111111-0000-0000-0000-000000000001',
-        '11111111-1111-1111-1111-111111111111', 'ペンライト');
+        '11111111-1111-1111-1111-111111111111', 'ペンライト'),
+       ('90000000-0000-0000-0000-000000000005',
+        'a1111111-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111', 'グッズ2');
 
 insert into public.visited_places (id, genba_id, owner_id, name, category)
 values ('40000000-0000-0000-0000-000000000001',
@@ -236,6 +239,33 @@ select throws_ok(
       null)$$,
   'event photo must not reference a subject',
   'apply_mutation is also rejected by the subject invariant'
+);
+
+-- UPDATE 正例: グッズ写真の関連先を別の有効なグッズへ付け替えられる（uuid比較）。
+select lives_ok(
+  $$update public.memory_photos
+      set subject_id = '90000000-0000-0000-0000-000000000005'
+    where id = 'c0000000-0000-0000-0000-000000000002'$$,
+  'update goods photo to another valid goods succeeds (uuid = uuid)'
+);
+
+-- apply_mutation 正例: 有効なグッズ写真の upsert は適用される。
+select is(
+  (select public.apply_mutation(
+      'dddddddd-0000-0000-0000-0000000000fb'::uuid,
+      'memory_photos',
+      'c0000000-0000-0000-0000-0000000000fb'::uuid,
+      'upsert',
+      jsonb_build_object(
+        'id', 'c0000000-0000-0000-0000-0000000000fb',
+        'genba_id', 'a1111111-0000-0000-0000-000000000001',
+        'owner_id', '11111111-1111-1111-1111-111111111111',
+        'album_category', 'goods',
+        'subject_type', 'goods',
+        'subject_id', '90000000-0000-0000-0000-000000000001'),
+      null) ->> 'status'),
+  'applied',
+  'apply_mutation accepts a valid goods photo (positive)'
 );
 
 select * from finish();
