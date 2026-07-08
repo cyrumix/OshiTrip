@@ -58,6 +58,12 @@ _$MemoryPhotoImpl _$$MemoryPhotoImplFromJson(Map<String, dynamic> json) =>
       caption: json['caption'] as String?,
       isCover: json['is_cover'] as bool? ?? false,
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+      albumCategory: $enumDecodeNullable(
+              _$MemoryAlbumCategoryEnumMap, json['album_category']) ??
+          MemoryAlbumCategory.event,
+      subjectType:
+          $enumDecodeNullable(_$MemorySubjectTypeEnumMap, json['subject_type']),
+      subjectId: json['subject_id'] as String?,
       createdAt:
           const UtcDateTimeConverter().fromJson(json['created_at'] as String),
       updatedAt:
@@ -75,6 +81,9 @@ Map<String, dynamic> _$$MemoryPhotoImplToJson(_$MemoryPhotoImpl instance) =>
       'caption': instance.caption,
       'is_cover': instance.isCover,
       'sort_order': instance.sortOrder,
+      'album_category': _$MemoryAlbumCategoryEnumMap[instance.albumCategory]!,
+      'subject_type': _$MemorySubjectTypeEnumMap[instance.subjectType],
+      'subject_id': instance.subjectId,
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
     };
@@ -84,6 +93,18 @@ const _$PhotoUploadStatusEnumMap = {
   PhotoUploadStatus.queued: 'queued',
   PhotoUploadStatus.uploaded: 'uploaded',
   PhotoUploadStatus.failed: 'failed',
+};
+
+const _$MemoryAlbumCategoryEnumMap = {
+  MemoryAlbumCategory.event: 'event',
+  MemoryAlbumCategory.goods: 'goods',
+  MemoryAlbumCategory.visitedPlace: 'visited_place',
+  MemoryAlbumCategory.food: 'food',
+};
+
+const _$MemorySubjectTypeEnumMap = {
+  MemorySubjectType.goods: 'goods',
+  MemorySubjectType.visitedPlace: 'visited_place',
 };
 
 _$SetlistItemImpl _$$SetlistItemImplFromJson(Map<String, dynamic> json) =>

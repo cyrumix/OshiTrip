@@ -67,7 +67,7 @@ String _timelineEntryLabel(ItineraryTimelineEntry item) {
     case ItineraryEntryKind.transport:
       final t = item.transport;
       if (t == null) return '交通（削除済み）';
-      return '${t.direction.label} ${t.method ?? ''}'.trim();
+      return '${t.direction.label} ${t.methodDisplay}'.trim();
     case ItineraryEntryKind.lodging:
       return item.lodging?.name ?? '宿泊先';
     case ItineraryEntryKind.note:
@@ -713,7 +713,7 @@ class _EntryCard extends ConsumerWidget {
       case ItineraryEntryKind.transport:
         final t = item.transport;
         if (t == null) return '交通（削除済み）';
-        return '${t.direction.label} ${t.method ?? ''}'.trim();
+        return '${t.direction.label} ${t.methodDisplay}'.trim();
       case ItineraryEntryKind.lodging:
         final l = item.lodging;
         if (l == null) return '宿泊（削除済み）';

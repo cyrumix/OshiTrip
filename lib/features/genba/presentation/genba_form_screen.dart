@@ -9,6 +9,7 @@ import '../../../core/time/date_only.dart';
 import '../../oshi/application/oshi_providers.dart';
 import '../../oshi/domain/oshi.dart';
 import '../application/genba_form_controller.dart';
+import '../domain/genba.dart';
 import '../domain/genba_schedule.dart';
 
 /// 現場作成/編集フォーム（§7.2）。
@@ -29,7 +30,7 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
   TextEditingController? _artist;
   TextEditingController? _title;
   TextEditingController? _venue;
-  TextEditingController? _type;
+  TextEditingController? _typeOther;
   bool _restoredShown = false;
   bool _submitting = false;
 
@@ -38,7 +39,7 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
     _artist?.dispose();
     _title?.dispose();
     _venue?.dispose();
-    _type?.dispose();
+    _typeOther?.dispose();
     super.dispose();
   }
 
@@ -47,7 +48,7 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
     _artist = TextEditingController(text: form.artistName);
     _title = TextEditingController(text: form.title);
     _venue = TextEditingController(text: form.venue);
-    _type = TextEditingController(text: form.performanceType);
+    _typeOther = TextEditingController(text: form.performanceTypeOther);
   }
 
   Future<void> _submit() async {
@@ -204,14 +205,41 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _type,
-                    decoration: const InputDecoration(
-                      labelText: '公演種別（ライブ・リリイベ・舞台 など）',
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '公演種別',
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
-                    onChanged: (v) => controller
-                        .mutate((s) => s.copyWith(performanceType: v)),
                   ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (final t in PerformanceType.values)
+                        ChoiceChip(
+                          label: Text(t.label),
+                          selected: form.performanceType == t,
+                          onSelected: (isSelected) => controller.mutate(
+                            (s) => isSelected
+                                ? s.copyWith(performanceType: t)
+                                : s.copyWith(clearPerformanceType: true),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (form.performanceType == PerformanceType.other) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _typeOther,
+                      decoration: const InputDecoration(
+                        labelText: '公演種別（自由入力・任意）',
+                      ),
+                      onChanged: (v) => controller
+                          .mutate((s) => s.copyWith(performanceTypeOther: v)),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerLeft,

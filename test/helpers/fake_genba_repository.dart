@@ -155,6 +155,13 @@ class FakeGenbaRepository implements GenbaRepository {
   Future<Result<void>> deleteMemo(String id) => _inner.deleteMemo(id);
 
   @override
+  Future<Result<void>> reorderMemos({
+    required String genbaId,
+    required List<String> orderedIds,
+  }) =>
+      _inner.reorderMemos(genbaId: genbaId, orderedIds: orderedIds);
+
+  @override
   Future<Result<void>> refreshFromRemote({bool Function()? isStale}) =>
       _inner.refreshFromRemote(isStale: isStale);
 

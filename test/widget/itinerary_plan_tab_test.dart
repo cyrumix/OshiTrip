@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oshi_trip/core/providers.dart';
 import 'package:oshi_trip/core/time/clock.dart';
+import 'package:oshi_trip/features/genba/domain/genba.dart';
 import 'package:oshi_trip/features/genba/presentation/genba_detail_screen.dart';
 import 'package:oshi_trip/features/itinerary/domain/itinerary_entry.dart';
 
@@ -178,7 +179,7 @@ void main() {
         id: 'tr-1',
         genbaId: genbaId,
         ownerId: ownerId,
-        method: '新幹線',
+        method: TransportMethod.shinkansen,
         fromPlace: '東京',
         toPlace: '大阪',
       ),

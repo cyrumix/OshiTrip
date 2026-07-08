@@ -70,7 +70,16 @@ class MemoryEditController
 
   /// [pickedPath]（ImagePicker の一時パス）をアプリ管理領域へコピーし、
   /// DB には相対参照を保存する（H-04: 一時パスに依存しない耐久保存）。
-  Future<Failure?> addPhoto(String pickedPath) async {
+  ///
+  /// [albumCategory]/[subjectType]/[subjectId] を渡すとグッズ・行った場所・
+  /// 食べものへ紐づく写真として保存する（§8.4）。保存元は同一テーブルに
+  /// 一本化し、画面ごとに画像を複製しない。関連項目の実在検証は Repository が行う。
+  Future<Failure?> addPhoto(
+    String pickedPath, {
+    MemoryAlbumCategory albumCategory = MemoryAlbumCategory.event,
+    MemorySubjectType? subjectType,
+    String? subjectId,
+  }) async {
     final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
     if (owner.isEmpty) return const AuthFailure(message: 'ログインが必要です');
     final now = ref.read(clockProvider).now().toUtc();
@@ -93,6 +102,9 @@ class MemoryEditController
       ownerId: owner,
       localPath: storedRef,
       sortOrder: bundle.photos.length,
+      albumCategory: albumCategory,
+      subjectType: subjectType,
+      subjectId: subjectId,
       createdAt: now,
       updatedAt: now,
     );

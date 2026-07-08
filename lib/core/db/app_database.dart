@@ -26,6 +26,88 @@ WHERE is_cover = 1 AND EXISTS (
     )
 )''';
 
+/// 旧・自由入力の `performance_type` を安定コードへ変換する CASE 式
+/// （schema v10 / Supabase 0016 と同一ロジック）。既にコードなら素通しし、
+/// 既知の語を含む値を対応コードへ、変換できない値は 'other' にする。
+/// SQLite・Postgres 双方で動く（LIKE / lower / trim のみ使用）。
+const String performanceTypeCodeCaseSql = '''
+CASE
+  WHEN performance_type IN ('live_concert','festival','release_event',
+    'meet_greet','fan_meeting','talk_event','stage_musical','exhibition',
+    'sports','online','other') THEN performance_type
+  WHEN performance_type LIKE '%ライブ%' OR performance_type LIKE '%コンサート%'
+    OR performance_type LIKE '%ワンマン%' OR lower(performance_type) LIKE '%live%'
+    THEN 'live_concert'
+  WHEN performance_type LIKE '%フェス%' OR lower(performance_type) LIKE '%festival%'
+    THEN 'festival'
+  WHEN performance_type LIKE '%リリイベ%' OR performance_type LIKE '%リリース%'
+    THEN 'release_event'
+  WHEN performance_type LIKE '%特典会%' OR performance_type LIKE '%撮影会%'
+    OR performance_type LIKE '%チェキ%' THEN 'meet_greet'
+  WHEN performance_type LIKE '%ファンミ%' THEN 'fan_meeting'
+  WHEN performance_type LIKE '%トーク%' THEN 'talk_event'
+  WHEN performance_type LIKE '%舞台%' OR performance_type LIKE '%ミュージカル%'
+    OR performance_type LIKE '%演劇%' THEN 'stage_musical'
+  WHEN performance_type LIKE '%展示%' OR performance_type LIKE '%展覧%'
+    THEN 'exhibition'
+  WHEN performance_type LIKE '%スポーツ%' OR performance_type LIKE '%観戦%'
+    OR performance_type LIKE '%試合%' THEN 'sports'
+  WHEN performance_type LIKE '%オンライン%' OR performance_type LIKE '%配信%'
+    OR lower(performance_type) LIKE '%online%' THEN 'online'
+  ELSE 'other'
+END''';
+
+/// 既知の公演種別コード（移行で「既にコードか」を判定する）。
+const String performanceTypeKnownCodesInList =
+    "('live_concert','festival','release_event','meet_greet','fan_meeting',"
+    "'talk_event','stage_musical','exhibition','sports','online','other')";
+
+/// 旧・自由入力の transports.method を安定コードへ変換する CASE 式
+/// （schema v11 / Supabase 0017 と同一ロジック）。既にコードなら素通し。
+const String transportMethodCodeCaseSql = '''
+CASE
+  WHEN method IN ('shinkansen','train','airplane','highway_bus','local_bus',
+    'private_car','rental_car','ferry','taxi','walk_bicycle','other')
+    THEN method
+  WHEN method LIKE '%新幹線%' THEN 'shinkansen'
+  WHEN method LIKE '%夜行バス%' OR method LIKE '%高速バス%' THEN 'highway_bus'
+  WHEN method LIKE '%路線バス%' THEN 'local_bus'
+  WHEN method LIKE '%レンタカー%' OR lower(method) LIKE '%rental%'
+    THEN 'rental_car'
+  WHEN method LIKE '%自家用%' OR method LIKE '%マイカー%' THEN 'private_car'
+  WHEN method LIKE '%タクシー%' OR lower(method) LIKE '%taxi%' THEN 'taxi'
+  WHEN method LIKE '%フェリー%' OR method LIKE '%船%' OR lower(method) LIKE '%ferry%'
+    THEN 'ferry'
+  WHEN method LIKE '%徒歩%' OR method LIKE '%自転車%' OR method LIKE '%チャリ%'
+    OR lower(method) LIKE '%walk%' OR lower(method) LIKE '%bicycle%'
+    THEN 'walk_bicycle'
+  WHEN method LIKE '%飛行機%' OR method LIKE '%空路%' OR lower(method) LIKE '%ana%'
+    OR lower(method) LIKE '%jal%' OR lower(method) LIKE '%plane%'
+    OR lower(method) LIKE '%flight%' THEN 'airplane'
+  WHEN method LIKE '%バス%' OR lower(method) LIKE '%bus%' THEN 'local_bus'
+  WHEN method LIKE '%電車%' OR method LIKE '%在来線%' OR lower(method) LIKE '%jr%'
+    OR method LIKE '%私鉄%' OR method LIKE '%地下鉄%' OR method LIKE '%鉄道%'
+    OR lower(method) LIKE '%train%' THEN 'train'
+  ELSE 'other'
+END''';
+
+/// 既知の交通手段コード（移行で「既にコードか」を判定する）。
+const String transportMethodKnownCodesInList =
+    "('shinkansen','train','airplane','highway_bus','local_bus','private_car',"
+    "'rental_car','ferry','taxi','walk_bicycle','other')";
+
+/// メモ複数化（v12 / Supabase 0018）で、既存メモの title 初期値を種類名にする
+/// CASE 式（category コード→日本語ラベル）。SQLite・Postgres 双方で動く。
+const String memoTitleFromCategoryCaseSql = '''
+CASE category
+  WHEN 'free' THEN '自由メモ'
+  WHEN 'goods' THEN '物販'
+  WHEN 'meetup' THEN '集合場所'
+  WHEN 'around' THEN '周辺施設'
+  WHEN 'notice' THEN '注意事項'
+  ELSE 'メモ'
+END''';
+
 /// 同一計画に同じ交通(transport_id)／宿泊(lodging_id)を参照する重複した旅程
 /// 項目を、決定的に1件だけ残して他を選び出す相関サブクエリ（部分ユニーク
 /// インデックス作成前に重複を除去する, schema v9 / Phase 2レビュー点1）。
@@ -72,7 +154,12 @@ class Genbas extends Table {
   IntColumn get doorTimeMinutes => integer().nullable()();
   IntColumn get startTimeMinutes => integer().nullable()();
   IntColumn get endTimeMinutes => integer().nullable()();
+
+  /// 公演種別の安定コード（選択式, schema v10）。旧・自由入力は v10 で変換。
   TextColumn get performanceType => text().nullable()();
+
+  /// [PerformanceType.other] の補足自由入力・変換不能な旧自由入力の保持（v10）。
+  TextColumn get performanceTypeOther => text().nullable()();
   TextColumn get performanceId => text().nullable()();
   BoolColumn get isExpedition => boolean().nullable()();
   TextColumn get transportRequirement =>
@@ -133,7 +220,12 @@ class Transports extends Table {
   TextColumn get genbaId => text()();
   TextColumn get ownerId => text()();
   TextColumn get direction => text().withDefault(const Constant('outbound'))();
+
+  /// 交通手段の安定コード（選択式, schema v11）。旧・自由入力は v11 で変換。
   TextColumn get method => text().nullable()();
+
+  /// [TransportMethod.other] の補足自由入力・変換不能な旧自由入力の保持（v11）。
+  TextColumn get methodOther => text().nullable()();
   TextColumn get fromPlace => text().nullable()();
   TextColumn get toPlace => text().nullable()();
   TextColumn get departAt => text().nullable()();
@@ -195,17 +287,20 @@ class GenbaMemos extends Table {
   TextColumn get genbaId => text()();
   TextColumn get ownerId => text()();
   TextColumn get category => text()();
+
+  /// メモのタイトル（複数メモ化, schema v12）。既存行は種類名を初期値に移行。
+  TextColumn get title => text().withDefault(const Constant(''))();
   TextColumn get body => text().withDefault(const Constant(''))();
+
+  /// 現場内の並び順（v12）。
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
 
-  @override
-  List<Set<Column<Object>>> get uniqueKeys => [
-        {genbaId, category},
-      ];
+  // v12 で「現場×種類ごと1件」のユニーク制約を撤廃し、同一種類の複数メモを許容。
 }
 
 @DataClassName('MemoryEntryRow')
@@ -241,6 +336,15 @@ class MemoryPhotos extends Table {
   TextColumn get caption => text().nullable()();
   BoolColumn get isCover => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  /// アルバム分類（§8.4）: event / goods / visited_place / food。
+  TextColumn get albumCategory => text().withDefault(const Constant('event'))();
+
+  /// 関連項目の種別（goods / visited_place）。当日の写真では null。
+  TextColumn get subjectType => text().nullable()();
+
+  /// 関連項目のID（緩い参照。項目削除後も写真はアルバムへ残す, §8.4）。
+  TextColumn get subjectId => text().nullable()();
   TextColumn get createdAt => text()();
   TextColumn get updatedAt => text()();
 
@@ -664,8 +768,19 @@ class AppDatabase extends _$AppDatabase {
   /// 1件へ整理し、削除する重複を端点とする移動区間・未送信 Outbox も併せて
   /// 掃除して参照整合を保つ（v8で `_createOwnerIndices` に紛れていた索引作成を、
   /// cover 索引と同じ「dedup→版付き作成」方式へ格上げする）。
+  /// v10: genbas.performance_type を選択式の安定コードへ移行し、変換不能な
+  /// 旧・自由入力を失わないための genbas.performance_type_other を追加する。
+  /// v11: transports.method を選択式の安定コードへ移行し、変換不能な旧・自由入力
+  /// を失わないための transports.method_other を追加する（§7.5）。
+  /// v12: genba_memos を「現場×種類ごと1件」から複数可へ変更。title/sort_order を
+  /// 追加し、{genba_id, category} のユニーク制約を撤廃する（§7.7）。既存メモは
+  /// 消さず、title は種類名を初期値に移行する。
+  ///
+  /// v13: memory_photos にアルバム分類 album_category / 関連項目 subject_type /
+  /// subject_id を追加（§8.4）。既存写真は album_category='event' へ移行し消さない。
+  /// 写真の保存元は memory_photos に一本化し、画面ごとに複製しない。
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -737,6 +852,96 @@ class AppDatabase extends _$AppDatabase {
             // 「dedup→版付き作成」方式（下の _createItineraryReferenceUniqueIndices）。
             await _dedupeItineraryEntryReferences(m);
           }
+          if (from < 10) {
+            // 公演種別を選択式の安定コードへ移行する（自由入力廃止, §7.1）。
+            // addColumn は列が未存在のときだけ行う（冪等。テストで最新スキーマから
+            // user_version だけ戻して onUpgrade を走らせても二重追加で失敗しない）。
+            if (!await _hasColumn(m, 'genbas', 'performance_type_other')) {
+              await m.addColumn(genbas, genbas.performanceTypeOther);
+            }
+            // 変換不能な旧・自由入力を失わないよう、コード以外の値を other 領域へ
+            // 退避してから変換し、既知コードへ変換できた行の退避は消す。
+            await m.database.customStatement(
+              'UPDATE genbas SET performance_type_other = performance_type '
+              "WHERE performance_type IS NOT NULL AND trim(performance_type) <> '' "
+              'AND performance_type NOT IN $performanceTypeKnownCodesInList',
+            );
+            await m.database.customStatement(
+              'UPDATE genbas SET performance_type = $performanceTypeCodeCaseSql '
+              "WHERE performance_type IS NOT NULL AND trim(performance_type) <> ''",
+            );
+            await m.database.customStatement(
+              'UPDATE genbas SET performance_type_other = NULL '
+              "WHERE performance_type <> 'other'",
+            );
+          }
+          if (from < 11) {
+            // 交通手段を選択式の安定コードへ移行する（自由入力廃止, §7.5）。
+            if (!await _hasColumn(m, 'transports', 'method_other')) {
+              await m.addColumn(transports, transports.methodOther);
+            }
+            await m.database.customStatement(
+              'UPDATE transports SET method_other = method '
+              "WHERE method IS NOT NULL AND trim(method) <> '' "
+              'AND method NOT IN $transportMethodKnownCodesInList',
+            );
+            await m.database.customStatement(
+              'UPDATE transports SET method = $transportMethodCodeCaseSql '
+              "WHERE method IS NOT NULL AND trim(method) <> ''",
+            );
+            await m.database.customStatement(
+              'UPDATE transports SET method_other = NULL '
+              "WHERE method <> 'other'",
+            );
+          }
+          if (from < 12) {
+            // メモを複数化する（§7.7）。SQLite はユニーク制約を後から落とせない
+            // ため、新テーブルへコピーして差し替える。既存メモは消さず、title は
+            // 種類名を初期値にする。sort_order は 0。
+            await m.database.customStatement(
+              'CREATE TABLE genba_memos_new ('
+              'id TEXT NOT NULL PRIMARY KEY, '
+              'genba_id TEXT NOT NULL, '
+              'owner_id TEXT NOT NULL, '
+              'category TEXT NOT NULL, '
+              "title TEXT NOT NULL DEFAULT '', "
+              "body TEXT NOT NULL DEFAULT '', "
+              'sort_order INTEGER NOT NULL DEFAULT 0, '
+              'created_at TEXT NOT NULL, '
+              'updated_at TEXT NOT NULL)',
+            );
+            await m.database.customStatement(
+              'INSERT INTO genba_memos_new '
+              '(id, genba_id, owner_id, category, title, body, sort_order, '
+              'created_at, updated_at) '
+              'SELECT id, genba_id, owner_id, category, '
+              '$memoTitleFromCategoryCaseSql, body, 0, created_at, updated_at '
+              'FROM genba_memos',
+            );
+            await m.database.customStatement('DROP TABLE genba_memos');
+            await m.database.customStatement(
+              'ALTER TABLE genba_memos_new RENAME TO genba_memos',
+            );
+          }
+          if (from < 13) {
+            // 思い出写真へアルバム分類・関連項目を追加する（§8.4）。addColumn は
+            // 列が未存在のときだけ行う（冪等。最新スキーマから user_version を
+            // 戻して onUpgrade を走らせても二重追加で失敗しない）。既存写真は
+            // 消さず、分類は 'event'（当日の写真）へ移行する。
+            if (!await _hasColumn(m, 'memory_photos', 'album_category')) {
+              await m.addColumn(memoryPhotos, memoryPhotos.albumCategory);
+            }
+            if (!await _hasColumn(m, 'memory_photos', 'subject_type')) {
+              await m.addColumn(memoryPhotos, memoryPhotos.subjectType);
+            }
+            if (!await _hasColumn(m, 'memory_photos', 'subject_id')) {
+              await m.addColumn(memoryPhotos, memoryPhotos.subjectId);
+            }
+            await m.database.customStatement(
+              "UPDATE memory_photos SET album_category = 'event' "
+              "WHERE album_category IS NULL OR trim(album_category) = ''",
+            );
+          }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
           await _createItineraryReferenceUniqueIndices(m);
@@ -752,6 +957,14 @@ class AppDatabase extends _$AppDatabase {
         'CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_photos_cover_unique '
         'ON memory_photos (genba_id) WHERE is_cover',
       );
+
+  /// 指定テーブルに指定列が存在するか（addColumn を冪等にするための判定）。
+  Future<bool> _hasColumn(Migrator m, String table, String column) async {
+    final rows = await m.database
+        .customSelect("SELECT name FROM pragma_table_info('$table')")
+        .get();
+    return rows.any((r) => r.data['name'] == column);
+  }
 
   /// 同一計画に同じ交通/宿泊を二重追加させない部分ユニーク索引（§5.3 / DB境界,
   /// schema v9）。作成前に [_dedupeItineraryEntryReferences] で重複を1件へ

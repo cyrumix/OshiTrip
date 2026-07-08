@@ -48,7 +48,9 @@ _$GenbaImpl _$$GenbaImplFromJson(Map<String, dynamic> json) => _$GenbaImpl(
       doorTimeMinutes: (json['door_time_minutes'] as num?)?.toInt(),
       startTimeMinutes: (json['start_time_minutes'] as num?)?.toInt(),
       endTimeMinutes: (json['end_time_minutes'] as num?)?.toInt(),
-      performanceType: json['performance_type'] as String?,
+      performanceType: $enumDecodeNullable(
+          _$PerformanceTypeEnumMap, json['performance_type']),
+      performanceTypeOther: json['performance_type_other'] as String?,
       performanceId: json['performance_id'] as String?,
       isExpedition: json['is_expedition'] as bool?,
       transportRequirement: $enumDecodeNullable(
@@ -88,7 +90,8 @@ Map<String, dynamic> _$$GenbaImplToJson(_$GenbaImpl instance) =>
       'door_time_minutes': instance.doorTimeMinutes,
       'start_time_minutes': instance.startTimeMinutes,
       'end_time_minutes': instance.endTimeMinutes,
-      'performance_type': instance.performanceType,
+      'performance_type': _$PerformanceTypeEnumMap[instance.performanceType],
+      'performance_type_other': instance.performanceTypeOther,
       'performance_id': instance.performanceId,
       'is_expedition': instance.isExpedition,
       'transport_requirement':
@@ -108,6 +111,20 @@ Map<String, dynamic> _$$GenbaImplToJson(_$GenbaImpl instance) =>
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
     };
+
+const _$PerformanceTypeEnumMap = {
+  PerformanceType.liveConcert: 'live_concert',
+  PerformanceType.festival: 'festival',
+  PerformanceType.releaseEvent: 'release_event',
+  PerformanceType.meetGreet: 'meet_greet',
+  PerformanceType.fanMeeting: 'fan_meeting',
+  PerformanceType.talkEvent: 'talk_event',
+  PerformanceType.stageMusical: 'stage_musical',
+  PerformanceType.exhibition: 'exhibition',
+  PerformanceType.sports: 'sports',
+  PerformanceType.online: 'online',
+  PerformanceType.other: 'other',
+};
 
 const _$RequirementStatusEnumMap = {
   RequirementStatus.unknown: 'unknown',
@@ -196,7 +213,8 @@ _$TransportImpl _$$TransportImplFromJson(Map<String, dynamic> json) =>
       direction:
           $enumDecodeNullable(_$TransportDirectionEnumMap, json['direction']) ??
               TransportDirection.outbound,
-      method: json['method'] as String?,
+      method: $enumDecodeNullable(_$TransportMethodEnumMap, json['method']),
+      methodOther: json['method_other'] as String?,
       fromPlace: json['from_place'] as String?,
       toPlace: json['to_place'] as String?,
       departAt: const NullableUtcDateTimeConverter()
@@ -218,7 +236,8 @@ Map<String, dynamic> _$$TransportImplToJson(_$TransportImpl instance) =>
       'genba_id': instance.genbaId,
       'owner_id': instance.ownerId,
       'direction': _$TransportDirectionEnumMap[instance.direction]!,
-      'method': instance.method,
+      'method': _$TransportMethodEnumMap[instance.method],
+      'method_other': instance.methodOther,
       'from_place': instance.fromPlace,
       'to_place': instance.toPlace,
       'depart_at':
@@ -235,6 +254,20 @@ Map<String, dynamic> _$$TransportImplToJson(_$TransportImpl instance) =>
 const _$TransportDirectionEnumMap = {
   TransportDirection.outbound: 'outbound',
   TransportDirection.inbound: 'inbound',
+};
+
+const _$TransportMethodEnumMap = {
+  TransportMethod.shinkansen: 'shinkansen',
+  TransportMethod.train: 'train',
+  TransportMethod.airplane: 'airplane',
+  TransportMethod.highwayBus: 'highway_bus',
+  TransportMethod.localBus: 'local_bus',
+  TransportMethod.privateCar: 'private_car',
+  TransportMethod.rentalCar: 'rental_car',
+  TransportMethod.ferry: 'ferry',
+  TransportMethod.taxi: 'taxi',
+  TransportMethod.walkBicycle: 'walk_bicycle',
+  TransportMethod.other: 'other',
 };
 
 _$LodgingImpl _$$LodgingImplFromJson(Map<String, dynamic> json) =>
@@ -331,7 +364,9 @@ _$GenbaMemoImpl _$$GenbaMemoImplFromJson(Map<String, dynamic> json) =>
       genbaId: json['genba_id'] as String,
       ownerId: json['owner_id'] as String,
       category: $enumDecode(_$MemoCategoryEnumMap, json['category']),
+      title: json['title'] as String? ?? '',
       body: json['body'] as String? ?? '',
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
       createdAt:
           const UtcDateTimeConverter().fromJson(json['created_at'] as String),
       updatedAt:
@@ -344,7 +379,9 @@ Map<String, dynamic> _$$GenbaMemoImplToJson(_$GenbaMemoImpl instance) =>
       'genba_id': instance.genbaId,
       'owner_id': instance.ownerId,
       'category': _$MemoCategoryEnumMap[instance.category]!,
+      'title': instance.title,
       'body': instance.body,
+      'sort_order': instance.sortOrder,
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
     };
@@ -355,4 +392,5 @@ const _$MemoCategoryEnumMap = {
   MemoCategory.meetup: 'meetup',
   MemoCategory.around: 'around',
   MemoCategory.notice: 'notice',
+  MemoCategory.other: 'other',
 };

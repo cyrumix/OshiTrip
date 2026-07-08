@@ -687,3 +687,48 @@ D-188〜D-193（計画機能の仕様変更）のレビューで見つかった2
 - `dart format` / `dart analyze lib test integration_test` / `flutter analyze`：本文の最終報告を参照。
 - `flutter test`：追加/更新テスト（`itinerary_phase2b_test` の `resolveLegTimestampsForSave` 6件・`itinerary_editor_phase2b_test` の日別追加Widgetテスト）を含む結果は本文の最終報告を参照。
 - **未実施**: `flutter test integration_test`（実機/エミュレータなし）、`supabase test db`（Dockerなし）。
+
+## Phase 3前調整（2026-07-07, Claude Sonnet 5）: 公演種別・交通手段の選択式化・思い出段階名
+
+新featureブランチ `feat/memory-album-and-enums` で、次Phase前の調整として実装。
+本セッションでは以下3件を完了（メモ複数化・写真/アルバムは別途未実装, 下記報告参照）。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-196 | 思い出記録画面の段階名を「終演直後 / 翌日 / 後日」→「終演直後 / 終演後 / 後日」へ変更。「終演後」に MC・当日メモ / 座席・見え方 / セトリ を置く。これは入力画面の**段階名・説明の変更**であり、思い出移行の日時判定は変えない | 「翌日」だと当日中に書けないような誤解を招く。「終演後」なら終演後いつでも書ける意図が伝わる。ドメイン/DB/移行判定には影響しない表示のみの変更 |
+| D-197 | 公演種別 `genbas.performance_type` を自由入力から**選択式の安定コード**（11種の `PerformanceType` enum）へ変更。内部値は日本語でなくコード。変換不能な既存自由入力は `other` とし、元文字列を新設 `genbas.performance_type_other` に保持して失わない。Drift v10 + Supabase 0016 で既存値を CASE で変換（既知語→コード・未知→other＋原文退避）。移行後は CHECK でコードのみ許可 | 自由入力は表記ゆれで集計・フィルタが困難。安定コード＋日本語ラベルで表示は保ちつつ機械処理可能に。移行で原文を失わないことを最優先（other_text へ退避）。addColumn は `_hasColumn` で冪等化し、最新スキーマから user_version だけ戻すテストでも二重追加で落ちない |
+| D-198 | 交通手段 `transports.method` を同様に**選択式の安定コード**（11種の `TransportMethod` enum）へ変更。`transports.method_other` を新設。Drift v11 + Supabase 0017 で変換（「JR/夜行バス」等→コード・未知→other＋原文退避）。一覧・詳細・計画取り込み表示は `Transport.methodDisplay`（other は補足自由入力）で日本語ラベル化 | 公演種別と同方針。計画（旅程）タブの交通取り込み表示も同じラベルを共有 |
+
+### 検証状況（2026-07-07, Windows host + Android emulator）
+
+- `dart format` / `dart analyze lib test` クリーン、`flutter test` **650件 全パス**（新規: 公演種別4・交通手段6・思い出段階1 を含む）。
+- Drift migration（v9→v10→v11）は file-backed 再open の移行テストで検証済み（原文保持を含む）。
+- **未実施**: `supabase test db`（0016/0017 の pgTAP。Docker 未導入で `supabase start` 不可。SQL は静的検証のみ）。
+- **本セッション未実装（スコープ）**: メモ複数登録化（点1）、グッズ/場所/食べもの写真・思い出アルバム（点5〜8）。データ設計が広範（MemoryPhoto 拡張・RLS・画像ストア・アルバム画面）で、緑を保ったまま完了できる単位に収めるため次セッションへ分割。
+
+## Phase 3前調整（続き, 2026-07-07, Claude Sonnet 5）: メモの複数登録化
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-199 | 現場メモを「現場×種類ごと1件」から**複数可**へ変更（§7.7）。`GenbaMemo` に `title`/`sortOrder` を追加、`MemoCategory.other`（「テンプレートなし」）を追加。DB は Drift v11→**v12**（title/sort_order 追加＋{genba_id,category} ユニーク制約をテーブル再作成で撤廃、既存メモの title を種類名で初期化）、Supabase **0018**（同方針＋category CHECK に other 追加）。Repository は「種類ごと1件」の削除ロジックを撤去してID単位upsertにし、`reorderMemos`（sort_order のみ更新）を追加。UI はテンプレート選択で追加・一覧・編集・削除・上下並び替え。タイトルと本文が空のメモは保存しない | 物販や集合場所など同種のメモを複数残したい要望に対し、1件制約が邪魔だった。テンプレートは入力補助に留め、保存はID単位で行うことで複数化・並び替え・同期を素直に実現。SQLite はユニーク制約を後から落とせないため、既存メモを失わないテーブル再作成で移行する。addColumn は `_hasColumn` と同様に冪等化（テーブル再作成は最新スキーマからの onUpgrade でも安全） |
+
+### 検証状況（メモ複数化）
+
+- `dart analyze lib test integration_test` クリーン、`flutter test` **653件 全パス**（新規: `genba_memo_test`（reorder／同一種類複数／v11→v12 移行）、更新: `repositories_test`（ID単位upsert＋複数保持）、`genba_detail_tabs_test`（メモタブ空状態）を含む）。
+- メモUIのフルフロー Widget テストは、現場詳細の NestedScrollView（pinned AppBar がセクションヘッダを隠す）レイアウト都合でヒットテストが安定しないため見送り、複数化・並び替え・移行・ID単位upsert・空メモ非保存の各挙動はデータ層テストで担保した。
+- **未実施**: `supabase test db`（0018 の pgTAP。Docker 未導入）。
+
+## Phase 3前調整（続き, 2026-07-08, Claude Haiku 4.5）: 思い出アルバム データ基盤（点5〜8）
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-200 | 思い出写真へアルバム分類・関連項目を追加し、写真の保存元を `MemoryPhoto` に一本化（§8.4）。`MemoryPhoto` に `albumCategory`（event/goods/visited_place/food）・`subjectType`（goods/visited_place, nullable）・`subjectId`（nullable）を追加。DB は Drift v12→**v13**（3列を冪等 addColumn で追加＋既存写真を `album_category='event'` へ移行）、Supabase **0019**（同3列＋分類/種別 CHECK＋`(genba_id,album_category)`/`subject_id` 索引）。Mapper でコード⇄enum を相互変換。Repository は写真 upsert 時に「関連項目（グッズ/行った場所）が同一 owner+genba に実在する」ことを検証し、孤立 `subject_id` を拒否（`_subjectExists`）。`MemoryBundle` に `sortedPhotos`/`photosInAlbum`/`photosForSubject`/`coverPhoto` を追加 | 写真をグッズ・場所・食べものへも付けたい要望に対し、画面ごとに画像を複製すると同期・削除・容量が破綻する。単一テーブル＋緩い参照（`subject_id` に FK を張らない）で「項目を消しても写真はアルバムへ残す」既定を素直に満たし、分類はコード化して SQLite/Postgres 双方で移行できる。過去 migration は変更せず前方専用で追加 |
+
+| D-201 | 思い出アルバム UI と写真添付（点5〜7）。新規 `memory_album_screen.dart`（分類チップ＝すべて/当日/グッズ/行った場所/食べもの・各件数、正方形グリッド `SliverGridDelegateWithMaxCrossAxisExtent`、表紙バッジ、写真タップでボトムシート→関連元導線、分類別の空状態）。`memory_edit_screen.dart` は汎用 `_ItemsWithPhotosEditor` を導入し、グッズ／行った場所／食べものを名前＋写真サムネイルで編集、写真添付ボタンを各項目に付与。「行った場所・食べたもの」統合欄を **行った場所（category=spot）** と **食べたもの（category=food）** の2セクションへ分割。項目削除時に写真があれば「アルバムに残す（既定・FilledButton）／写真も削除／キャンセル」を確認。`memory_controllers.dart` の `addPhoto` に `albumCategory`/`subjectType`/`subjectId` を追加（画像コピー失敗・DB失敗時の孤立ファイル掃除は既存境界を継承）。導線は現場詳細の SliverAppBar アクションと `/memories/:id/album` | 写真を「どの入力から付けたか」で分類しつつ実体は一本化することで、同期・削除・容量を破綻させずアルバムを提供。削除時の既定を「残す」にして、うっかり写真を失わないようにする。食べものと場所は種別が違うだけで実体は `VisitedPlace` のため、UI 分割＋既存 `category` 流用で後方互換を保つ |
+
+### 検証状況（アルバム: データ基盤＋UI）
+
+- `dart analyze lib test integration_test` クリーン、`dart format` 差分なし、`flutter test` **663件 全パス**、`git diff --check` クリーン。
+- 新規/更新テスト: `memory_album_test`（アルバム分類/関連項目/表紙のドメイン整理・v12→v13 移行で既存写真が event へ移行し消えない）、`repositories_test`（関連項目に紐づく写真の owner+genba 実在検証: 実在しない subject は拒否・実在すれば保存／**関連項目を削除しても写真はアルバムへ残る**）、`memory_album_screen_test`（分類チップの件数表示・絞り込み・空状態・**320pt幅×文字200%でのオーバーフロー無し**）、`memory_edit_stages_test`（行った場所/食べたものの分割表示）。
+- **写真添付・削除確認のフルフロー Widget テスト**は ImagePicker のプラットフォームチャネル依存のため見送り、写真リンクの検証・分類フィルタ・分割表示・実在検証・削除時の残存はデータ層＋表示テストで担保した。追加中心・後方互換で既存の写真・思い出を消さない。
+- **未実施**: `supabase test db`（0019 の pgTAP。Docker 未導入）。integration_test は本機能専用シナリオが無く、既存スイートは Windows デスクトップでのプラグイン（sqlcipher/image_picker/supabase）依存が重いため未実行（unit/widget 663件で担保）。

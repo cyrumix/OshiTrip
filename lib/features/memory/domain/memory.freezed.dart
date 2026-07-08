@@ -30,10 +30,10 @@ mixin _$MemoryEntry {
   /// 特によかった曲・点（終演直後）。
   String get bestMoment => throw _privateConstructorUsedError;
 
-  /// MC・当日メモ（翌日）。
+  /// MC・当日メモ（終演後）。
   String get mcNotes => throw _privateConstructorUsedError;
 
-  /// 座席・見え方（翌日）。
+  /// 座席・見え方（終演後）。
   String get seatView => throw _privateConstructorUsedError;
 
   /// 写真整理用のタグ・表情タグ（後日）。
@@ -303,12 +303,12 @@ class _$MemoryEntryImpl implements _MemoryEntry {
   @JsonKey()
   final String bestMoment;
 
-  /// MC・当日メモ（翌日）。
+  /// MC・当日メモ（終演後）。
   @override
   @JsonKey()
   final String mcNotes;
 
-  /// 座席・見え方（翌日）。
+  /// 座席・見え方（終演後）。
   @override
   @JsonKey()
   final String seatView;
@@ -446,11 +446,11 @@ abstract class _MemoryEntry implements MemoryEntry {
   @override
   String get bestMoment;
 
-  /// MC・当日メモ（翌日）。
+  /// MC・当日メモ（終演後）。
   @override
   String get mcNotes;
 
-  /// 座席・見え方（翌日）。
+  /// 座席・見え方（終演後）。
   @override
   String get seatView;
 
@@ -495,6 +495,16 @@ mixin _$MemoryPhoto {
   String? get caption => throw _privateConstructorUsedError;
   bool get isCover => throw _privateConstructorUsedError;
   int get sortOrder => throw _privateConstructorUsedError;
+
+  /// アルバム分類（§8.4）。既定は当日の写真。
+  MemoryAlbumCategory get albumCategory => throw _privateConstructorUsedError;
+
+  /// 関連項目の種別（グッズ/行った場所）。当日の写真では null。
+  MemorySubjectType? get subjectType => throw _privateConstructorUsedError;
+
+  /// 関連項目のID（[GoodsItem.id] または [VisitedPlace.id]）。
+  /// 項目を削除しても写真はアルバムへ残す（既定, §8.4）。参照は緩く保つ。
+  String? get subjectId => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
   DateTime get createdAt => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
@@ -526,6 +536,9 @@ abstract class $MemoryPhotoCopyWith<$Res> {
       String? caption,
       bool isCover,
       int sortOrder,
+      MemoryAlbumCategory albumCategory,
+      MemorySubjectType? subjectType,
+      String? subjectId,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -554,6 +567,9 @@ class _$MemoryPhotoCopyWithImpl<$Res, $Val extends MemoryPhoto>
     Object? caption = freezed,
     Object? isCover = null,
     Object? sortOrder = null,
+    Object? albumCategory = null,
+    Object? subjectType = freezed,
+    Object? subjectId = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -594,6 +610,18 @@ class _$MemoryPhotoCopyWithImpl<$Res, $Val extends MemoryPhoto>
           ? _value.sortOrder
           : sortOrder // ignore: cast_nullable_to_non_nullable
               as int,
+      albumCategory: null == albumCategory
+          ? _value.albumCategory
+          : albumCategory // ignore: cast_nullable_to_non_nullable
+              as MemoryAlbumCategory,
+      subjectType: freezed == subjectType
+          ? _value.subjectType
+          : subjectType // ignore: cast_nullable_to_non_nullable
+              as MemorySubjectType?,
+      subjectId: freezed == subjectId
+          ? _value.subjectId
+          : subjectId // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -624,6 +652,9 @@ abstract class _$$MemoryPhotoImplCopyWith<$Res>
       String? caption,
       bool isCover,
       int sortOrder,
+      MemoryAlbumCategory albumCategory,
+      MemorySubjectType? subjectType,
+      String? subjectId,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -650,6 +681,9 @@ class __$$MemoryPhotoImplCopyWithImpl<$Res>
     Object? caption = freezed,
     Object? isCover = null,
     Object? sortOrder = null,
+    Object? albumCategory = null,
+    Object? subjectType = freezed,
+    Object? subjectId = freezed,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -690,6 +724,18 @@ class __$$MemoryPhotoImplCopyWithImpl<$Res>
           ? _value.sortOrder
           : sortOrder // ignore: cast_nullable_to_non_nullable
               as int,
+      albumCategory: null == albumCategory
+          ? _value.albumCategory
+          : albumCategory // ignore: cast_nullable_to_non_nullable
+              as MemoryAlbumCategory,
+      subjectType: freezed == subjectType
+          ? _value.subjectType
+          : subjectType // ignore: cast_nullable_to_non_nullable
+              as MemorySubjectType?,
+      subjectId: freezed == subjectId
+          ? _value.subjectId
+          : subjectId // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -716,6 +762,9 @@ class _$MemoryPhotoImpl implements _MemoryPhoto {
       this.caption,
       this.isCover = false,
       this.sortOrder = 0,
+      this.albumCategory = MemoryAlbumCategory.event,
+      this.subjectType,
+      this.subjectId,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt});
 
@@ -743,6 +792,20 @@ class _$MemoryPhotoImpl implements _MemoryPhoto {
   @override
   @JsonKey()
   final int sortOrder;
+
+  /// アルバム分類（§8.4）。既定は当日の写真。
+  @override
+  @JsonKey()
+  final MemoryAlbumCategory albumCategory;
+
+  /// 関連項目の種別（グッズ/行った場所）。当日の写真では null。
+  @override
+  final MemorySubjectType? subjectType;
+
+  /// 関連項目のID（[GoodsItem.id] または [VisitedPlace.id]）。
+  /// 項目を削除しても写真はアルバムへ残す（既定, §8.4）。参照は緩く保つ。
+  @override
+  final String? subjectId;
   @override
   @UtcDateTimeConverter()
   final DateTime createdAt;
@@ -752,7 +815,7 @@ class _$MemoryPhotoImpl implements _MemoryPhoto {
 
   @override
   String toString() {
-    return 'MemoryPhoto(id: $id, genbaId: $genbaId, ownerId: $ownerId, localPath: $localPath, storagePath: $storagePath, uploadStatus: $uploadStatus, caption: $caption, isCover: $isCover, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'MemoryPhoto(id: $id, genbaId: $genbaId, ownerId: $ownerId, localPath: $localPath, storagePath: $storagePath, uploadStatus: $uploadStatus, caption: $caption, isCover: $isCover, sortOrder: $sortOrder, albumCategory: $albumCategory, subjectType: $subjectType, subjectId: $subjectId, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -773,6 +836,12 @@ class _$MemoryPhotoImpl implements _MemoryPhoto {
             (identical(other.isCover, isCover) || other.isCover == isCover) &&
             (identical(other.sortOrder, sortOrder) ||
                 other.sortOrder == sortOrder) &&
+            (identical(other.albumCategory, albumCategory) ||
+                other.albumCategory == albumCategory) &&
+            (identical(other.subjectType, subjectType) ||
+                other.subjectType == subjectType) &&
+            (identical(other.subjectId, subjectId) ||
+                other.subjectId == subjectId) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -792,6 +861,9 @@ class _$MemoryPhotoImpl implements _MemoryPhoto {
       caption,
       isCover,
       sortOrder,
+      albumCategory,
+      subjectType,
+      subjectId,
       createdAt,
       updatedAt);
 
@@ -822,6 +894,9 @@ abstract class _MemoryPhoto implements MemoryPhoto {
           final String? caption,
           final bool isCover,
           final int sortOrder,
+          final MemoryAlbumCategory albumCategory,
+          final MemorySubjectType? subjectType,
+          final String? subjectId,
           @UtcDateTimeConverter() required final DateTime createdAt,
           @UtcDateTimeConverter() required final DateTime updatedAt}) =
       _$MemoryPhotoImpl;
@@ -847,6 +922,19 @@ abstract class _MemoryPhoto implements MemoryPhoto {
   bool get isCover;
   @override
   int get sortOrder;
+
+  /// アルバム分類（§8.4）。既定は当日の写真。
+  @override
+  MemoryAlbumCategory get albumCategory;
+
+  /// 関連項目の種別（グッズ/行った場所）。当日の写真では null。
+  @override
+  MemorySubjectType? get subjectType;
+
+  /// 関連項目のID（[GoodsItem.id] または [VisitedPlace.id]）。
+  /// 項目を削除しても写真はアルバムへ残す（既定, §8.4）。参照は緩く保つ。
+  @override
+  String? get subjectId;
   @override
   @UtcDateTimeConverter()
   DateTime get createdAt;

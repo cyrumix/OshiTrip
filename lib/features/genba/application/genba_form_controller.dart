@@ -24,7 +24,8 @@ class GenbaFormState {
     this.doorTimeMinutes,
     this.startTimeMinutes,
     this.endTimeMinutes,
-    this.performanceType = '',
+    this.performanceType,
+    this.performanceTypeOther = '',
     this.isExpedition,
     this.transportRequirement = RequirementStatus.unknown,
     this.lodgingRequirement = RequirementStatus.unknown,
@@ -40,7 +41,10 @@ class GenbaFormState {
   final int? doorTimeMinutes;
   final int? startTimeMinutes;
   final int? endTimeMinutes;
-  final String performanceType;
+  final PerformanceType? performanceType;
+
+  /// [PerformanceType.other] のときの補足自由入力。
+  final String performanceTypeOther;
   final bool? isExpedition;
   final RequirementStatus transportRequirement;
   final RequirementStatus lodgingRequirement;
@@ -68,7 +72,9 @@ class GenbaFormState {
     bool clearStartTime = false,
     int? endTimeMinutes,
     bool clearEndTime = false,
-    String? performanceType,
+    PerformanceType? performanceType,
+    bool clearPerformanceType = false,
+    String? performanceTypeOther,
     bool? isExpedition,
     bool clearIsExpedition = false,
     RequirementStatus? transportRequirement,
@@ -88,7 +94,10 @@ class GenbaFormState {
           clearStartTime ? null : (startTimeMinutes ?? this.startTimeMinutes),
       endTimeMinutes:
           clearEndTime ? null : (endTimeMinutes ?? this.endTimeMinutes),
-      performanceType: performanceType ?? this.performanceType,
+      performanceType: clearPerformanceType
+          ? null
+          : (performanceType ?? this.performanceType),
+      performanceTypeOther: performanceTypeOther ?? this.performanceTypeOther,
       isExpedition:
           clearIsExpedition ? null : (isExpedition ?? this.isExpedition),
       transportRequirement: transportRequirement ?? this.transportRequirement,
@@ -107,7 +116,8 @@ class GenbaFormState {
         'door_time_minutes': doorTimeMinutes,
         'start_time_minutes': startTimeMinutes,
         'end_time_minutes': endTimeMinutes,
-        'performance_type': performanceType,
+        'performance_type': performanceType?.code,
+        'performance_type_other': performanceTypeOther,
         'is_expedition': isExpedition,
         'transport_requirement': transportRequirement.name,
         'lodging_requirement': lodgingRequirement.name,
@@ -131,7 +141,9 @@ class GenbaFormState {
       doorTimeMinutes: json['door_time_minutes'] as int?,
       startTimeMinutes: json['start_time_minutes'] as int?,
       endTimeMinutes: json['end_time_minutes'] as int?,
-      performanceType: (json['performance_type'] as String?) ?? '',
+      performanceType:
+          performanceTypeFromCode(json['performance_type'] as String?),
+      performanceTypeOther: (json['performance_type_other'] as String?) ?? '',
       isExpedition: json['is_expedition'] as bool?,
       transportRequirement: req(json['transport_requirement'] as String?),
       lodgingRequirement: req(json['lodging_requirement'] as String?),
@@ -149,7 +161,8 @@ class GenbaFormState {
         doorTimeMinutes: g.doorTimeMinutes,
         startTimeMinutes: g.startTimeMinutes,
         endTimeMinutes: g.endTimeMinutes,
-        performanceType: g.performanceType ?? '',
+        performanceType: g.performanceType,
+        performanceTypeOther: g.performanceTypeOther ?? '',
         isExpedition: g.isExpedition,
         transportRequirement: g.transportRequirement,
         lodgingRequirement: g.lodgingRequirement,
@@ -375,9 +388,12 @@ class GenbaFormController
       doorTimeMinutes: form.doorTimeMinutes,
       startTimeMinutes: form.startTimeMinutes,
       endTimeMinutes: form.endTimeMinutes,
-      performanceType: form.performanceType.trim().isEmpty
-          ? null
-          : form.performanceType.trim(),
+      performanceType: form.performanceType,
+      // 補足自由入力は「その他」のときだけ保持する（空は null）。
+      performanceTypeOther: form.performanceType == PerformanceType.other &&
+              form.performanceTypeOther.trim().isNotEmpty
+          ? form.performanceTypeOther.trim()
+          : null,
       performanceId: base?.performanceId,
       isExpedition: form.isExpedition,
       transportRequirement: form.transportRequirement,

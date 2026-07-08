@@ -74,10 +74,16 @@ Future<void> showMemoEditor(
   required String genbaId,
   required MemoCategory category,
   GenbaMemo? existing,
+  int initialSortOrder = 0,
 }) =>
     _showEditorSheet(
       context,
-      _MemoEditor(genbaId: genbaId, category: category, existing: existing),
+      _MemoEditor(
+        genbaId: genbaId,
+        category: category,
+        existing: existing,
+        initialSortOrder: initialSortOrder,
+      ),
     );
 
 Future<void> _showEditorSheet(BuildContext context, Widget child) {
@@ -367,7 +373,8 @@ class _TransportEditor extends ConsumerStatefulWidget {
 
 class _TransportEditorState extends ConsumerState<_TransportEditor> {
   late TransportDirection _direction;
-  late final TextEditingController _method;
+  TransportMethod? _method;
+  late final TextEditingController _methodOther;
   late final TextEditingController _from;
   late final TextEditingController _to;
   late final TextEditingController _reservation;
@@ -381,7 +388,8 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
     super.initState();
     final t = widget.existing;
     _direction = t?.direction ?? TransportDirection.outbound;
-    _method = TextEditingController(text: t?.method ?? '');
+    _method = t?.method;
+    _methodOther = TextEditingController(text: t?.methodOther ?? '');
     _from = TextEditingController(text: t?.fromPlace ?? '');
     _to = TextEditingController(text: t?.toPlace ?? '');
     _reservation = TextEditingController(text: t?.reservationNumber ?? '');
@@ -393,7 +401,7 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
 
   @override
   void dispose() {
-    _method.dispose();
+    _methodOther.dispose();
     _from.dispose();
     _to.dispose();
     _reservation.dispose();
@@ -428,7 +436,11 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
       genbaId: widget.genbaId,
       ownerId: widget.existing?.ownerId ?? owner,
       direction: _direction,
-      method: _method.text.trim().isEmpty ? null : _method.text.trim(),
+      method: _method,
+      methodOther: _method == TransportMethod.other &&
+              _methodOther.text.trim().isNotEmpty
+          ? _methodOther.text.trim()
+          : null,
       fromPlace: _from.text.trim().isEmpty ? null : _from.text.trim(),
       toPlace: _to.text.trim().isEmpty ? null : _to.text.trim(),
       departAt: _departAt,
@@ -462,10 +474,37 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
           onSelectionChanged: (s) => setState(() => _direction = s.first),
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: _method,
-          decoration: const InputDecoration(labelText: '交通手段（新幹線・飛行機・バス など）'),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            '交通手段',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
         ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final method in TransportMethod.values)
+              ChoiceChip(
+                label: Text(method.label),
+                selected: _method == method,
+                onSelected: (isSelected) => setState(
+                  () => _method = isSelected ? method : null,
+                ),
+              ),
+          ],
+        ),
+        if (_method == TransportMethod.other) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _methodOther,
+            decoration: const InputDecoration(
+              labelText: '交通手段（自由入力・任意）',
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         Row(
           children: [
@@ -860,32 +899,50 @@ class _MemoEditor extends ConsumerStatefulWidget {
     required this.genbaId,
     required this.category,
     this.existing,
+    this.initialSortOrder = 0,
   });
 
   final String genbaId;
   final MemoCategory category;
   final GenbaMemo? existing;
+  final int initialSortOrder;
 
   @override
   ConsumerState<_MemoEditor> createState() => _MemoEditorState();
 }
 
 class _MemoEditorState extends ConsumerState<_MemoEditor> {
+  late final TextEditingController _title;
   late final TextEditingController _body;
 
   @override
   void initState() {
     super.initState();
+    // 新規はテンプレート種類名を初期タイトルにする（「テンプレなし」は空）。
+    // テンプレートは入力補助であり、保存データとして強制しない。
+    final initialTitle = widget.existing?.title ??
+        (widget.category == MemoCategory.other ? '' : widget.category.label);
+    _title = TextEditingController(text: initialTitle);
     _body = TextEditingController(text: widget.existing?.body ?? '');
   }
 
   @override
   void dispose() {
+    _title.dispose();
     _body.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
+    final title = _title.text.trim();
+    final body = _body.text.trim();
+    // タイトルと本文がどちらも空のメモは保存しない（誤保存防止）。
+    if (title.isEmpty && body.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('タイトルか本文のどちらかを入力してください')),
+      );
+      return;
+    }
     final now = ref.read(clockProvider).now().toUtc();
     final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
     final memo = GenbaMemo(
@@ -893,7 +950,9 @@ class _MemoEditorState extends ConsumerState<_MemoEditor> {
       genbaId: widget.genbaId,
       ownerId: widget.existing?.ownerId ?? owner,
       category: widget.category,
-      body: _body.text.trim(),
+      title: title,
+      body: body,
+      sortOrder: widget.existing?.sortOrder ?? widget.initialSortOrder,
       createdAt: widget.existing?.createdAt ?? now,
       updatedAt: now,
     );
@@ -905,18 +964,25 @@ class _MemoEditorState extends ConsumerState<_MemoEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.existing != null;
     return _EditorScaffold(
-      title: '${widget.category.label}メモ',
+      title: isEdit ? 'メモを編集' : '${widget.category.templateChoiceLabel}を追加',
       onSave: _save,
       children: [
         TextField(
+          controller: _title,
+          decoration: const InputDecoration(labelText: 'タイトル'),
+          textInputAction: TextInputAction.next,
+          autofocus: !isEdit,
+        ),
+        const SizedBox(height: 12),
+        TextField(
           controller: _body,
-          decoration: InputDecoration(
-            labelText: widget.category.label,
+          decoration: const InputDecoration(
+            labelText: '本文',
             alignLabelWithHint: true,
           ),
           maxLines: 5,
-          autofocus: true,
         ),
       ],
     );

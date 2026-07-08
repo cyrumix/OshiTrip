@@ -235,23 +235,32 @@ void main() {
     expect(remote2.type, TodoItemType.todo);
   });
 
-  test('メモは区分ごとに1件が維持される（upsert）', () async {
+  test('メモはID単位でupsert。同一IDは更新、同一種類でも別IDは複数保持できる', () async {
     await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 8, 1)));
-    GenbaMemo memo(String id, String body) => GenbaMemo(
+    GenbaMemo memo(String id, String body, {int sortOrder = 0}) => GenbaMemo(
           id: id,
           genbaId: 'genba-1',
           ownerId: 'user-1',
           category: MemoCategory.meetup,
+          title: '集合場所',
           body: body,
+          sortOrder: sortOrder,
           createdAt: fixedCreatedAt,
           updatedAt: fixedCreatedAt,
         );
+    // 同一IDの再upsertは更新（1件）。
     await genbaRepo.upsertMemo(memo('m1', '東口噴水前'));
     await genbaRepo.upsertMemo(memo('m1', '西口に変更'));
+    // 同一種類でも別IDは別メモとして残る（複数化, §7.7）。
+    await genbaRepo.upsertMemo(memo('m2', '二次会は駅前', sortOrder: 1));
 
     final aggregate = (await genbaRepo.watchAll().first).first;
-    expect(aggregate.memos, hasLength(1));
-    expect(aggregate.memoOf(MemoCategory.meetup)?.body, '西口に変更');
+    expect(aggregate.memos, hasLength(2));
+    expect(aggregate.firstMemoOf(MemoCategory.meetup)?.body, '西口に変更');
+    expect(
+      aggregate.sortedMemos.map((m) => m.body),
+      ['西口に変更', '二次会は駅前'],
+    );
   });
 
   test('現場削除で子データと思い出も消える', () async {
@@ -320,6 +329,92 @@ void main() {
         .singleWhere((o) => o.entityTable == SyncEntity.memoryPhotos);
     expect(op.payload.containsKey('local_path'), isFalse);
     expect(op.payload['upload_status'], 'local_only');
+  });
+
+  test('関連項目に紐づく写真: 実在しない subject は拒否、実在すれば保存（§8.4）', () async {
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 6, 1)));
+
+    // 実在しないグッズへ紐づけると検証失敗（孤立 subject_id を作らない）。
+    final rejected = await memoryRepo.addPhoto(
+      MemoryPhoto(
+        id: 'p-x',
+        genbaId: 'genba-1',
+        ownerId: 'user-1',
+        albumCategory: MemoryAlbumCategory.goods,
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'missing-goods',
+        createdAt: fixedCreatedAt,
+        updatedAt: fixedCreatedAt,
+      ),
+    );
+    expect(rejected.isOk, isFalse);
+    // 拒否時はローカル行も Outbox も作らない。
+    expect((await memoryRepo.watchByGenbaId('genba-1').first).photos, isEmpty);
+
+    // グッズを追加してから紐づけると保存できる。
+    await memoryRepo.upsertGoodsItem(
+      GoodsItem(
+        id: 'goods-1',
+        genbaId: 'genba-1',
+        ownerId: 'user-1',
+        name: 'アクスタ',
+        createdAt: fixedCreatedAt,
+        updatedAt: fixedCreatedAt,
+      ),
+    );
+    final ok = await memoryRepo.addPhoto(
+      MemoryPhoto(
+        id: 'p-goods',
+        genbaId: 'genba-1',
+        ownerId: 'user-1',
+        albumCategory: MemoryAlbumCategory.goods,
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'goods-1',
+        createdAt: fixedCreatedAt,
+        updatedAt: fixedCreatedAt,
+      ),
+    );
+    expect(ok.isOk, isTrue);
+    final bundle = await memoryRepo.watchByGenbaId('genba-1').first;
+    expect(bundle.photosForSubject('goods-1').single.id, 'p-goods');
+  });
+
+  test('関連項目を削除しても写真はアルバムへ残る（既定, §8.4）', () async {
+    await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 6, 1)));
+    await memoryRepo.upsertGoodsItem(
+      GoodsItem(
+        id: 'goods-1',
+        genbaId: 'genba-1',
+        ownerId: 'user-1',
+        name: 'ラバーバンド',
+        createdAt: fixedCreatedAt,
+        updatedAt: fixedCreatedAt,
+      ),
+    );
+    await memoryRepo.addPhoto(
+      MemoryPhoto(
+        id: 'p-goods',
+        genbaId: 'genba-1',
+        ownerId: 'user-1',
+        albumCategory: MemoryAlbumCategory.goods,
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'goods-1',
+        createdAt: fixedCreatedAt,
+        updatedAt: fixedCreatedAt,
+      ),
+    );
+
+    // グッズ項目を削除しても、写真はカスケードで消えずアルバムに残る。
+    final del = await memoryRepo.deleteGoodsItem('goods-1');
+    expect(del.isOk, isTrue);
+    final bundle = await memoryRepo.watchByGenbaId('genba-1').first;
+    expect(bundle.goods, isEmpty);
+    expect(bundle.photos.map((p) => p.id), contains('p-goods'));
+    // アルバムのグッズ分類には残ったまま表示できる。
+    expect(
+      bundle.photosInAlbum(MemoryAlbumCategory.goods).single.id,
+      'p-goods',
+    );
   });
 
   // --------------------------------------------------------------------

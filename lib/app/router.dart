@@ -9,6 +9,7 @@ import '../features/genba/presentation/genba_detail_screen.dart';
 import '../features/genba/presentation/genba_form_screen.dart';
 import '../features/genba/presentation/genba_list_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/memory/presentation/memory_album_screen.dart';
 import '../features/memory/presentation/memory_detail_screen.dart';
 import '../features/memory/presentation/memory_edit_screen.dart';
 import '../features/memory/presentation/memory_list_screen.dart';
@@ -140,6 +141,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'edit',
                         builder: (context, state) => MemoryEditScreen(
+                          genbaId: state.pathParameters['id']!,
+                        ),
+                      ),
+                      GoRoute(
+                        path: 'album',
+                        builder: (context, state) => MemoryAlbumScreen(
                           genbaId: state.pathParameters['id']!,
                         ),
                       ),

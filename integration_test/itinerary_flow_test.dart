@@ -138,7 +138,7 @@ void main() {
           id: 'itin-tr-1',
           genbaId: genbaId,
           ownerId: ownerId,
-          method: '新幹線',
+          method: TransportMethod.shinkansen,
           fromPlace: '東京',
           toPlace: '大阪',
           createdAt: now,

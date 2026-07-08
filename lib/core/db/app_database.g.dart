@@ -79,6 +79,12 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
   late final GeneratedColumn<String> performanceType = GeneratedColumn<String>(
       'performance_type', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _performanceTypeOtherMeta =
+      const VerificationMeta('performanceTypeOther');
+  @override
+  late final GeneratedColumn<String> performanceTypeOther =
+      GeneratedColumn<String>('performance_type_other', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _performanceIdMeta =
       const VerificationMeta('performanceId');
   @override
@@ -186,6 +192,7 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
         startTimeMinutes,
         endTimeMinutes,
         performanceType,
+        performanceTypeOther,
         performanceId,
         isExpedition,
         transportRequirement,
@@ -280,6 +287,12 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
           _performanceTypeMeta,
           performanceType.isAcceptableOrUnknown(
               data['performance_type']!, _performanceTypeMeta));
+    }
+    if (data.containsKey('performance_type_other')) {
+      context.handle(
+          _performanceTypeOtherMeta,
+          performanceTypeOther.isAcceptableOrUnknown(
+              data['performance_type_other']!, _performanceTypeOtherMeta));
     }
     if (data.containsKey('performance_id')) {
       context.handle(
@@ -392,6 +405,9 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
           .read(DriftSqlType.int, data['${effectivePrefix}end_time_minutes']),
       performanceType: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}performance_type']),
+      performanceTypeOther: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}performance_type_other']),
       performanceId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}performance_id']),
       isExpedition: attachedDatabase.typeMapping
@@ -442,7 +458,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
   final int? doorTimeMinutes;
   final int? startTimeMinutes;
   final int? endTimeMinutes;
+
+  /// 公演種別の安定コード（選択式, schema v10）。旧・自由入力は v10 で変換。
   final String? performanceType;
+
+  /// [PerformanceType.other] の補足自由入力・変換不能な旧自由入力の保持（v10）。
+  final String? performanceTypeOther;
   final String? performanceId;
   final bool? isExpedition;
   final String transportRequirement;
@@ -476,6 +497,7 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       this.startTimeMinutes,
       this.endTimeMinutes,
       this.performanceType,
+      this.performanceTypeOther,
       this.performanceId,
       this.isExpedition,
       required this.transportRequirement,
@@ -515,6 +537,9 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
     }
     if (!nullToAbsent || performanceType != null) {
       map['performance_type'] = Variable<String>(performanceType);
+    }
+    if (!nullToAbsent || performanceTypeOther != null) {
+      map['performance_type_other'] = Variable<String>(performanceTypeOther);
     }
     if (!nullToAbsent || performanceId != null) {
       map['performance_id'] = Variable<String>(performanceId);
@@ -569,6 +594,9 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       performanceType: performanceType == null && nullToAbsent
           ? const Value.absent()
           : Value(performanceType),
+      performanceTypeOther: performanceTypeOther == null && nullToAbsent
+          ? const Value.absent()
+          : Value(performanceTypeOther),
       performanceId: performanceId == null && nullToAbsent
           ? const Value.absent()
           : Value(performanceId),
@@ -613,6 +641,8 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       startTimeMinutes: serializer.fromJson<int?>(json['startTimeMinutes']),
       endTimeMinutes: serializer.fromJson<int?>(json['endTimeMinutes']),
       performanceType: serializer.fromJson<String?>(json['performanceType']),
+      performanceTypeOther:
+          serializer.fromJson<String?>(json['performanceTypeOther']),
       performanceId: serializer.fromJson<String?>(json['performanceId']),
       isExpedition: serializer.fromJson<bool?>(json['isExpedition']),
       transportRequirement:
@@ -649,6 +679,7 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       'startTimeMinutes': serializer.toJson<int?>(startTimeMinutes),
       'endTimeMinutes': serializer.toJson<int?>(endTimeMinutes),
       'performanceType': serializer.toJson<String?>(performanceType),
+      'performanceTypeOther': serializer.toJson<String?>(performanceTypeOther),
       'performanceId': serializer.toJson<String?>(performanceId),
       'isExpedition': serializer.toJson<bool?>(isExpedition),
       'transportRequirement': serializer.toJson<String>(transportRequirement),
@@ -678,6 +709,7 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           Value<int?> startTimeMinutes = const Value.absent(),
           Value<int?> endTimeMinutes = const Value.absent(),
           Value<String?> performanceType = const Value.absent(),
+          Value<String?> performanceTypeOther = const Value.absent(),
           Value<String?> performanceId = const Value.absent(),
           Value<bool?> isExpedition = const Value.absent(),
           String? transportRequirement,
@@ -711,6 +743,9 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
         performanceType: performanceType.present
             ? performanceType.value
             : this.performanceType,
+        performanceTypeOther: performanceTypeOther.present
+            ? performanceTypeOther.value
+            : this.performanceTypeOther,
         performanceId:
             performanceId.present ? performanceId.value : this.performanceId,
         isExpedition:
@@ -761,6 +796,9 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       performanceType: data.performanceType.present
           ? data.performanceType.value
           : this.performanceType,
+      performanceTypeOther: data.performanceTypeOther.present
+          ? data.performanceTypeOther.value
+          : this.performanceTypeOther,
       performanceId: data.performanceId.present
           ? data.performanceId.value
           : this.performanceId,
@@ -813,6 +851,7 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           ..write('startTimeMinutes: $startTimeMinutes, ')
           ..write('endTimeMinutes: $endTimeMinutes, ')
           ..write('performanceType: $performanceType, ')
+          ..write('performanceTypeOther: $performanceTypeOther, ')
           ..write('performanceId: $performanceId, ')
           ..write('isExpedition: $isExpedition, ')
           ..write('transportRequirement: $transportRequirement, ')
@@ -844,6 +883,7 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
         startTimeMinutes,
         endTimeMinutes,
         performanceType,
+        performanceTypeOther,
         performanceId,
         isExpedition,
         transportRequirement,
@@ -874,6 +914,7 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           other.startTimeMinutes == this.startTimeMinutes &&
           other.endTimeMinutes == this.endTimeMinutes &&
           other.performanceType == this.performanceType &&
+          other.performanceTypeOther == this.performanceTypeOther &&
           other.performanceId == this.performanceId &&
           other.isExpedition == this.isExpedition &&
           other.transportRequirement == this.transportRequirement &&
@@ -902,6 +943,7 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
   final Value<int?> startTimeMinutes;
   final Value<int?> endTimeMinutes;
   final Value<String?> performanceType;
+  final Value<String?> performanceTypeOther;
   final Value<String?> performanceId;
   final Value<bool?> isExpedition;
   final Value<String> transportRequirement;
@@ -929,6 +971,7 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     this.startTimeMinutes = const Value.absent(),
     this.endTimeMinutes = const Value.absent(),
     this.performanceType = const Value.absent(),
+    this.performanceTypeOther = const Value.absent(),
     this.performanceId = const Value.absent(),
     this.isExpedition = const Value.absent(),
     this.transportRequirement = const Value.absent(),
@@ -957,6 +1000,7 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     this.startTimeMinutes = const Value.absent(),
     this.endTimeMinutes = const Value.absent(),
     this.performanceType = const Value.absent(),
+    this.performanceTypeOther = const Value.absent(),
     this.performanceId = const Value.absent(),
     this.isExpedition = const Value.absent(),
     this.transportRequirement = const Value.absent(),
@@ -991,6 +1035,7 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     Expression<int>? startTimeMinutes,
     Expression<int>? endTimeMinutes,
     Expression<String>? performanceType,
+    Expression<String>? performanceTypeOther,
     Expression<String>? performanceId,
     Expression<bool>? isExpedition,
     Expression<String>? transportRequirement,
@@ -1019,6 +1064,8 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
       if (startTimeMinutes != null) 'start_time_minutes': startTimeMinutes,
       if (endTimeMinutes != null) 'end_time_minutes': endTimeMinutes,
       if (performanceType != null) 'performance_type': performanceType,
+      if (performanceTypeOther != null)
+        'performance_type_other': performanceTypeOther,
       if (performanceId != null) 'performance_id': performanceId,
       if (isExpedition != null) 'is_expedition': isExpedition,
       if (transportRequirement != null)
@@ -1053,6 +1100,7 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
       Value<int?>? startTimeMinutes,
       Value<int?>? endTimeMinutes,
       Value<String?>? performanceType,
+      Value<String?>? performanceTypeOther,
       Value<String?>? performanceId,
       Value<bool?>? isExpedition,
       Value<String>? transportRequirement,
@@ -1080,6 +1128,7 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
       startTimeMinutes: startTimeMinutes ?? this.startTimeMinutes,
       endTimeMinutes: endTimeMinutes ?? this.endTimeMinutes,
       performanceType: performanceType ?? this.performanceType,
+      performanceTypeOther: performanceTypeOther ?? this.performanceTypeOther,
       performanceId: performanceId ?? this.performanceId,
       isExpedition: isExpedition ?? this.isExpedition,
       transportRequirement: transportRequirement ?? this.transportRequirement,
@@ -1136,6 +1185,10 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     }
     if (performanceType.present) {
       map['performance_type'] = Variable<String>(performanceType.value);
+    }
+    if (performanceTypeOther.present) {
+      map['performance_type_other'] =
+          Variable<String>(performanceTypeOther.value);
     }
     if (performanceId.present) {
       map['performance_id'] = Variable<String>(performanceId.value);
@@ -1200,6 +1253,7 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
           ..write('startTimeMinutes: $startTimeMinutes, ')
           ..write('endTimeMinutes: $endTimeMinutes, ')
           ..write('performanceType: $performanceType, ')
+          ..write('performanceTypeOther: $performanceTypeOther, ')
           ..write('performanceId: $performanceId, ')
           ..write('isExpedition: $isExpedition, ')
           ..write('transportRequirement: $transportRequirement, ')
@@ -1975,6 +2029,12 @@ class $TransportsTable extends Transports
   late final GeneratedColumn<String> method = GeneratedColumn<String>(
       'method', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _methodOtherMeta =
+      const VerificationMeta('methodOther');
+  @override
+  late final GeneratedColumn<String> methodOther = GeneratedColumn<String>(
+      'method_other', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _fromPlaceMeta =
       const VerificationMeta('fromPlace');
   @override
@@ -2034,6 +2094,7 @@ class $TransportsTable extends Transports
         ownerId,
         direction,
         method,
+        methodOther,
         fromPlace,
         toPlace,
         departAt,
@@ -2078,6 +2139,12 @@ class $TransportsTable extends Transports
     if (data.containsKey('method')) {
       context.handle(_methodMeta,
           method.isAcceptableOrUnknown(data['method']!, _methodMeta));
+    }
+    if (data.containsKey('method_other')) {
+      context.handle(
+          _methodOtherMeta,
+          methodOther.isAcceptableOrUnknown(
+              data['method_other']!, _methodOtherMeta));
     }
     if (data.containsKey('from_place')) {
       context.handle(_fromPlaceMeta,
@@ -2140,6 +2207,8 @@ class $TransportsTable extends Transports
           .read(DriftSqlType.string, data['${effectivePrefix}direction'])!,
       method: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}method']),
+      methodOther: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}method_other']),
       fromPlace: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}from_place']),
       toPlace: attachedDatabase.typeMapping
@@ -2172,7 +2241,12 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
   final String genbaId;
   final String ownerId;
   final String direction;
+
+  /// 交通手段の安定コード（選択式, schema v11）。旧・自由入力は v11 で変換。
   final String? method;
+
+  /// [TransportMethod.other] の補足自由入力・変換不能な旧自由入力の保持（v11）。
+  final String? methodOther;
   final String? fromPlace;
   final String? toPlace;
   final String? departAt;
@@ -2188,6 +2262,7 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
       required this.ownerId,
       required this.direction,
       this.method,
+      this.methodOther,
       this.fromPlace,
       this.toPlace,
       this.departAt,
@@ -2206,6 +2281,9 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
     map['direction'] = Variable<String>(direction);
     if (!nullToAbsent || method != null) {
       map['method'] = Variable<String>(method);
+    }
+    if (!nullToAbsent || methodOther != null) {
+      map['method_other'] = Variable<String>(methodOther);
     }
     if (!nullToAbsent || fromPlace != null) {
       map['from_place'] = Variable<String>(fromPlace);
@@ -2241,6 +2319,9 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
       direction: Value(direction),
       method:
           method == null && nullToAbsent ? const Value.absent() : Value(method),
+      methodOther: methodOther == null && nullToAbsent
+          ? const Value.absent()
+          : Value(methodOther),
       fromPlace: fromPlace == null && nullToAbsent
           ? const Value.absent()
           : Value(fromPlace),
@@ -2272,6 +2353,7 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
       ownerId: serializer.fromJson<String>(json['ownerId']),
       direction: serializer.fromJson<String>(json['direction']),
       method: serializer.fromJson<String?>(json['method']),
+      methodOther: serializer.fromJson<String?>(json['methodOther']),
       fromPlace: serializer.fromJson<String?>(json['fromPlace']),
       toPlace: serializer.fromJson<String?>(json['toPlace']),
       departAt: serializer.fromJson<String?>(json['departAt']),
@@ -2293,6 +2375,7 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
       'ownerId': serializer.toJson<String>(ownerId),
       'direction': serializer.toJson<String>(direction),
       'method': serializer.toJson<String?>(method),
+      'methodOther': serializer.toJson<String?>(methodOther),
       'fromPlace': serializer.toJson<String?>(fromPlace),
       'toPlace': serializer.toJson<String?>(toPlace),
       'departAt': serializer.toJson<String?>(departAt),
@@ -2311,6 +2394,7 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
           String? ownerId,
           String? direction,
           Value<String?> method = const Value.absent(),
+          Value<String?> methodOther = const Value.absent(),
           Value<String?> fromPlace = const Value.absent(),
           Value<String?> toPlace = const Value.absent(),
           Value<String?> departAt = const Value.absent(),
@@ -2326,6 +2410,7 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
         ownerId: ownerId ?? this.ownerId,
         direction: direction ?? this.direction,
         method: method.present ? method.value : this.method,
+        methodOther: methodOther.present ? methodOther.value : this.methodOther,
         fromPlace: fromPlace.present ? fromPlace.value : this.fromPlace,
         toPlace: toPlace.present ? toPlace.value : this.toPlace,
         departAt: departAt.present ? departAt.value : this.departAt,
@@ -2345,6 +2430,8 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       direction: data.direction.present ? data.direction.value : this.direction,
       method: data.method.present ? data.method.value : this.method,
+      methodOther:
+          data.methodOther.present ? data.methodOther.value : this.methodOther,
       fromPlace: data.fromPlace.present ? data.fromPlace.value : this.fromPlace,
       toPlace: data.toPlace.present ? data.toPlace.value : this.toPlace,
       departAt: data.departAt.present ? data.departAt.value : this.departAt,
@@ -2367,6 +2454,7 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
           ..write('ownerId: $ownerId, ')
           ..write('direction: $direction, ')
           ..write('method: $method, ')
+          ..write('methodOther: $methodOther, ')
           ..write('fromPlace: $fromPlace, ')
           ..write('toPlace: $toPlace, ')
           ..write('departAt: $departAt, ')
@@ -2387,6 +2475,7 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
       ownerId,
       direction,
       method,
+      methodOther,
       fromPlace,
       toPlace,
       departAt,
@@ -2405,6 +2494,7 @@ class TransportRow extends DataClass implements Insertable<TransportRow> {
           other.ownerId == this.ownerId &&
           other.direction == this.direction &&
           other.method == this.method &&
+          other.methodOther == this.methodOther &&
           other.fromPlace == this.fromPlace &&
           other.toPlace == this.toPlace &&
           other.departAt == this.departAt &&
@@ -2422,6 +2512,7 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
   final Value<String> ownerId;
   final Value<String> direction;
   final Value<String?> method;
+  final Value<String?> methodOther;
   final Value<String?> fromPlace;
   final Value<String?> toPlace;
   final Value<String?> departAt;
@@ -2438,6 +2529,7 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
     this.ownerId = const Value.absent(),
     this.direction = const Value.absent(),
     this.method = const Value.absent(),
+    this.methodOther = const Value.absent(),
     this.fromPlace = const Value.absent(),
     this.toPlace = const Value.absent(),
     this.departAt = const Value.absent(),
@@ -2455,6 +2547,7 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
     required String ownerId,
     this.direction = const Value.absent(),
     this.method = const Value.absent(),
+    this.methodOther = const Value.absent(),
     this.fromPlace = const Value.absent(),
     this.toPlace = const Value.absent(),
     this.departAt = const Value.absent(),
@@ -2476,6 +2569,7 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
     Expression<String>? ownerId,
     Expression<String>? direction,
     Expression<String>? method,
+    Expression<String>? methodOther,
     Expression<String>? fromPlace,
     Expression<String>? toPlace,
     Expression<String>? departAt,
@@ -2493,6 +2587,7 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
       if (ownerId != null) 'owner_id': ownerId,
       if (direction != null) 'direction': direction,
       if (method != null) 'method': method,
+      if (methodOther != null) 'method_other': methodOther,
       if (fromPlace != null) 'from_place': fromPlace,
       if (toPlace != null) 'to_place': toPlace,
       if (departAt != null) 'depart_at': departAt,
@@ -2512,6 +2607,7 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
       Value<String>? ownerId,
       Value<String>? direction,
       Value<String?>? method,
+      Value<String?>? methodOther,
       Value<String?>? fromPlace,
       Value<String?>? toPlace,
       Value<String?>? departAt,
@@ -2528,6 +2624,7 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
       ownerId: ownerId ?? this.ownerId,
       direction: direction ?? this.direction,
       method: method ?? this.method,
+      methodOther: methodOther ?? this.methodOther,
       fromPlace: fromPlace ?? this.fromPlace,
       toPlace: toPlace ?? this.toPlace,
       departAt: departAt ?? this.departAt,
@@ -2558,6 +2655,9 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
     }
     if (method.present) {
       map['method'] = Variable<String>(method.value);
+    }
+    if (methodOther.present) {
+      map['method_other'] = Variable<String>(methodOther.value);
     }
     if (fromPlace.present) {
       map['from_place'] = Variable<String>(fromPlace.value);
@@ -2600,6 +2700,7 @@ class TransportsCompanion extends UpdateCompanion<TransportRow> {
           ..write('ownerId: $ownerId, ')
           ..write('direction: $direction, ')
           ..write('method: $method, ')
+          ..write('methodOther: $methodOther, ')
           ..write('fromPlace: $fromPlace, ')
           ..write('toPlace: $toPlace, ')
           ..write('departAt: $departAt, ')
@@ -3864,6 +3965,13 @@ class $GenbaMemosTable extends GenbaMemos
   late final GeneratedColumn<String> category = GeneratedColumn<String>(
       'category', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
   static const VerificationMeta _bodyMeta = const VerificationMeta('body');
   @override
   late final GeneratedColumn<String> body = GeneratedColumn<String>(
@@ -3871,6 +3979,14 @@ class $GenbaMemosTable extends GenbaMemos
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -3884,8 +4000,17 @@ class $GenbaMemosTable extends GenbaMemos
       'updated_at', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, genbaId, ownerId, category, body, createdAt, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        genbaId,
+        ownerId,
+        category,
+        title,
+        body,
+        sortOrder,
+        createdAt,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3919,9 +4044,17 @@ class $GenbaMemosTable extends GenbaMemos
     } else if (isInserting) {
       context.missing(_categoryMeta);
     }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    }
     if (data.containsKey('body')) {
       context.handle(
           _bodyMeta, body.isAcceptableOrUnknown(data['body']!, _bodyMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -3941,10 +4074,6 @@ class $GenbaMemosTable extends GenbaMemos
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  List<Set<GeneratedColumn>> get uniqueKeys => [
-        {genbaId, category},
-      ];
-  @override
   GenbaMemoRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return GenbaMemoRow(
@@ -3956,8 +4085,12 @@ class $GenbaMemosTable extends GenbaMemos
           .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
       category: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
       body: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}body'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -3976,7 +4109,13 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
   final String genbaId;
   final String ownerId;
   final String category;
+
+  /// メモのタイトル（複数メモ化, schema v12）。既存行は種類名を初期値に移行。
+  final String title;
   final String body;
+
+  /// 現場内の並び順（v12）。
+  final int sortOrder;
   final String createdAt;
   final String updatedAt;
   const GenbaMemoRow(
@@ -3984,7 +4123,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       required this.genbaId,
       required this.ownerId,
       required this.category,
+      required this.title,
       required this.body,
+      required this.sortOrder,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -3994,7 +4135,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
     map['genba_id'] = Variable<String>(genbaId);
     map['owner_id'] = Variable<String>(ownerId);
     map['category'] = Variable<String>(category);
+    map['title'] = Variable<String>(title);
     map['body'] = Variable<String>(body);
+    map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
     return map;
@@ -4006,7 +4149,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       genbaId: Value(genbaId),
       ownerId: Value(ownerId),
       category: Value(category),
+      title: Value(title),
       body: Value(body),
+      sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4020,7 +4165,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       genbaId: serializer.fromJson<String>(json['genbaId']),
       ownerId: serializer.fromJson<String>(json['ownerId']),
       category: serializer.fromJson<String>(json['category']),
+      title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String>(json['body']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
     );
@@ -4033,7 +4180,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       'genbaId': serializer.toJson<String>(genbaId),
       'ownerId': serializer.toJson<String>(ownerId),
       'category': serializer.toJson<String>(category),
+      'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String>(body),
+      'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
     };
@@ -4044,7 +4193,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
           String? genbaId,
           String? ownerId,
           String? category,
+          String? title,
           String? body,
+          int? sortOrder,
           String? createdAt,
           String? updatedAt}) =>
       GenbaMemoRow(
@@ -4052,7 +4203,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
         genbaId: genbaId ?? this.genbaId,
         ownerId: ownerId ?? this.ownerId,
         category: category ?? this.category,
+        title: title ?? this.title,
         body: body ?? this.body,
+        sortOrder: sortOrder ?? this.sortOrder,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -4062,7 +4215,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       genbaId: data.genbaId.present ? data.genbaId.value : this.genbaId,
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       category: data.category.present ? data.category.value : this.category,
+      title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4075,7 +4230,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
           ..write('genbaId: $genbaId, ')
           ..write('ownerId: $ownerId, ')
           ..write('category: $category, ')
+          ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4083,8 +4240,8 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, genbaId, ownerId, category, body, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, genbaId, ownerId, category, title, body,
+      sortOrder, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4093,7 +4250,9 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
           other.genbaId == this.genbaId &&
           other.ownerId == this.ownerId &&
           other.category == this.category &&
+          other.title == this.title &&
           other.body == this.body &&
+          other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4103,7 +4262,9 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
   final Value<String> genbaId;
   final Value<String> ownerId;
   final Value<String> category;
+  final Value<String> title;
   final Value<String> body;
+  final Value<int> sortOrder;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<int> rowid;
@@ -4112,7 +4273,9 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
     this.genbaId = const Value.absent(),
     this.ownerId = const Value.absent(),
     this.category = const Value.absent(),
+    this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -4122,7 +4285,9 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
     required String genbaId,
     required String ownerId,
     required String category,
+    this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.rowid = const Value.absent(),
@@ -4137,7 +4302,9 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
     Expression<String>? genbaId,
     Expression<String>? ownerId,
     Expression<String>? category,
+    Expression<String>? title,
     Expression<String>? body,
+    Expression<int>? sortOrder,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<int>? rowid,
@@ -4147,7 +4314,9 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
       if (genbaId != null) 'genba_id': genbaId,
       if (ownerId != null) 'owner_id': ownerId,
       if (category != null) 'category': category,
+      if (title != null) 'title': title,
       if (body != null) 'body': body,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4159,7 +4328,9 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
       Value<String>? genbaId,
       Value<String>? ownerId,
       Value<String>? category,
+      Value<String>? title,
       Value<String>? body,
+      Value<int>? sortOrder,
       Value<String>? createdAt,
       Value<String>? updatedAt,
       Value<int>? rowid}) {
@@ -4168,7 +4339,9 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
       genbaId: genbaId ?? this.genbaId,
       ownerId: ownerId ?? this.ownerId,
       category: category ?? this.category,
+      title: title ?? this.title,
       body: body ?? this.body,
+      sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4190,8 +4363,14 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
@@ -4212,7 +4391,9 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
           ..write('genbaId: $genbaId, ')
           ..write('ownerId: $ownerId, ')
           ..write('category: $category, ')
+          ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -4891,6 +5072,26 @@ class $MemoryPhotosTable extends MemoryPhotos
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _albumCategoryMeta =
+      const VerificationMeta('albumCategory');
+  @override
+  late final GeneratedColumn<String> albumCategory = GeneratedColumn<String>(
+      'album_category', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('event'));
+  static const VerificationMeta _subjectTypeMeta =
+      const VerificationMeta('subjectType');
+  @override
+  late final GeneratedColumn<String> subjectType = GeneratedColumn<String>(
+      'subject_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _subjectIdMeta =
+      const VerificationMeta('subjectId');
+  @override
+  late final GeneratedColumn<String> subjectId = GeneratedColumn<String>(
+      'subject_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -4914,6 +5115,9 @@ class $MemoryPhotosTable extends MemoryPhotos
         caption,
         isCover,
         sortOrder,
+        albumCategory,
+        subjectType,
+        subjectId,
         createdAt,
         updatedAt
       ];
@@ -4972,6 +5176,22 @@ class $MemoryPhotosTable extends MemoryPhotos
       context.handle(_sortOrderMeta,
           sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
+    if (data.containsKey('album_category')) {
+      context.handle(
+          _albumCategoryMeta,
+          albumCategory.isAcceptableOrUnknown(
+              data['album_category']!, _albumCategoryMeta));
+    }
+    if (data.containsKey('subject_type')) {
+      context.handle(
+          _subjectTypeMeta,
+          subjectType.isAcceptableOrUnknown(
+              data['subject_type']!, _subjectTypeMeta));
+    }
+    if (data.containsKey('subject_id')) {
+      context.handle(_subjectIdMeta,
+          subjectId.isAcceptableOrUnknown(data['subject_id']!, _subjectIdMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -5011,6 +5231,12 @@ class $MemoryPhotosTable extends MemoryPhotos
           .read(DriftSqlType.bool, data['${effectivePrefix}is_cover'])!,
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      albumCategory: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}album_category'])!,
+      subjectType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subject_type']),
+      subjectId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}subject_id']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -5034,6 +5260,15 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
   final String? caption;
   final bool isCover;
   final int sortOrder;
+
+  /// アルバム分類（§8.4）: event / goods / visited_place / food。
+  final String albumCategory;
+
+  /// 関連項目の種別（goods / visited_place）。当日の写真では null。
+  final String? subjectType;
+
+  /// 関連項目のID（緩い参照。項目削除後も写真はアルバムへ残す, §8.4）。
+  final String? subjectId;
   final String createdAt;
   final String updatedAt;
   const MemoryPhotoRow(
@@ -5046,6 +5281,9 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
       this.caption,
       required this.isCover,
       required this.sortOrder,
+      required this.albumCategory,
+      this.subjectType,
+      this.subjectId,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -5066,6 +5304,13 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
     }
     map['is_cover'] = Variable<bool>(isCover);
     map['sort_order'] = Variable<int>(sortOrder);
+    map['album_category'] = Variable<String>(albumCategory);
+    if (!nullToAbsent || subjectType != null) {
+      map['subject_type'] = Variable<String>(subjectType);
+    }
+    if (!nullToAbsent || subjectId != null) {
+      map['subject_id'] = Variable<String>(subjectId);
+    }
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
     return map;
@@ -5088,6 +5333,13 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
           : Value(caption),
       isCover: Value(isCover),
       sortOrder: Value(sortOrder),
+      albumCategory: Value(albumCategory),
+      subjectType: subjectType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subjectType),
+      subjectId: subjectId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subjectId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -5106,6 +5358,9 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
       caption: serializer.fromJson<String?>(json['caption']),
       isCover: serializer.fromJson<bool>(json['isCover']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      albumCategory: serializer.fromJson<String>(json['albumCategory']),
+      subjectType: serializer.fromJson<String?>(json['subjectType']),
+      subjectId: serializer.fromJson<String?>(json['subjectId']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
     );
@@ -5123,6 +5378,9 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
       'caption': serializer.toJson<String?>(caption),
       'isCover': serializer.toJson<bool>(isCover),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'albumCategory': serializer.toJson<String>(albumCategory),
+      'subjectType': serializer.toJson<String?>(subjectType),
+      'subjectId': serializer.toJson<String?>(subjectId),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
     };
@@ -5138,6 +5396,9 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
           Value<String?> caption = const Value.absent(),
           bool? isCover,
           int? sortOrder,
+          String? albumCategory,
+          Value<String?> subjectType = const Value.absent(),
+          Value<String?> subjectId = const Value.absent(),
           String? createdAt,
           String? updatedAt}) =>
       MemoryPhotoRow(
@@ -5150,6 +5411,9 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
         caption: caption.present ? caption.value : this.caption,
         isCover: isCover ?? this.isCover,
         sortOrder: sortOrder ?? this.sortOrder,
+        albumCategory: albumCategory ?? this.albumCategory,
+        subjectType: subjectType.present ? subjectType.value : this.subjectType,
+        subjectId: subjectId.present ? subjectId.value : this.subjectId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -5167,6 +5431,12 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
       caption: data.caption.present ? data.caption.value : this.caption,
       isCover: data.isCover.present ? data.isCover.value : this.isCover,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      albumCategory: data.albumCategory.present
+          ? data.albumCategory.value
+          : this.albumCategory,
+      subjectType:
+          data.subjectType.present ? data.subjectType.value : this.subjectType,
+      subjectId: data.subjectId.present ? data.subjectId.value : this.subjectId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -5184,6 +5454,9 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
           ..write('caption: $caption, ')
           ..write('isCover: $isCover, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('albumCategory: $albumCategory, ')
+          ..write('subjectType: $subjectType, ')
+          ..write('subjectId: $subjectId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5191,8 +5464,21 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
   }
 
   @override
-  int get hashCode => Object.hash(id, genbaId, ownerId, localPath, storagePath,
-      uploadStatus, caption, isCover, sortOrder, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      genbaId,
+      ownerId,
+      localPath,
+      storagePath,
+      uploadStatus,
+      caption,
+      isCover,
+      sortOrder,
+      albumCategory,
+      subjectType,
+      subjectId,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5206,6 +5492,9 @@ class MemoryPhotoRow extends DataClass implements Insertable<MemoryPhotoRow> {
           other.caption == this.caption &&
           other.isCover == this.isCover &&
           other.sortOrder == this.sortOrder &&
+          other.albumCategory == this.albumCategory &&
+          other.subjectType == this.subjectType &&
+          other.subjectId == this.subjectId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -5220,6 +5509,9 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
   final Value<String?> caption;
   final Value<bool> isCover;
   final Value<int> sortOrder;
+  final Value<String> albumCategory;
+  final Value<String?> subjectType;
+  final Value<String?> subjectId;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<int> rowid;
@@ -5233,6 +5525,9 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
     this.caption = const Value.absent(),
     this.isCover = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.albumCategory = const Value.absent(),
+    this.subjectType = const Value.absent(),
+    this.subjectId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -5247,6 +5542,9 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
     this.caption = const Value.absent(),
     this.isCover = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.albumCategory = const Value.absent(),
+    this.subjectType = const Value.absent(),
+    this.subjectId = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.rowid = const Value.absent(),
@@ -5265,6 +5563,9 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
     Expression<String>? caption,
     Expression<bool>? isCover,
     Expression<int>? sortOrder,
+    Expression<String>? albumCategory,
+    Expression<String>? subjectType,
+    Expression<String>? subjectId,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<int>? rowid,
@@ -5279,6 +5580,9 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
       if (caption != null) 'caption': caption,
       if (isCover != null) 'is_cover': isCover,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (albumCategory != null) 'album_category': albumCategory,
+      if (subjectType != null) 'subject_type': subjectType,
+      if (subjectId != null) 'subject_id': subjectId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -5295,6 +5599,9 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
       Value<String?>? caption,
       Value<bool>? isCover,
       Value<int>? sortOrder,
+      Value<String>? albumCategory,
+      Value<String?>? subjectType,
+      Value<String?>? subjectId,
       Value<String>? createdAt,
       Value<String>? updatedAt,
       Value<int>? rowid}) {
@@ -5308,6 +5615,9 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
       caption: caption ?? this.caption,
       isCover: isCover ?? this.isCover,
       sortOrder: sortOrder ?? this.sortOrder,
+      albumCategory: albumCategory ?? this.albumCategory,
+      subjectType: subjectType ?? this.subjectType,
+      subjectId: subjectId ?? this.subjectId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -5344,6 +5654,15 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (albumCategory.present) {
+      map['album_category'] = Variable<String>(albumCategory.value);
+    }
+    if (subjectType.present) {
+      map['subject_type'] = Variable<String>(subjectType.value);
+    }
+    if (subjectId.present) {
+      map['subject_id'] = Variable<String>(subjectId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
     }
@@ -5368,6 +5687,9 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
           ..write('caption: $caption, ')
           ..write('isCover: $isCover, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('albumCategory: $albumCategory, ')
+          ..write('subjectType: $subjectType, ')
+          ..write('subjectId: $subjectId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -15001,6 +15323,7 @@ typedef $$GenbasTableCreateCompanionBuilder = GenbasCompanion Function({
   Value<int?> startTimeMinutes,
   Value<int?> endTimeMinutes,
   Value<String?> performanceType,
+  Value<String?> performanceTypeOther,
   Value<String?> performanceId,
   Value<bool?> isExpedition,
   Value<String> transportRequirement,
@@ -15029,6 +15352,7 @@ typedef $$GenbasTableUpdateCompanionBuilder = GenbasCompanion Function({
   Value<int?> startTimeMinutes,
   Value<int?> endTimeMinutes,
   Value<String?> performanceType,
+  Value<String?> performanceTypeOther,
   Value<String?> performanceId,
   Value<bool?> isExpedition,
   Value<String> transportRequirement,
@@ -15092,6 +15416,10 @@ class $$GenbasTableFilterComposer
 
   ColumnFilters<String> get performanceType => $composableBuilder(
       column: $table.performanceType,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get performanceTypeOther => $composableBuilder(
+      column: $table.performanceTypeOther,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get performanceId => $composableBuilder(
@@ -15191,6 +15519,10 @@ class $$GenbasTableOrderingComposer
       column: $table.performanceType,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get performanceTypeOther => $composableBuilder(
+      column: $table.performanceTypeOther,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get performanceId => $composableBuilder(
       column: $table.performanceId,
       builder: (column) => ColumnOrderings(column));
@@ -15286,6 +15618,9 @@ class $$GenbasTableAnnotationComposer
   GeneratedColumn<String> get performanceType => $composableBuilder(
       column: $table.performanceType, builder: (column) => column);
 
+  GeneratedColumn<String> get performanceTypeOther => $composableBuilder(
+      column: $table.performanceTypeOther, builder: (column) => column);
+
   GeneratedColumn<String> get performanceId => $composableBuilder(
       column: $table.performanceId, builder: (column) => column);
 
@@ -15361,6 +15696,7 @@ class $$GenbasTableTableManager extends RootTableManager<
             Value<int?> startTimeMinutes = const Value.absent(),
             Value<int?> endTimeMinutes = const Value.absent(),
             Value<String?> performanceType = const Value.absent(),
+            Value<String?> performanceTypeOther = const Value.absent(),
             Value<String?> performanceId = const Value.absent(),
             Value<bool?> isExpedition = const Value.absent(),
             Value<String> transportRequirement = const Value.absent(),
@@ -15389,6 +15725,7 @@ class $$GenbasTableTableManager extends RootTableManager<
             startTimeMinutes: startTimeMinutes,
             endTimeMinutes: endTimeMinutes,
             performanceType: performanceType,
+            performanceTypeOther: performanceTypeOther,
             performanceId: performanceId,
             isExpedition: isExpedition,
             transportRequirement: transportRequirement,
@@ -15417,6 +15754,7 @@ class $$GenbasTableTableManager extends RootTableManager<
             Value<int?> startTimeMinutes = const Value.absent(),
             Value<int?> endTimeMinutes = const Value.absent(),
             Value<String?> performanceType = const Value.absent(),
+            Value<String?> performanceTypeOther = const Value.absent(),
             Value<String?> performanceId = const Value.absent(),
             Value<bool?> isExpedition = const Value.absent(),
             Value<String> transportRequirement = const Value.absent(),
@@ -15445,6 +15783,7 @@ class $$GenbasTableTableManager extends RootTableManager<
             startTimeMinutes: startTimeMinutes,
             endTimeMinutes: endTimeMinutes,
             performanceType: performanceType,
+            performanceTypeOther: performanceTypeOther,
             performanceId: performanceId,
             isExpedition: isExpedition,
             transportRequirement: transportRequirement,
@@ -15807,6 +16146,7 @@ typedef $$TransportsTableCreateCompanionBuilder = TransportsCompanion Function({
   required String ownerId,
   Value<String> direction,
   Value<String?> method,
+  Value<String?> methodOther,
   Value<String?> fromPlace,
   Value<String?> toPlace,
   Value<String?> departAt,
@@ -15824,6 +16164,7 @@ typedef $$TransportsTableUpdateCompanionBuilder = TransportsCompanion Function({
   Value<String> ownerId,
   Value<String> direction,
   Value<String?> method,
+  Value<String?> methodOther,
   Value<String?> fromPlace,
   Value<String?> toPlace,
   Value<String?> departAt,
@@ -15859,6 +16200,9 @@ class $$TransportsTableFilterComposer
 
   ColumnFilters<String> get method => $composableBuilder(
       column: $table.method, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get methodOther => $composableBuilder(
+      column: $table.methodOther, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get fromPlace => $composableBuilder(
       column: $table.fromPlace, builder: (column) => ColumnFilters(column));
@@ -15913,6 +16257,9 @@ class $$TransportsTableOrderingComposer
   ColumnOrderings<String> get method => $composableBuilder(
       column: $table.method, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get methodOther => $composableBuilder(
+      column: $table.methodOther, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get fromPlace => $composableBuilder(
       column: $table.fromPlace, builder: (column) => ColumnOrderings(column));
 
@@ -15965,6 +16312,9 @@ class $$TransportsTableAnnotationComposer
 
   GeneratedColumn<String> get method =>
       $composableBuilder(column: $table.method, builder: (column) => column);
+
+  GeneratedColumn<String> get methodOther => $composableBuilder(
+      column: $table.methodOther, builder: (column) => column);
 
   GeneratedColumn<String> get fromPlace =>
       $composableBuilder(column: $table.fromPlace, builder: (column) => column);
@@ -16025,6 +16375,7 @@ class $$TransportsTableTableManager extends RootTableManager<
             Value<String> ownerId = const Value.absent(),
             Value<String> direction = const Value.absent(),
             Value<String?> method = const Value.absent(),
+            Value<String?> methodOther = const Value.absent(),
             Value<String?> fromPlace = const Value.absent(),
             Value<String?> toPlace = const Value.absent(),
             Value<String?> departAt = const Value.absent(),
@@ -16042,6 +16393,7 @@ class $$TransportsTableTableManager extends RootTableManager<
             ownerId: ownerId,
             direction: direction,
             method: method,
+            methodOther: methodOther,
             fromPlace: fromPlace,
             toPlace: toPlace,
             departAt: departAt,
@@ -16059,6 +16411,7 @@ class $$TransportsTableTableManager extends RootTableManager<
             required String ownerId,
             Value<String> direction = const Value.absent(),
             Value<String?> method = const Value.absent(),
+            Value<String?> methodOther = const Value.absent(),
             Value<String?> fromPlace = const Value.absent(),
             Value<String?> toPlace = const Value.absent(),
             Value<String?> departAt = const Value.absent(),
@@ -16076,6 +16429,7 @@ class $$TransportsTableTableManager extends RootTableManager<
             ownerId: ownerId,
             direction: direction,
             method: method,
+            methodOther: methodOther,
             fromPlace: fromPlace,
             toPlace: toPlace,
             departAt: departAt,
@@ -16671,7 +17025,9 @@ typedef $$GenbaMemosTableCreateCompanionBuilder = GenbaMemosCompanion Function({
   required String genbaId,
   required String ownerId,
   required String category,
+  Value<String> title,
   Value<String> body,
+  Value<int> sortOrder,
   required String createdAt,
   required String updatedAt,
   Value<int> rowid,
@@ -16681,7 +17037,9 @@ typedef $$GenbaMemosTableUpdateCompanionBuilder = GenbaMemosCompanion Function({
   Value<String> genbaId,
   Value<String> ownerId,
   Value<String> category,
+  Value<String> title,
   Value<String> body,
+  Value<int> sortOrder,
   Value<String> createdAt,
   Value<String> updatedAt,
   Value<int> rowid,
@@ -16708,8 +17066,14 @@ class $$GenbaMemosTableFilterComposer
   ColumnFilters<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get body => $composableBuilder(
       column: $table.body, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -16739,8 +17103,14 @@ class $$GenbaMemosTableOrderingComposer
   ColumnOrderings<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get body => $composableBuilder(
       column: $table.body, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
@@ -16770,8 +17140,14 @@ class $$GenbaMemosTableAnnotationComposer
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
 
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -16810,7 +17186,9 @@ class $$GenbaMemosTableTableManager extends RootTableManager<
             Value<String> genbaId = const Value.absent(),
             Value<String> ownerId = const Value.absent(),
             Value<String> category = const Value.absent(),
+            Value<String> title = const Value.absent(),
             Value<String> body = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
             Value<String> createdAt = const Value.absent(),
             Value<String> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -16820,7 +17198,9 @@ class $$GenbaMemosTableTableManager extends RootTableManager<
             genbaId: genbaId,
             ownerId: ownerId,
             category: category,
+            title: title,
             body: body,
+            sortOrder: sortOrder,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -16830,7 +17210,9 @@ class $$GenbaMemosTableTableManager extends RootTableManager<
             required String genbaId,
             required String ownerId,
             required String category,
+            Value<String> title = const Value.absent(),
             Value<String> body = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
             required String createdAt,
             required String updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -16840,7 +17222,9 @@ class $$GenbaMemosTableTableManager extends RootTableManager<
             genbaId: genbaId,
             ownerId: ownerId,
             category: category,
+            title: title,
             body: body,
+            sortOrder: sortOrder,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -17158,6 +17542,9 @@ typedef $$MemoryPhotosTableCreateCompanionBuilder = MemoryPhotosCompanion
   Value<String?> caption,
   Value<bool> isCover,
   Value<int> sortOrder,
+  Value<String> albumCategory,
+  Value<String?> subjectType,
+  Value<String?> subjectId,
   required String createdAt,
   required String updatedAt,
   Value<int> rowid,
@@ -17173,6 +17560,9 @@ typedef $$MemoryPhotosTableUpdateCompanionBuilder = MemoryPhotosCompanion
   Value<String?> caption,
   Value<bool> isCover,
   Value<int> sortOrder,
+  Value<String> albumCategory,
+  Value<String?> subjectType,
+  Value<String?> subjectId,
   Value<String> createdAt,
   Value<String> updatedAt,
   Value<int> rowid,
@@ -17213,6 +17603,15 @@ class $$MemoryPhotosTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get albumCategory => $composableBuilder(
+      column: $table.albumCategory, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subjectType => $composableBuilder(
+      column: $table.subjectType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get subjectId => $composableBuilder(
+      column: $table.subjectId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -17258,6 +17657,16 @@ class $$MemoryPhotosTableOrderingComposer
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get albumCategory => $composableBuilder(
+      column: $table.albumCategory,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subjectType => $composableBuilder(
+      column: $table.subjectType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get subjectId => $composableBuilder(
+      column: $table.subjectId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -17301,6 +17710,15 @@ class $$MemoryPhotosTableAnnotationComposer
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
+  GeneratedColumn<String> get albumCategory => $composableBuilder(
+      column: $table.albumCategory, builder: (column) => column);
+
+  GeneratedColumn<String> get subjectType => $composableBuilder(
+      column: $table.subjectType, builder: (column) => column);
+
+  GeneratedColumn<String> get subjectId =>
+      $composableBuilder(column: $table.subjectId, builder: (column) => column);
+
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -17343,6 +17761,9 @@ class $$MemoryPhotosTableTableManager extends RootTableManager<
             Value<String?> caption = const Value.absent(),
             Value<bool> isCover = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String> albumCategory = const Value.absent(),
+            Value<String?> subjectType = const Value.absent(),
+            Value<String?> subjectId = const Value.absent(),
             Value<String> createdAt = const Value.absent(),
             Value<String> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -17357,6 +17778,9 @@ class $$MemoryPhotosTableTableManager extends RootTableManager<
             caption: caption,
             isCover: isCover,
             sortOrder: sortOrder,
+            albumCategory: albumCategory,
+            subjectType: subjectType,
+            subjectId: subjectId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -17371,6 +17795,9 @@ class $$MemoryPhotosTableTableManager extends RootTableManager<
             Value<String?> caption = const Value.absent(),
             Value<bool> isCover = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<String> albumCategory = const Value.absent(),
+            Value<String?> subjectType = const Value.absent(),
+            Value<String?> subjectId = const Value.absent(),
             required String createdAt,
             required String updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -17385,6 +17812,9 @@ class $$MemoryPhotosTableTableManager extends RootTableManager<
             caption: caption,
             isCover: isCover,
             sortOrder: sortOrder,
+            albumCategory: albumCategory,
+            subjectType: subjectType,
+            subjectId: subjectId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

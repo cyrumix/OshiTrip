@@ -107,7 +107,15 @@ class GenbaOverviewTab extends ConsumerWidget {
                   ].join(' / '),
                 ),
               if (genba.performanceType != null)
-                _InfoRow(label: '種別', value: genba.performanceType!),
+                _InfoRow(
+                  label: '種別',
+                  // 「その他」で補足自由入力があればそれを、無ければラベルを表示。
+                  value: genba.performanceType == PerformanceType.other &&
+                          (genba.performanceTypeOther?.trim().isNotEmpty ??
+                              false)
+                      ? genba.performanceTypeOther!.trim()
+                      : genba.performanceType!.label,
+                ),
               _StatusActionsSection(genba: genba, status: status),
             ],
           ),

@@ -253,7 +253,13 @@ mixin _$Genba {
   int? get doorTimeMinutes => throw _privateConstructorUsedError;
   int? get startTimeMinutes => throw _privateConstructorUsedError;
   int? get endTimeMinutes => throw _privateConstructorUsedError;
-  String? get performanceType => throw _privateConstructorUsedError;
+
+  /// 公演種別（選択式・安定コード, §7.1）。既存自由入力は移行で変換する。
+  PerformanceType? get performanceType => throw _privateConstructorUsedError;
+
+  /// [PerformanceType.other] のときの補足自由入力、および変換不能な旧自由入力の
+  /// 保持先（移行時に元文字列を失わないための領域）。
+  String? get performanceTypeOther => throw _privateConstructorUsedError;
 
   /// ユーザー投稿型公演マスタとの紐づけ（今回は境界のみ）。
   String? get performanceId => throw _privateConstructorUsedError;
@@ -318,7 +324,8 @@ abstract class $GenbaCopyWith<$Res> {
       int? doorTimeMinutes,
       int? startTimeMinutes,
       int? endTimeMinutes,
-      String? performanceType,
+      PerformanceType? performanceType,
+      String? performanceTypeOther,
       String? performanceId,
       bool? isExpedition,
       RequirementStatus transportRequirement,
@@ -361,6 +368,7 @@ class _$GenbaCopyWithImpl<$Res, $Val extends Genba>
     Object? startTimeMinutes = freezed,
     Object? endTimeMinutes = freezed,
     Object? performanceType = freezed,
+    Object? performanceTypeOther = freezed,
     Object? performanceId = freezed,
     Object? isExpedition = freezed,
     Object? transportRequirement = null,
@@ -423,6 +431,10 @@ class _$GenbaCopyWithImpl<$Res, $Val extends Genba>
       performanceType: freezed == performanceType
           ? _value.performanceType
           : performanceType // ignore: cast_nullable_to_non_nullable
+              as PerformanceType?,
+      performanceTypeOther: freezed == performanceTypeOther
+          ? _value.performanceTypeOther
+          : performanceTypeOther // ignore: cast_nullable_to_non_nullable
               as String?,
       performanceId: freezed == performanceId
           ? _value.performanceId
@@ -499,7 +511,8 @@ abstract class _$$GenbaImplCopyWith<$Res> implements $GenbaCopyWith<$Res> {
       int? doorTimeMinutes,
       int? startTimeMinutes,
       int? endTimeMinutes,
-      String? performanceType,
+      PerformanceType? performanceType,
+      String? performanceTypeOther,
       String? performanceId,
       bool? isExpedition,
       RequirementStatus transportRequirement,
@@ -540,6 +553,7 @@ class __$$GenbaImplCopyWithImpl<$Res>
     Object? startTimeMinutes = freezed,
     Object? endTimeMinutes = freezed,
     Object? performanceType = freezed,
+    Object? performanceTypeOther = freezed,
     Object? performanceId = freezed,
     Object? isExpedition = freezed,
     Object? transportRequirement = null,
@@ -602,6 +616,10 @@ class __$$GenbaImplCopyWithImpl<$Res>
       performanceType: freezed == performanceType
           ? _value.performanceType
           : performanceType // ignore: cast_nullable_to_non_nullable
+              as PerformanceType?,
+      performanceTypeOther: freezed == performanceTypeOther
+          ? _value.performanceTypeOther
+          : performanceTypeOther // ignore: cast_nullable_to_non_nullable
               as String?,
       performanceId: freezed == performanceId
           ? _value.performanceId
@@ -676,6 +694,7 @@ class _$GenbaImpl extends _Genba {
       this.startTimeMinutes,
       this.endTimeMinutes,
       this.performanceType,
+      this.performanceTypeOther,
       this.performanceId,
       this.isExpedition,
       this.transportRequirement = RequirementStatus.unknown,
@@ -727,8 +746,15 @@ class _$GenbaImpl extends _Genba {
   final int? startTimeMinutes;
   @override
   final int? endTimeMinutes;
+
+  /// 公演種別（選択式・安定コード, §7.1）。既存自由入力は移行で変換する。
   @override
-  final String? performanceType;
+  final PerformanceType? performanceType;
+
+  /// [PerformanceType.other] のときの補足自由入力、および変換不能な旧自由入力の
+  /// 保持先（移行時に元文字列を失わないための領域）。
+  @override
+  final String? performanceTypeOther;
 
   /// ユーザー投稿型公演マスタとの紐づけ（今回は境界のみ）。
   @override
@@ -784,7 +810,7 @@ class _$GenbaImpl extends _Genba {
 
   @override
   String toString() {
-    return 'Genba(id: $id, ownerId: $ownerId, artistName: $artistName, title: $title, eventDate: $eventDate, oshiGroupId: $oshiGroupId, oshiMemberIds: $oshiMemberIds, venue: $venue, doorTimeMinutes: $doorTimeMinutes, startTimeMinutes: $startTimeMinutes, endTimeMinutes: $endTimeMinutes, performanceType: $performanceType, performanceId: $performanceId, isExpedition: $isExpedition, transportRequirement: $transportRequirement, lodgingRequirement: $lodgingRequirement, isCanceled: $isCanceled, attendanceStatus: $attendanceStatus, heroImageLocalPath: $heroImageLocalPath, heroImageStoragePath: $heroImageStoragePath, heroImageUploadStatus: $heroImageUploadStatus, heroImageAltText: $heroImageAltText, manualEndedAt: $manualEndedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Genba(id: $id, ownerId: $ownerId, artistName: $artistName, title: $title, eventDate: $eventDate, oshiGroupId: $oshiGroupId, oshiMemberIds: $oshiMemberIds, venue: $venue, doorTimeMinutes: $doorTimeMinutes, startTimeMinutes: $startTimeMinutes, endTimeMinutes: $endTimeMinutes, performanceType: $performanceType, performanceTypeOther: $performanceTypeOther, performanceId: $performanceId, isExpedition: $isExpedition, transportRequirement: $transportRequirement, lodgingRequirement: $lodgingRequirement, isCanceled: $isCanceled, attendanceStatus: $attendanceStatus, heroImageLocalPath: $heroImageLocalPath, heroImageStoragePath: $heroImageStoragePath, heroImageUploadStatus: $heroImageUploadStatus, heroImageAltText: $heroImageAltText, manualEndedAt: $manualEndedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -812,6 +838,8 @@ class _$GenbaImpl extends _Genba {
                 other.endTimeMinutes == endTimeMinutes) &&
             (identical(other.performanceType, performanceType) ||
                 other.performanceType == performanceType) &&
+            (identical(other.performanceTypeOther, performanceTypeOther) ||
+                other.performanceTypeOther == performanceTypeOther) &&
             (identical(other.performanceId, performanceId) ||
                 other.performanceId == performanceId) &&
             (identical(other.isExpedition, isExpedition) ||
@@ -856,6 +884,7 @@ class _$GenbaImpl extends _Genba {
         startTimeMinutes,
         endTimeMinutes,
         performanceType,
+        performanceTypeOther,
         performanceId,
         isExpedition,
         transportRequirement,
@@ -900,7 +929,8 @@ abstract class _Genba extends Genba {
       final int? doorTimeMinutes,
       final int? startTimeMinutes,
       final int? endTimeMinutes,
-      final String? performanceType,
+      final PerformanceType? performanceType,
+      final String? performanceTypeOther,
       final String? performanceId,
       final bool? isExpedition,
       final RequirementStatus transportRequirement,
@@ -943,8 +973,15 @@ abstract class _Genba extends Genba {
   int? get startTimeMinutes;
   @override
   int? get endTimeMinutes;
+
+  /// 公演種別（選択式・安定コード, §7.1）。既存自由入力は移行で変換する。
   @override
-  String? get performanceType;
+  PerformanceType? get performanceType;
+
+  /// [PerformanceType.other] のときの補足自由入力、および変換不能な旧自由入力の
+  /// 保持先（移行時に元文字列を失わないための領域）。
+  @override
+  String? get performanceTypeOther;
 
   /// ユーザー投稿型公演マスタとの紐づけ（今回は境界のみ）。
   @override
@@ -1487,7 +1524,12 @@ mixin _$Transport {
   String get genbaId => throw _privateConstructorUsedError;
   String get ownerId => throw _privateConstructorUsedError;
   TransportDirection get direction => throw _privateConstructorUsedError;
-  String? get method => throw _privateConstructorUsedError;
+
+  /// 交通手段（選択式・安定コード, §7.5）。既存自由入力は移行で変換する。
+  TransportMethod? get method => throw _privateConstructorUsedError;
+
+  /// [TransportMethod.other] の補足自由入力・変換不能な旧自由入力の保持先。
+  String? get methodOther => throw _privateConstructorUsedError;
   String? get fromPlace => throw _privateConstructorUsedError;
   String? get toPlace => throw _privateConstructorUsedError;
   @NullableUtcDateTimeConverter()
@@ -1522,7 +1564,8 @@ abstract class $TransportCopyWith<$Res> {
       String genbaId,
       String ownerId,
       TransportDirection direction,
-      String? method,
+      TransportMethod? method,
+      String? methodOther,
       String? fromPlace,
       String? toPlace,
       @NullableUtcDateTimeConverter() DateTime? departAt,
@@ -1554,6 +1597,7 @@ class _$TransportCopyWithImpl<$Res, $Val extends Transport>
     Object? ownerId = null,
     Object? direction = null,
     Object? method = freezed,
+    Object? methodOther = freezed,
     Object? fromPlace = freezed,
     Object? toPlace = freezed,
     Object? departAt = freezed,
@@ -1584,6 +1628,10 @@ class _$TransportCopyWithImpl<$Res, $Val extends Transport>
       method: freezed == method
           ? _value.method
           : method // ignore: cast_nullable_to_non_nullable
+              as TransportMethod?,
+      methodOther: freezed == methodOther
+          ? _value.methodOther
+          : methodOther // ignore: cast_nullable_to_non_nullable
               as String?,
       fromPlace: freezed == fromPlace
           ? _value.fromPlace
@@ -1638,7 +1686,8 @@ abstract class _$$TransportImplCopyWith<$Res>
       String genbaId,
       String ownerId,
       TransportDirection direction,
-      String? method,
+      TransportMethod? method,
+      String? methodOther,
       String? fromPlace,
       String? toPlace,
       @NullableUtcDateTimeConverter() DateTime? departAt,
@@ -1668,6 +1717,7 @@ class __$$TransportImplCopyWithImpl<$Res>
     Object? ownerId = null,
     Object? direction = null,
     Object? method = freezed,
+    Object? methodOther = freezed,
     Object? fromPlace = freezed,
     Object? toPlace = freezed,
     Object? departAt = freezed,
@@ -1698,6 +1748,10 @@ class __$$TransportImplCopyWithImpl<$Res>
       method: freezed == method
           ? _value.method
           : method // ignore: cast_nullable_to_non_nullable
+              as TransportMethod?,
+      methodOther: freezed == methodOther
+          ? _value.methodOther
+          : methodOther // ignore: cast_nullable_to_non_nullable
               as String?,
       fromPlace: freezed == fromPlace
           ? _value.fromPlace
@@ -1749,6 +1803,7 @@ class _$TransportImpl implements _Transport {
       required this.ownerId,
       this.direction = TransportDirection.outbound,
       this.method,
+      this.methodOther,
       this.fromPlace,
       this.toPlace,
       @NullableUtcDateTimeConverter() this.departAt,
@@ -1771,8 +1826,14 @@ class _$TransportImpl implements _Transport {
   @override
   @JsonKey()
   final TransportDirection direction;
+
+  /// 交通手段（選択式・安定コード, §7.5）。既存自由入力は移行で変換する。
   @override
-  final String? method;
+  final TransportMethod? method;
+
+  /// [TransportMethod.other] の補足自由入力・変換不能な旧自由入力の保持先。
+  @override
+  final String? methodOther;
   @override
   final String? fromPlace;
   @override
@@ -1798,7 +1859,7 @@ class _$TransportImpl implements _Transport {
 
   @override
   String toString() {
-    return 'Transport(id: $id, genbaId: $genbaId, ownerId: $ownerId, direction: $direction, method: $method, fromPlace: $fromPlace, toPlace: $toPlace, departAt: $departAt, arriveAt: $arriveAt, reservationNumber: $reservationNumber, url: $url, memo: $memo, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Transport(id: $id, genbaId: $genbaId, ownerId: $ownerId, direction: $direction, method: $method, methodOther: $methodOther, fromPlace: $fromPlace, toPlace: $toPlace, departAt: $departAt, arriveAt: $arriveAt, reservationNumber: $reservationNumber, url: $url, memo: $memo, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -1812,6 +1873,8 @@ class _$TransportImpl implements _Transport {
             (identical(other.direction, direction) ||
                 other.direction == direction) &&
             (identical(other.method, method) || other.method == method) &&
+            (identical(other.methodOther, methodOther) ||
+                other.methodOther == methodOther) &&
             (identical(other.fromPlace, fromPlace) ||
                 other.fromPlace == fromPlace) &&
             (identical(other.toPlace, toPlace) || other.toPlace == toPlace) &&
@@ -1838,6 +1901,7 @@ class _$TransportImpl implements _Transport {
       ownerId,
       direction,
       method,
+      methodOther,
       fromPlace,
       toPlace,
       departAt,
@@ -1870,7 +1934,8 @@ abstract class _Transport implements Transport {
           required final String genbaId,
           required final String ownerId,
           final TransportDirection direction,
-          final String? method,
+          final TransportMethod? method,
+          final String? methodOther,
           final String? fromPlace,
           final String? toPlace,
           @NullableUtcDateTimeConverter() final DateTime? departAt,
@@ -1893,8 +1958,14 @@ abstract class _Transport implements Transport {
   String get ownerId;
   @override
   TransportDirection get direction;
+
+  /// 交通手段（選択式・安定コード, §7.5）。既存自由入力は移行で変換する。
   @override
-  String? get method;
+  TransportMethod? get method;
+
+  /// [TransportMethod.other] の補足自由入力・変換不能な旧自由入力の保持先。
+  @override
+  String? get methodOther;
   @override
   String? get fromPlace;
   @override
@@ -2762,8 +2833,16 @@ mixin _$GenbaMemo {
   String get id => throw _privateConstructorUsedError;
   String get genbaId => throw _privateConstructorUsedError;
   String get ownerId => throw _privateConstructorUsedError;
+
+  /// 種類（テンプレート由来。同一種類の複数作成を許容する）。
   MemoCategory get category => throw _privateConstructorUsedError;
+
+  /// メモのタイトル（新規時は種類名を初期値にする）。
+  String get title => throw _privateConstructorUsedError;
   String get body => throw _privateConstructorUsedError;
+
+  /// 現場内での並び順（小さいほど上）。
+  int get sortOrder => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
   DateTime get createdAt => throw _privateConstructorUsedError;
   @UtcDateTimeConverter()
@@ -2789,7 +2868,9 @@ abstract class $GenbaMemoCopyWith<$Res> {
       String genbaId,
       String ownerId,
       MemoCategory category,
+      String title,
       String body,
+      int sortOrder,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -2813,7 +2894,9 @@ class _$GenbaMemoCopyWithImpl<$Res, $Val extends GenbaMemo>
     Object? genbaId = null,
     Object? ownerId = null,
     Object? category = null,
+    Object? title = null,
     Object? body = null,
+    Object? sortOrder = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -2834,10 +2917,18 @@ class _$GenbaMemoCopyWithImpl<$Res, $Val extends GenbaMemo>
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
               as MemoCategory,
+      title: null == title
+          ? _value.title
+          : title // ignore: cast_nullable_to_non_nullable
+              as String,
       body: null == body
           ? _value.body
           : body // ignore: cast_nullable_to_non_nullable
               as String,
+      sortOrder: null == sortOrder
+          ? _value.sortOrder
+          : sortOrder // ignore: cast_nullable_to_non_nullable
+              as int,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -2863,7 +2954,9 @@ abstract class _$$GenbaMemoImplCopyWith<$Res>
       String genbaId,
       String ownerId,
       MemoCategory category,
+      String title,
       String body,
+      int sortOrder,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
 }
@@ -2885,7 +2978,9 @@ class __$$GenbaMemoImplCopyWithImpl<$Res>
     Object? genbaId = null,
     Object? ownerId = null,
     Object? category = null,
+    Object? title = null,
     Object? body = null,
+    Object? sortOrder = null,
     Object? createdAt = null,
     Object? updatedAt = null,
   }) {
@@ -2906,10 +3001,18 @@ class __$$GenbaMemoImplCopyWithImpl<$Res>
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
               as MemoCategory,
+      title: null == title
+          ? _value.title
+          : title // ignore: cast_nullable_to_non_nullable
+              as String,
       body: null == body
           ? _value.body
           : body // ignore: cast_nullable_to_non_nullable
               as String,
+      sortOrder: null == sortOrder
+          ? _value.sortOrder
+          : sortOrder // ignore: cast_nullable_to_non_nullable
+              as int,
       createdAt: null == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -2931,7 +3034,9 @@ class _$GenbaMemoImpl implements _GenbaMemo {
       required this.genbaId,
       required this.ownerId,
       required this.category,
+      this.title = '',
       this.body = '',
+      this.sortOrder = 0,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt});
 
@@ -2944,11 +3049,23 @@ class _$GenbaMemoImpl implements _GenbaMemo {
   final String genbaId;
   @override
   final String ownerId;
+
+  /// 種類（テンプレート由来。同一種類の複数作成を許容する）。
   @override
   final MemoCategory category;
+
+  /// メモのタイトル（新規時は種類名を初期値にする）。
+  @override
+  @JsonKey()
+  final String title;
   @override
   @JsonKey()
   final String body;
+
+  /// 現場内での並び順（小さいほど上）。
+  @override
+  @JsonKey()
+  final int sortOrder;
   @override
   @UtcDateTimeConverter()
   final DateTime createdAt;
@@ -2958,7 +3075,7 @@ class _$GenbaMemoImpl implements _GenbaMemo {
 
   @override
   String toString() {
-    return 'GenbaMemo(id: $id, genbaId: $genbaId, ownerId: $ownerId, category: $category, body: $body, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'GenbaMemo(id: $id, genbaId: $genbaId, ownerId: $ownerId, category: $category, title: $title, body: $body, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -2971,7 +3088,10 @@ class _$GenbaMemoImpl implements _GenbaMemo {
             (identical(other.ownerId, ownerId) || other.ownerId == ownerId) &&
             (identical(other.category, category) ||
                 other.category == category) &&
+            (identical(other.title, title) || other.title == title) &&
             (identical(other.body, body) || other.body == body) &&
+            (identical(other.sortOrder, sortOrder) ||
+                other.sortOrder == sortOrder) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -2980,8 +3100,8 @@ class _$GenbaMemoImpl implements _GenbaMemo {
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, id, genbaId, ownerId, category, body, createdAt, updatedAt);
+  int get hashCode => Object.hash(runtimeType, id, genbaId, ownerId, category,
+      title, body, sortOrder, createdAt, updatedAt);
 
   /// Create a copy of GenbaMemo
   /// with the given fields replaced by the non-null parameter values.
@@ -3005,7 +3125,9 @@ abstract class _GenbaMemo implements GenbaMemo {
           required final String genbaId,
           required final String ownerId,
           required final MemoCategory category,
+          final String title,
           final String body,
+          final int sortOrder,
           @UtcDateTimeConverter() required final DateTime createdAt,
           @UtcDateTimeConverter() required final DateTime updatedAt}) =
       _$GenbaMemoImpl;
@@ -3019,10 +3141,20 @@ abstract class _GenbaMemo implements GenbaMemo {
   String get genbaId;
   @override
   String get ownerId;
+
+  /// 種類（テンプレート由来。同一種類の複数作成を許容する）。
   @override
   MemoCategory get category;
+
+  /// メモのタイトル（新規時は種類名を初期値にする）。
+  @override
+  String get title;
   @override
   String get body;
+
+  /// 現場内での並び順（小さいほど上）。
+  @override
+  int get sortOrder;
   @override
   @UtcDateTimeConverter()
   DateTime get createdAt;

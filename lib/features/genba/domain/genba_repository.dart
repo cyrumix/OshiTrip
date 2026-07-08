@@ -46,6 +46,12 @@ abstract interface class GenbaRepository {
   Future<Result<void>> upsertMemo(GenbaMemo memo);
   Future<Result<void>> deleteMemo(String id);
 
+  /// 現場内のメモの並び順を [orderedIds] の順に振り直す（sort_order のみ更新）。
+  Future<Result<void>> reorderMemos({
+    required String genbaId,
+    required List<String> orderedIds,
+  });
+
   /// リモートの最新状態をローカルへ取り込む（キャッシュ先行表示の裏側で実行）。
   ///
   /// [isStale] は認証切替検出用（H-02）。各リモート取得後・ローカル適用直前に

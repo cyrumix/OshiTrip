@@ -52,9 +52,38 @@ MemoryPhoto photoFromRow(MemoryPhotoRow row) => MemoryPhoto(
       caption: row.caption,
       isCover: row.isCover,
       sortOrder: row.sortOrder,
+      albumCategory: _albumCategoryFromCode(row.albumCategory),
+      subjectType: _subjectTypeFromCode(row.subjectType),
+      subjectId: row.subjectId,
       createdAt: DateTime.parse(row.createdAt),
       updatedAt: DateTime.parse(row.updatedAt),
     );
+
+MemoryAlbumCategory _albumCategoryFromCode(String? code) => switch (code) {
+      'goods' => MemoryAlbumCategory.goods,
+      'visited_place' => MemoryAlbumCategory.visitedPlace,
+      'food' => MemoryAlbumCategory.food,
+      _ => MemoryAlbumCategory.event,
+    };
+
+String _albumCategoryToCode(MemoryAlbumCategory c) => switch (c) {
+      MemoryAlbumCategory.event => 'event',
+      MemoryAlbumCategory.goods => 'goods',
+      MemoryAlbumCategory.visitedPlace => 'visited_place',
+      MemoryAlbumCategory.food => 'food',
+    };
+
+MemorySubjectType? _subjectTypeFromCode(String? code) => switch (code) {
+      'goods' => MemorySubjectType.goods,
+      'visited_place' => MemorySubjectType.visitedPlace,
+      _ => null,
+    };
+
+String? _subjectTypeToCode(MemorySubjectType? t) => switch (t) {
+      MemorySubjectType.goods => 'goods',
+      MemorySubjectType.visitedPlace => 'visited_place',
+      null => null,
+    };
 
 /// [preserveLocalImage] が true のとき local_path を companion に含めない
 /// （`Value.absent`）。リモート pull はサーバーに存在しないこの端末内参照を
@@ -80,6 +109,9 @@ MemoryPhotosCompanion photoToCompanion(
       caption: Value(p.caption),
       isCover: Value(p.isCover),
       sortOrder: Value(p.sortOrder),
+      albumCategory: Value(_albumCategoryToCode(p.albumCategory)),
+      subjectType: Value(_subjectTypeToCode(p.subjectType)),
+      subjectId: Value(p.subjectId),
       createdAt: _ts(p.createdAt),
       updatedAt: _ts(p.updatedAt),
     );

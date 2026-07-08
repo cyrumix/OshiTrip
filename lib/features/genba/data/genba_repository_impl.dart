@@ -205,6 +205,29 @@ class GenbaRepositoryImpl implements GenbaRepository {
 
   DateTime get _now => _clock.now().toUtc();
 
+  /// 進行中トランザクション内で Outbox へ1件積む（[_localWrite] は別トランザク
+  /// ションを開くため、複数行を同一トランザクションで更新する並び替え等で使う）。
+  Future<void> _enqueueInTx({
+    required String owner,
+    required String entityTable,
+    required String entityId,
+    required OutboxOpType opType,
+    required DateTime now,
+    Map<String, dynamic> payload = const {},
+  }) =>
+      _outbox.enqueue(
+        OutboxOperation(
+          mutationId: _uuid.v4(),
+          ownerId: owner,
+          entityTable: entityTable,
+          entityId: entityId,
+          opType: opType,
+          payload: payload,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
   @override
   Future<Result<void>> upsertGenba(Genba genba) {
     // 中止 ⟹ 参加状態 canceled の整合を保つ（design-spec §12.1）。
@@ -452,22 +475,11 @@ class GenbaRepositoryImpl implements GenbaRepository {
   @override
   Future<Result<void>> upsertMemo(GenbaMemo memo) {
     final stamped = memo.copyWith(updatedAt: _now);
+    // 同一種類の複数メモを許容する（v12〜）。ID単位で upsert する。
     return _localWrite(
-      (owner) async {
-        // 区分ごとに1件（genba_id + category でユニーク）。
-        await (_db.delete(_db.genbaMemos)
-              ..where(
-                (t) =>
-                    t.genbaId.equals(stamped.genbaId) &
-                    t.category.equals(stamped.category.name) &
-                    t.id.isNotValue(stamped.id) &
-                    t.ownerId.equals(owner),
-              ))
-            .go();
-        await _db
-            .into(_db.genbaMemos)
-            .insertOnConflictUpdate(memoToCompanion(stamped));
-      },
+      (owner) => _db
+          .into(_db.genbaMemos)
+          .insertOnConflictUpdate(memoToCompanion(stamped)),
       entityTable: SyncEntity.genbaMemos,
       entityId: stamped.id,
       opType: OutboxOpType.upsert,
@@ -475,6 +487,63 @@ class GenbaRepositoryImpl implements GenbaRepository {
       parentTable: SyncEntity.genbas,
       parentId: stamped.genbaId,
     );
+  }
+
+  @override
+  Future<Result<void>> reorderMemos({
+    required String genbaId,
+    required List<String> orderedIds,
+  }) async {
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    final now = _now;
+    try {
+      await _db.transaction(() async {
+        // 対象は現在owner・当該現場のメモに限る。並び順(sort_order)と
+        // updated_at だけを更新し、中身は変えない。存在しない・別owner・別現場の
+        // IDは無視して安全側に倒す（並び替えは表示上の操作）。
+        final rows = orderedIds.isEmpty
+            ? <GenbaMemoRow>[]
+            : await (_db.select(_db.genbaMemos)
+                  ..where(
+                    (t) =>
+                        t.id.isIn(orderedIds) &
+                        t.ownerId.equals(owner) &
+                        t.genbaId.equals(genbaId),
+                  ))
+                .get();
+        final valid = {for (final r in rows) r.id};
+        for (var i = 0; i < orderedIds.length; i++) {
+          final id = orderedIds[i];
+          if (!valid.contains(id)) continue;
+          await (_db.update(_db.genbaMemos)
+                ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
+              .write(
+            GenbaMemosCompanion(
+              sortOrder: Value(i),
+              updatedAt: Value(now.toIso8601String()),
+            ),
+          );
+          final updated = await (_db.select(_db.genbaMemos)
+                ..where((t) => t.id.equals(id)))
+              .getSingle();
+          await _enqueueInTx(
+            owner: owner,
+            entityTable: SyncEntity.genbaMemos,
+            entityId: id,
+            opType: OutboxOpType.upsert,
+            payload: memoFromRow(updated).toJson(),
+            now: now,
+          );
+        }
+      });
+    } catch (e) {
+      return Err(StorageFailure(cause: e));
+    }
+    _syncEngine.poke();
+    return const Ok(null);
   }
 
   @override

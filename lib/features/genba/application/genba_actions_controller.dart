@@ -208,6 +208,22 @@ class GenbaActionsController
         return result.failureOrNull;
       });
 
+  Future<Failure?> deleteMemo(GenbaMemo memo) =>
+      _run('memo:${memo.id}', () async {
+        final result =
+            await ref.read(genbaRepositoryProvider).deleteMemo(memo.id);
+        return result.failureOrNull;
+      });
+
+  /// メモの並び替え（現場内）。[orderedIds] の順に sort_order を振り直す。
+  Future<Failure?> reorderMemos(String genbaId, List<String> orderedIds) =>
+      _run('reorderMemos', () async {
+        final result = await ref
+            .read(genbaRepositoryProvider)
+            .reorderMemos(genbaId: genbaId, orderedIds: orderedIds);
+        return result.failureOrNull;
+      });
+
   // ---- ヒーロー画像 -----------------------------------------------------------
 
   static const heroImageKey = 'heroImage';

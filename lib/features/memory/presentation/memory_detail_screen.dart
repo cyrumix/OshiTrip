@@ -74,6 +74,15 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                   // （透明のままだと本文がタイトル行に透けて重なる）。
                   backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                   title: Text(genba.title, overflow: TextOverflow.ellipsis),
+                  actions: [
+                    if (bundle.photos.isNotEmpty)
+                      IconButton(
+                        tooltip: '思い出アルバム',
+                        icon: const Icon(Icons.photo_library_outlined),
+                        onPressed: () =>
+                            context.push('/memories/${widget.genbaId}/album'),
+                      ),
+                  ],
                 ),
                 if (bundle.photos.isNotEmpty)
                   SliverToBoxAdapter(

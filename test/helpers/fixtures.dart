@@ -81,7 +81,7 @@ Transport makeTransportRef({
   String genbaId = 'genba-1',
   String ownerId = 'user-1',
   TransportDirection direction = TransportDirection.outbound,
-  String? method,
+  TransportMethod? method,
   String? fromPlace,
   String? toPlace,
 }) {

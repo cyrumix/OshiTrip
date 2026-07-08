@@ -82,7 +82,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(memoTab);
     await tester.pumpAndSettle();
-    expect(find.text('集合場所'), findsOneWidget);
+    // メモ未登録の空状態（複数化UI, §7.7）。
+    expect(find.textContaining('メモはまだありません'), findsOneWidget);
     await unmountApp(tester);
   });
 

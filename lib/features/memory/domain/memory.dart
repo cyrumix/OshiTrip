@@ -25,10 +25,10 @@ abstract class MemoryEntry with _$MemoryEntry {
     /// 特によかった曲・点（終演直後）。
     @Default('') String bestMoment,
 
-    /// MC・当日メモ（翌日）。
+    /// MC・当日メモ（終演後）。
     @Default('') String mcNotes,
 
-    /// 座席・見え方（翌日）。
+    /// 座席・見え方（終演後）。
     @Default('') String seatView,
 
     /// 写真整理用のタグ・表情タグ（後日）。
@@ -59,6 +59,45 @@ enum PhotoUploadStatus {
   failed,
 }
 
+/// 思い出アルバムの分類（§8.4）。写真の保存元は [MemoryPhoto] に一本化し、
+/// 画面ごとに複製しない。分類は写真がどの入力から追加されたかを表す。
+enum MemoryAlbumCategory {
+  /// 当日の写真（思い出記録画面・アルバムから直接追加した通常写真）。
+  @JsonValue('event')
+  event,
+
+  /// グッズ・戦利品から追加した写真。
+  @JsonValue('goods')
+  goods,
+
+  /// 行った場所から追加した写真。
+  @JsonValue('visited_place')
+  visitedPlace,
+
+  /// 食べたものから追加した写真。
+  @JsonValue('food')
+  food,
+}
+
+extension MemoryAlbumCategoryLabel on MemoryAlbumCategory {
+  String get label => switch (this) {
+        MemoryAlbumCategory.event => '当日の写真',
+        MemoryAlbumCategory.goods => 'グッズ・戦利品',
+        MemoryAlbumCategory.visitedPlace => '行った場所',
+        MemoryAlbumCategory.food => '食べたもの',
+      };
+}
+
+/// 写真の関連項目の種別（[MemoryPhoto.subjectId] が指す先）。
+/// 食べたもの・行った場所はどちらも [visitedPlace]（[VisitedPlace] を指す。
+/// アルバム分類は [MemoryAlbumCategory] で区別する）。
+enum MemorySubjectType {
+  @JsonValue('goods')
+  goods,
+  @JsonValue('visited_place')
+  visitedPlace,
+}
+
 /// 思い出写真。[localPath]（端末参照）と [storagePath]（Supabase Storage）を
 /// 別フィールドで持ち、仮の単一文字列で済ませない。
 @freezed
@@ -74,6 +113,16 @@ abstract class MemoryPhoto with _$MemoryPhoto {
     String? caption,
     @Default(false) bool isCover,
     @Default(0) int sortOrder,
+
+    /// アルバム分類（§8.4）。既定は当日の写真。
+    @Default(MemoryAlbumCategory.event) MemoryAlbumCategory albumCategory,
+
+    /// 関連項目の種別（グッズ/行った場所）。当日の写真では null。
+    MemorySubjectType? subjectType,
+
+    /// 関連項目のID（[GoodsItem.id] または [VisitedPlace.id]）。
+    /// 項目を削除しても写真はアルバムへ残す（既定, §8.4）。参照は緩く保つ。
+    String? subjectId,
     @UtcDateTimeConverter() required DateTime createdAt,
     @UtcDateTimeConverter() required DateTime updatedAt,
   }) = _MemoryPhoto;
@@ -163,4 +212,36 @@ abstract class MemoryBundle with _$MemoryBundle {
       setlist.isNotEmpty ||
       goods.isNotEmpty ||
       places.isNotEmpty;
+
+  /// sortOrder→createdAt→id で安定ソートした全写真。
+  List<MemoryPhoto> get sortedPhotos {
+    final list = [...photos];
+    list.sort((a, b) {
+      final s = a.sortOrder.compareTo(b.sortOrder);
+      if (s != 0) return s;
+      final c = a.createdAt.compareTo(b.createdAt);
+      if (c != 0) return c;
+      return a.id.compareTo(b.id);
+    });
+    return list;
+  }
+
+  /// アルバム分類でフィルタした写真（null なら全件, §8.4）。
+  List<MemoryPhoto> photosInAlbum(MemoryAlbumCategory? category) =>
+      category == null
+          ? sortedPhotos
+          : sortedPhotos.where((p) => p.albumCategory == category).toList();
+
+  /// 特定の関連項目（グッズ/行った場所）に紐づく写真。
+  List<MemoryPhoto> photosForSubject(String subjectId) =>
+      sortedPhotos.where((p) => p.subjectId == subjectId).toList();
+
+  /// アルバム表紙（isCover 優先, なければ先頭）。
+  MemoryPhoto? get coverPhoto {
+    final sorted = sortedPhotos;
+    for (final p in sorted) {
+      if (p.isCover) return p;
+    }
+    return sorted.isEmpty ? null : sorted.first;
+  }
 }

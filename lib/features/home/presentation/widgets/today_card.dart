@@ -42,7 +42,7 @@ class _TodayModeCard extends StatelessWidget {
     final tokens = AppTokens.of(context);
     final genba = aggregate.genba;
     final ticket = _mainTicket(aggregate.tickets);
-    final meetupMemo = aggregate.memoOf(MemoCategory.meetup);
+    final meetupMemo = aggregate.firstMemoOf(MemoCategory.meetup);
     final urgentTodos = aggregate.todos
         .where((t) => !t.isDone && t.priority == TodoPriority.high)
         .toList();
@@ -238,7 +238,7 @@ class _TodayModeCard extends StatelessWidget {
   }
 
   String _transportSummary(Transport t) => [
-        if (t.method != null && t.method!.isNotEmpty) t.method!,
+        if (t.methodDisplay.isNotEmpty) t.methodDisplay,
         if (t.departAt != null)
           '${t.departAt!.toLocal().hour}:${t.departAt!.toLocal().minute.toString().padLeft(2, '0')}発',
         if (t.fromPlace != null && t.fromPlace!.isNotEmpty)

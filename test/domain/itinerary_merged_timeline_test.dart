@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:oshi_trip/features/genba/domain/genba.dart';
 import 'package:oshi_trip/features/itinerary/application/itinerary_timeline.dart';
 import 'package:oshi_trip/features/itinerary/domain/itinerary_entry.dart';
 
@@ -185,11 +186,11 @@ void main() {
         spots: const [],
         transports: [
           makeTransportRef(id: 'tr-1', genbaId: 'genba-1', ownerId: 'user-1')
-              .copyWith(method: '変更後の新幹線'),
+              .copyWith(method: TransportMethod.airplane),
         ],
         lodgings: const [],
       );
-      expect(resolved.transport?.method, '変更後の新幹線');
+      expect(resolved.transport?.method, TransportMethod.airplane);
       expect(resolved.isReferenceMissing, isFalse);
     });
 

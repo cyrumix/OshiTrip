@@ -105,7 +105,7 @@ class _TransportImportSheetState extends ConsumerState<_TransportImportSheet> {
                   ? Icons.arrow_circle_right_outlined
                   : Icons.arrow_circle_left_outlined,
             ),
-            title: Text('${t.direction.label} ${t.method ?? ''}'.trim()),
+            title: Text('${t.direction.label} ${t.methodDisplay}'.trim()),
             subtitle: (t.fromPlace != null || t.toPlace != null)
                 ? Text('${t.fromPlace ?? '?'} → ${t.toPlace ?? '?'}')
                 : null,

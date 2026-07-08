@@ -171,7 +171,7 @@ class TransportTab extends ConsumerWidget {
                       ? Icons.arrow_circle_right_outlined
                       : Icons.arrow_circle_left_outlined,
                 ),
-                title: Text('${t.direction.label} ${t.method ?? ''}'.trim()),
+                title: Text('${t.direction.label} ${t.methodDisplay}'.trim()),
                 subtitle: (t.fromPlace != null || t.toPlace != null)
                     ? Text('${t.fromPlace ?? '?'} → ${t.toPlace ?? '?'}')
                     : null,
@@ -558,47 +558,153 @@ class MemoTab extends ConsumerWidget {
 
   final GenbaAggregate aggregate;
 
+  /// 追加時にテンプレート（種類）を選ばせる。テンプレートは初期値・入力例の補助で
+  /// あり、選ばずに「テンプレートなし」も選べる（§7.7）。
+  Future<void> _addMemo(BuildContext context, WidgetRef ref) async {
+    final category = await showModalBottomSheet<MemoCategory>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(AppSpace.md),
+              child: Text('テンプレートを選ぶ'),
+            ),
+            for (final c in MemoCategoryLabel.templateChoices)
+              ListTile(
+                leading: Icon(
+                  c == MemoCategory.other
+                      ? Icons.edit_note
+                      : Icons.sticky_note_2_outlined,
+                ),
+                title: Text(c.templateChoiceLabel),
+                onTap: () => Navigator.of(context).pop(c),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (category == null || !context.mounted) return;
+    await showMemoEditor(
+      context,
+      ref,
+      genbaId: aggregate.genba.id,
+      category: category,
+      initialSortOrder: aggregate.memos.length,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final genbaId = aggregate.genba.id;
+    final busyKeys = ref.watch(genbaActionsControllerProvider(genbaId));
+    GenbaActionsController controller() =>
+        ref.read(genbaActionsControllerProvider(genbaId).notifier);
+    final memos = aggregate.sortedMemos;
     return GenbaTabList(
       storageKey: 'genba_tab_memo_$genbaId',
       children: [
-        const SectionHeader(
+        SectionHeader(
           title: 'メモ',
-          padding: EdgeInsets.only(bottom: AppSpace.sm),
+          padding: const EdgeInsets.only(bottom: AppSpace.sm),
+          action: TextButton.icon(
+            key: const Key('memo_add_button'),
+            onPressed: () => _addMemo(context, ref),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('追加'),
+          ),
         ),
-        for (final category in MemoCategory.values)
-          Builder(
-            builder: (context) {
-              final memo = aggregate.memoOf(category);
-              final hasBody = memo != null && memo.body.isNotEmpty;
-              return AppCard(
-                margin: const EdgeInsets.only(bottom: AppSpace.sm),
-                padding: EdgeInsets.zero,
-                child: ListTile(
-                  leading: const Icon(Icons.sticky_note_2_outlined),
-                  title: Text(category.label),
-                  subtitle: hasBody
-                      ? Text(
-                          memo.body,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        )
-                      : const Text('未入力'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => showMemoEditor(
-                    context,
-                    ref,
-                    genbaId: genbaId,
-                    category: category,
-                    existing: memo,
+        if (memos.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpace.sm),
+            child: Text('メモはまだありません。＋からテンプレートを選んで追加できます。'),
+          ),
+        for (var i = 0; i < memos.length; i++)
+          AppCard(
+            margin: const EdgeInsets.only(bottom: AppSpace.sm),
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.sticky_note_2_outlined),
+              title: Text(
+                memos[i].title.isNotEmpty
+                    ? memos[i].title
+                    : memos[i].category.label,
+              ),
+              subtitle: memos[i].body.isNotEmpty
+                  ? Text(
+                      memos[i].body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : null,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (memos.length > 1) ...[
+                    IconButton(
+                      tooltip: '上へ',
+                      icon: const Icon(Icons.arrow_upward, size: 18),
+                      onPressed: i == 0 || busyKeys.isNotEmpty
+                          ? null
+                          : () => _move(context, controller, memos, i, i - 1),
+                    ),
+                    IconButton(
+                      tooltip: '下へ',
+                      icon: const Icon(Icons.arrow_downward, size: 18),
+                      onPressed: i >= memos.length - 1 || busyKeys.isNotEmpty
+                          ? null
+                          : () => _move(context, controller, memos, i, i + 1),
+                    ),
+                  ],
+                  IconButton(
+                    tooltip: 'メモを削除',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: busyKeys.contains('memo:${memos[i].id}')
+                        ? null
+                        : () async {
+                            final ok = await confirmDangerAction(
+                              context,
+                              title: 'メモを削除',
+                              message: 'このメモを削除します。',
+                            );
+                            if (!ok || !context.mounted) return;
+                            final failure =
+                                await controller().deleteMemo(memos[i]);
+                            if (context.mounted) {
+                              handleActionResult(context, failure);
+                            }
+                          },
                   ),
-                ),
-              );
-            },
+                ],
+              ),
+              onTap: () => showMemoEditor(
+                context,
+                ref,
+                genbaId: genbaId,
+                category: memos[i].category,
+                existing: memos[i],
+              ),
+            ),
           ),
       ],
     );
+  }
+
+  Future<void> _move(
+    BuildContext context,
+    GenbaActionsController Function() controller,
+    List<GenbaMemo> memos,
+    int from,
+    int to,
+  ) async {
+    final next = [...memos];
+    final moved = next.removeAt(from);
+    next.insert(to, moved);
+    final failure = await controller().reorderMemos(
+      aggregate.genba.id,
+      [for (final m in next) m.id],
+    );
+    if (context.mounted) handleActionResult(context, failure);
   }
 }

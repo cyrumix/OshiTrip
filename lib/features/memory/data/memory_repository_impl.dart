@@ -301,8 +301,25 @@ class MemoryRepositoryImpl implements MemoryRepository {
   Future<Result<void>> addPhoto(MemoryPhoto photo) => updatePhoto(photo);
 
   @override
-  Future<Result<void>> updatePhoto(MemoryPhoto photo) {
+  Future<Result<void>> updatePhoto(MemoryPhoto photo) async {
     final stamped = photo.copyWith(updatedAt: _now);
+    // 関連項目（グッズ/行った場所）に紐づく写真は、同一 owner+genba の項目が
+    // 実在することを検証する（§8.4。孤立した subject_id を作らない）。
+    if (stamped.subjectId != null && stamped.subjectType != null) {
+      final owner = _ownerId();
+      if (owner == null) {
+        return const Err(AuthFailure(message: 'ログインが必要です'));
+      }
+      final exists = await _subjectExists(
+        owner: owner,
+        genbaId: stamped.genbaId,
+        subjectType: stamped.subjectType!,
+        subjectId: stamped.subjectId!,
+      );
+      if (!exists) {
+        return const Err(ValidationFailure('関連する項目が見つかりません'));
+      }
+    }
     // 写真バイナリはOutboxに載せない（メタデータのみ同期。画像本体の
     // アップロードは MemoryPhotoUploader の境界で扱う）。
     final payload = stamped.toJson()..remove('local_path');
@@ -328,6 +345,38 @@ class MemoryRepositoryImpl implements MemoryRepository {
         entityId: id,
         opType: OutboxOpType.delete,
       );
+
+  /// 関連項目（グッズ/行った場所）が同一 owner+genba に実在するか（§8.4）。
+  /// 写真の subject_id が孤立しないよう upsert 前に検証する。
+  Future<bool> _subjectExists({
+    required String owner,
+    required String genbaId,
+    required MemorySubjectType subjectType,
+    required String subjectId,
+  }) async {
+    switch (subjectType) {
+      case MemorySubjectType.goods:
+        final row = await (_db.select(_db.goodsItems)
+              ..where(
+                (t) =>
+                    t.id.equals(subjectId) &
+                    t.genbaId.equals(genbaId) &
+                    t.ownerId.equals(owner),
+              ))
+            .getSingleOrNull();
+        return row != null;
+      case MemorySubjectType.visitedPlace:
+        final row = await (_db.select(_db.visitedPlaces)
+              ..where(
+                (t) =>
+                    t.id.equals(subjectId) &
+                    t.genbaId.equals(genbaId) &
+                    t.ownerId.equals(owner),
+              ))
+            .getSingleOrNull();
+        return row != null;
+    }
+  }
 
   @override
   Future<Result<void>> upsertSetlistItem(SetlistItem item) {

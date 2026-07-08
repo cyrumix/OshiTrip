@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,7 +13,9 @@ import '../domain/memory.dart';
 
 /// 思い出の段階入力（§8.2）。
 ///
-/// 終演直後 / 翌日 / 後日 の3段階を「標準の表示順」として並べる。
+/// 終演直後 / 終演後 / 後日 の3段階を「標準の表示順」として並べる（§8.2）。
+/// これは入力画面の段階名・説明であり、思い出へ移行する日時判定ではない。
+/// 「終演後」に MC・当日メモ / 座席・見え方 / セトリ を置く。
 /// どの段階も先行入力でき、すべて任意。テキストは自動保存される。
 class MemoryEditScreen extends ConsumerStatefulWidget {
   const MemoryEditScreen({super.key, required this.genbaId});
@@ -30,6 +34,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
   final _songInput = TextEditingController();
   final _goodsInput = TextEditingController();
   final _placeInput = TextEditingController();
+  final _foodInput = TextEditingController();
   final _tagInput = TextEditingController();
 
   @override
@@ -41,6 +46,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
     _songInput.dispose();
     _goodsInput.dispose();
     _placeInput.dispose();
+    _foodInput.dispose();
     _tagInput.dispose();
     super.dispose();
   }
@@ -66,6 +72,90 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
   Future<void> _deletePhoto(String id) async {
     final failure = await _controller.deletePhoto(id);
     _showFailure(failure);
+  }
+
+  /// グッズ・行った場所・食べものへ写真を紐づける（§8.4）。保存元は
+  /// 思い出写真テーブルに一本化し、画面ごとに画像を複製しない。
+  Future<void> _addSubjectPhoto({
+    required MemoryAlbumCategory albumCategory,
+    required MemorySubjectType subjectType,
+    required String subjectId,
+  }) async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+    final failure = await _controller.addPhoto(
+      picked.path,
+      albumCategory: albumCategory,
+      subjectType: subjectType,
+      subjectId: subjectId,
+    );
+    _showFailure(failure);
+  }
+
+  /// 端末内の写真参照を解決する（存在しなければ null → プレースホルダ表示）。
+  List<({String id, File? file})> _resolvePhotos(List<MemoryPhoto> photos) {
+    final store = ref.read(imageStoreProvider);
+    return [
+      for (final p in photos)
+        (
+          id: p.id,
+          file: p.localPath == null
+              ? null
+              : store.tryResolveOwned(p.ownerId, p.localPath!),
+        ),
+    ];
+  }
+
+  /// 関連項目（グッズ/場所/食べもの）の削除。写真があるときは「アルバムに残す
+  /// （既定）／写真も削除」を選ばせる（§8.4）。既定は残す。
+  Future<void> _deleteSubjectItem({
+    required String id,
+    required String label,
+    required Future<Object?> Function(String id) deleteItem,
+  }) async {
+    final bundle = await ref
+        .read(memoryRepositoryProvider)
+        .watchByGenbaId(widget.genbaId)
+        .first;
+    final photoIds = bundle.photosForSubject(id).map((p) => p.id).toList();
+    if (photoIds.isEmpty) {
+      _showFailure(await deleteItem(id));
+      return;
+    }
+    if (!mounted) return;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('「$label」を削除'),
+        content: Text('この項目に紐づく写真が${photoIds.length}枚あります。どうしますか？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'delete'),
+            child: const Text('写真も削除'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, 'keep'),
+            child: const Text('アルバムに残す'),
+          ),
+        ],
+      ),
+    );
+    if (choice == 'keep') {
+      _showFailure(await deleteItem(id));
+    } else if (choice == 'delete') {
+      for (final pid in photoIds) {
+        final failure = await _controller.deletePhoto(pid);
+        if (failure != null) {
+          _showFailure(failure);
+          return;
+        }
+      }
+      _showFailure(await deleteItem(id));
+    }
   }
 
   /// 表紙を設定する（同一現場で cover は常に最大1件, design-spec §12.1）。
@@ -235,7 +325,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
               const SizedBox(height: 24),
               const _StageHeader(
                 icon: Icons.wb_sunny_outlined,
-                title: '翌日',
+                title: '終演後',
                 subtitle: '覚えているうちに残したいこと',
               ),
               TextField(
@@ -286,35 +376,95 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                     _controller.updateEntry((e) => e.copyWith(tags: tags)),
               ),
               const SizedBox(height: 12),
-              _ListEditor(
+              _ItemsWithPhotosEditor(
                 title: 'グッズ・戦利品',
                 icon: Icons.shopping_bag_outlined,
                 inputController: _goodsInput,
                 inputHint: 'グッズ名を追加',
+                emptyHint: 'グッズはまだありません。名前を入れて追加できます。',
                 items: [
                   for (final item in bundle.goods)
-                    (id: item.id, label: item.name),
+                    (
+                      id: item.id,
+                      label: item.name,
+                      photos: _resolvePhotos(bundle.photosForSubject(item.id)),
+                    ),
                 ],
                 onAdd: (text) =>
                     _controller.addGoodsItem(text).then(_showFailure),
-                onDelete: (id) =>
-                    _controller.deleteGoodsItem(id).then(_showFailure),
+                onDeleteItem: (id, label) => _deleteSubjectItem(
+                  id: id,
+                  label: label,
+                  deleteItem: _controller.deleteGoodsItem,
+                ),
+                onAddPhoto: (id) => _addSubjectPhoto(
+                  albumCategory: MemoryAlbumCategory.goods,
+                  subjectType: MemorySubjectType.goods,
+                  subjectId: id,
+                ),
+                onDeletePhoto: _deletePhoto,
               ),
               const SizedBox(height: 12),
-              _ListEditor(
-                title: '行った場所・食べたもの',
+              _ItemsWithPhotosEditor(
+                title: '行った場所',
                 icon: Icons.place_outlined,
                 inputController: _placeInput,
-                inputHint: '場所・お店を追加',
+                inputHint: '場所を追加',
+                emptyHint: '行った場所はまだありません。',
                 items: [
-                  for (final place in bundle.places)
-                    (id: place.id, label: place.name),
+                  for (final place
+                      in bundle.places.where((p) => p.category != 'food'))
+                    (
+                      id: place.id,
+                      label: place.name,
+                      photos: _resolvePhotos(bundle.photosForSubject(place.id)),
+                    ),
                 ],
                 onAdd: (text) => _controller
                     .addVisitedPlace(text, 'spot')
                     .then(_showFailure),
-                onDelete: (id) =>
-                    _controller.deleteVisitedPlace(id).then(_showFailure),
+                onDeleteItem: (id, label) => _deleteSubjectItem(
+                  id: id,
+                  label: label,
+                  deleteItem: _controller.deleteVisitedPlace,
+                ),
+                onAddPhoto: (id) => _addSubjectPhoto(
+                  albumCategory: MemoryAlbumCategory.visitedPlace,
+                  subjectType: MemorySubjectType.visitedPlace,
+                  subjectId: id,
+                ),
+                onDeletePhoto: _deletePhoto,
+              ),
+              const SizedBox(height: 12),
+              _ItemsWithPhotosEditor(
+                title: '食べたもの',
+                icon: Icons.restaurant_outlined,
+                inputController: _foodInput,
+                inputHint: 'お店・食べたものを追加',
+                emptyHint: '食べたものはまだありません。',
+                items: [
+                  for (final place
+                      in bundle.places.where((p) => p.category == 'food'))
+                    (
+                      id: place.id,
+                      label: place.name,
+                      photos: _resolvePhotos(bundle.photosForSubject(place.id)),
+                    ),
+                ],
+                onAdd: (text) => _controller
+                    .addVisitedPlace(text, 'food')
+                    .then(_showFailure),
+                onDeleteItem: (id, label) => _deleteSubjectItem(
+                  id: id,
+                  label: label,
+                  deleteItem: _controller.deleteVisitedPlace,
+                ),
+                onAddPhoto: (id) => _addSubjectPhoto(
+                  albumCategory: MemoryAlbumCategory.food,
+                  subjectType: MemorySubjectType.visitedPlace,
+                  subjectId: id,
+                ),
+                onDeletePhoto: _deletePhoto,
               ),
               const SizedBox(height: 48),
             ],
@@ -356,6 +506,172 @@ class _StageHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 名前＋写真を持つ項目（グッズ・行った場所・食べもの）の編集（§8.4）。
+/// 各項目に写真を紐づけ・削除でき、項目削除時は呼び出し側が
+/// 「アルバムに残す／写真も削除」を確認する。
+class _ItemsWithPhotosEditor extends StatelessWidget {
+  const _ItemsWithPhotosEditor({
+    required this.title,
+    required this.icon,
+    required this.inputController,
+    required this.inputHint,
+    required this.emptyHint,
+    required this.items,
+    required this.onAdd,
+    required this.onDeleteItem,
+    required this.onAddPhoto,
+    required this.onDeletePhoto,
+  });
+
+  final String title;
+  final IconData icon;
+  final TextEditingController inputController;
+  final String inputHint;
+  final String emptyHint;
+  final List<
+          ({String id, String label, List<({String id, File? file})> photos})>
+      items;
+  final Future<Object?> Function(String text) onAdd;
+  final void Function(String id, String label) onDeleteItem;
+  final void Function(String id) onAddPhoto;
+  final Future<void> Function(String photoId) onDeletePhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: theme.textTheme.labelLarge),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              emptyHint,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+        for (final item in items)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(item.label)),
+                    IconButton(
+                      tooltip: '${item.label}に写真を追加',
+                      icon: const Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 20,
+                      ),
+                      onPressed: () => onAddPhoto(item.id),
+                    ),
+                    IconButton(
+                      tooltip: '${item.label}を削除',
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => onDeleteItem(item.id, item.label),
+                    ),
+                  ],
+                ),
+                if (item.photos.isNotEmpty)
+                  SizedBox(
+                    height: 72,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: item.photos.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 6),
+                      itemBuilder: (context, i) => _PhotoThumb(
+                        file: item.photos[i].file,
+                        size: 72,
+                        onDelete: () => onDeletePhoto(item.photos[i].id),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: inputController,
+                decoration: InputDecoration(hintText: inputHint, isDense: true),
+                onSubmitted: (_) => _submit(),
+              ),
+            ),
+            IconButton(
+              tooltip: '追加',
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: _submit,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _submit() {
+    final text = inputController.text.trim();
+    if (text.isEmpty) return;
+    inputController.clear();
+    // 結果はストリーム経由で反映される。
+    // ignore: unawaited_futures
+    onAdd(text);
+  }
+}
+
+/// 正方形の写真サムネイル（角丸・任意で削除ボタン）。§8.4/§9 の統一サムネイル。
+class _PhotoThumb extends StatelessWidget {
+  const _PhotoThumb({required this.file, required this.size, this.onDelete});
+
+  final File? file;
+  final double size;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: file != null
+                ? Image.file(
+                    file!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.broken_image),
+                  )
+                : const Icon(Icons.image_outlined),
+          ),
+        ),
+        if (onDelete != null)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              tooltip: '写真を削除',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black45,
+                foregroundColor: Colors.white,
+              ),
+              iconSize: 14,
+              icon: const Icon(Icons.close),
+              onPressed: onDelete,
+            ),
+          ),
+      ],
     );
   }
 }
