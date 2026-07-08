@@ -1,5 +1,6 @@
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import 'place_attribution.dart';
 
 /// 施設検索の外部境界（ADR-0010 §1）。旅程ドメインを地図事業者へ依存させない
 /// ための抽象。実装（Edge Function 経由の Google Places）は data 層に置き、
@@ -73,7 +74,21 @@ class PlaceSuggestion {
 /// attributions に対応。永続化してよいのは [placeId] のみ。名称・住所は画面の
 /// 一時状態として扱い、永続 entity へ自動転記しない（ユーザーが独立入力した値を
 /// user_provided として保存する, D-178/D-179）。
-/// [attributions] は表示必須の帰属情報（Google Maps と第三者帰属を同一コンテナで表示）。
+///
+/// [attributions] は表示必須の帰属情報（構造化型 [PlaceAttribution]。provider を
+/// 表示し、有効な https の providerUri だけを確認付きで開ける）。
+///
+/// HTTP Gateway → Dart の JSON 契約:
+/// ```json
+/// {
+///   "placeId": "ChIJ...",
+///   "displayName": "会場名" | null,
+///   "formattedAddress": "住所" | null,
+///   "attributions": [{"provider": "提供元", "providerUri": "https://..." | null}]
+/// }
+/// ```
+/// attributions は [parsePlaceAttributions] で安全に変換する（不正 URI・巨大
+/// 文字列・想定外オブジェクトは除外）。
 class PlaceDetails {
   const PlaceDetails({
     required this.placeId,
@@ -84,7 +99,7 @@ class PlaceDetails {
   final String placeId;
   final String? displayName;
   final String? formattedAddress;
-  final List<String> attributions;
+  final List<PlaceAttribution> attributions;
 }
 
 /// Google 未設定・無効・利用不可時のゲートウェイ。常に [UnavailableFailure]。

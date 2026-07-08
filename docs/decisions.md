@@ -801,9 +801,23 @@ D-188〜D-193（計画機能の仕様変更）のレビューで見つかった2
 
 | D-211 | Places プロキシ Edge Function（`supabase/functions/places-proxy/`）＋費用/レート基盤（Supabase **0023**）。Web Service 用 Google キーはサーバー env のみ（アプリ非埋め込み, ADR-0010 §3）。関数は認証（platform verify_jwt＋getUser）・ユーザー別レート制限（`places_rate_limit`/RPC）・Field Mask allowlist（`*`/非許可拒否・`policy.ts`）・timeout・Google エラーの型付き変換・kill switch（env）・ログ秘匿（`safeLogMeta` のみ／検索文・住所・座標・Place ID を出さない）・費用集計（`api_usage_daily`/RPC・**件数のみ**）を強制し、**共有DBへ一切書き込まない**。純粋方針は `policy.ts` に分離（Dart 側 allowlist と同一許可集合）。集計/レート表は service role のみ（RLS＋execute 権 revoke）。pgTAP `0013`（plan(6)）。setup.md に日次クォータ・予算通知・キー分離の手順を追記（料金額はコードへ固定しない） | セキュリティ境界（キー秘匿・認証・レート・allowlist・kill switch・ログ秘匿・費用可視化）を1関数に集約する。本環境は Deno/Supabase/Docker 無しで**未デプロイ・未実行の成果物**（実行検証は各実環境。allowlist の中核は Dart 側テストで担保） |
 
+### D-212: 旅程Phase 3 レビュー指摘4件（c8a99cc）の修正
+
+Google公式仕様の再確認: **2026-07-08**、`attributions[]` は `{provider: string, providerUri: string}` の配列
+（developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places）。Place Details でセッション
+終了・終了後の token 再利用禁止（同 web-service/place-session-tokens）。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-212a（High） | 共有施設のモデレーション境界を RLS とトリガの**両方**で強制（Supabase **0024**）。UPDATE は USING（本人の draft/pending のみ）＋WITH CHECK（結果も draft/pending）で、approved/rejected を対象外にし approved/rejected への変更を拒否（pending→draft の差し戻しは許可）。DELETE は本人の draft のみ。トリガは一般ユーザー（auth.uid() 非 null）が OLD=approved/rejected の行を変更することと NEW を approved/rejected にすることを拒否。承認/却下・approved の修正は service role のみ。pgTAP `0012` を **plan(16)** へ拡張（投稿者は自 draft 更新/削除可・approved は更新/差し戻し/削除不可・service は approved 管理可・他者は approved 閲覧のみ） | RLS だけ／トリガだけの単一防御を避け、承認済み共有データを投稿者が壊せないようにする |
+| D-212b（Medium） | `PlacesSearchController.select` の二重実行・token 再利用防止。session token を**通信完了を待たず同期的に消費**（session 終了）。選択中（`isSelecting`）の2回目は Google を呼ばず `OperationInProgressFailure`。Details 失敗でも同 token を再利用しない（次クエリで新 token）。abandon/dispose 後に完了した Details 結果は `_selectEpoch` 比較で採用しない。`isSelecting` を state で UI へ公開。fakeAsync で二重タップ・失敗後の新 token・中断無効化・進捗を検証 | Google 公式「Place Details でセッション終了・再利用禁止」に従い、1 token=Details 最大1回・二重課金/二重採用を防ぐ |
+| D-212c（Medium） | 帰属を構造化型 `PlaceAttribution{provider, providerUri: Uri?}` に変更（`PlaceDetails.attributions: List<PlaceAttribution>`）。純粋変換 `parsePlaceAttributions`（provider 必須・空/巨大/非文字列/想定外は除外、providerUri は**有効な https のみ**・http/javascript/data・巨大・host 無しは null）。Edge も `sanitizeAttributions`（同条件）で Google 応答を透過せず許可フィールドだけへ変換。JSON 契約（`{provider, providerUri|null}`）を `PlaceDetails` へ明文化。純粋変換テスト追加 | 帰属を安全・確認付きで開ける形にし、危険 URI・巨大文字列・想定外オブジェクトを排除する |
+| D-212d（Medium） | Google 呼び出し試行を漏れなく1回だけ費用計上。`increment_api_usage` を全検証・認証・レート通過後、**Google fetch の直前**に実行（timeout/通信例外でも計上済み。送らなかった不正リクエストは数えない）。集計 RPC 失敗時は**安全側で Google を呼ばず unavailable**。中核を `handler.ts`（fetch/RPC 注入）へ分離し Deno 単体テスト `handler_test.ts`（成功/4xx/5xx/timeout/例外/RPC失敗で1回だけ計上）を用意 | timeout を含む送信試行を保守的に計上し、費用の過少計上を防ぐ。RPC 失敗時は課金され得る呼び出しを避ける |
+
 ### 検証状況（旅程Phase 3 オフライン増分）
 
-- `dart format` 差分なし、`dart analyze lib test integration_test` クリーン、`flutter test` **715件 全パス**（新規: `places_gateway_test` 12・`places_search_controller_test` 9・`shared_facility_test` 4・`itinerary_map_links_test` 6）、`git diff --check` クリーン。Phase 2 の全フローは無改変で緑。秘密情報のハードコード無し（Edge Function は全て env 参照）。
+- `dart format` 差分なし、`dart analyze lib test integration_test` クリーン、`flutter test` **729件 全パス**（D-212 追加: `place_attribution_test` 10・`places_search_controller_test` に二重タップ/失敗後新token/中断無効化/isSelecting の4件）、`git diff --check` クリーン。Phase 2 は無改変で緑。秘密情報のハードコード無し（Edge Function は全て env 参照）。
+- **未実行（各実環境。成功扱いにしない）**: `deno check`／Edge Function 単体テスト `handler_test.ts`（**Deno 未導入**）、`supabase db reset`／`supabase test db`（0012〜0024 の pgTAP・**Docker 未導入**）、Edge Function 実デプロイ・実 Places 呼び出し・キー制限、ネイティブ地図描画・iOS 実機/bundle ID 制限。Field Mask allowlist・帰属変換・select セッション制御の中核は Dart 側テストで実行検証済み。
 - **Edge Function（D-211）は未実行の成果物**: 本環境に Deno/Supabase/Docker/Google 鍵が無く、実デプロイ・実 Places 呼び出し・`supabase test db`（0013/0012/0022 の pgTAP）は各実環境で別途行う（成功扱いにしない）。Field Mask allowlist の中核挙動は Dart 側 `places_gateway_test` で実行検証済み。
 - **実装済み（オフライン検証可能）**: Item1 境界＋型付き失敗＋設定（Google 既定無効）、Item4 クライアント側（Field Mask allowlist/`*`拒否・Place ID→URL）、Item3 Autocomplete 制御、Item6 共有施設スキーマ＋RLS＋モデレーショントリガ＋不変条件、Item5 地図リンク/ピン選定の純粋層。
 - **未実施（要・各実環境。成功扱いにしない）**: `supabase db reset`/`supabase test db`（0022 の pgTAP `0012`。Docker 未導入で未実行）、Edge Function 実デプロイ・実 Places 呼び出し・キー制限（Supabase/Docker/Google 鍵）、ネイティブ地図描画・**iOS 実機/bundle ID 制限**（モバイル実機なし → iOS 不可時は macOS 実機確認項目を引き継ぎに明記）。

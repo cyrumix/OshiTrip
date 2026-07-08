@@ -77,6 +77,44 @@ export function isSearchableInput(input: string, minChars = 3): boolean {
   return input.trim().length >= minChars;
 }
 
+/// 帰属（Google `attributions[]`）の安全な形（Dart の JSON 契約と一致）。
+/// provider は表示必須、providerUri は有効な https だけ（それ以外は null）。
+export interface SafeAttribution {
+  provider: string;
+  providerUri: string | null;
+}
+
+/// 有効な https URL だけを返す（host あり・長すぎない・https のみ）。
+/// http/javascript/data 等の不正・危険スキーム、巨大文字列、非文字列は null。
+export function safeHttpsUri(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const s = raw.trim();
+  if (s.length === 0 || s.length > 2000) return null;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "https:") return null;
+    if (!u.hostname) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+/// Google 応答の attributions を許可フィールドだけへ変換する（透過しない）。
+/// provider が無効（非文字列・空・巨大）・想定外オブジェクトは除外する。
+export function sanitizeAttributions(raw: unknown): SafeAttribution[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SafeAttribution[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const provider = typeof o.provider === "string" ? o.provider.trim() : "";
+    if (provider.length === 0 || provider.length > 200) continue;
+    out.push({ provider, providerUri: safeHttpsUri(o.providerUri) });
+  }
+  return out;
+}
+
 /// ログに出してよい非機微メタだけを抽出する（検索文・住所・座標・Place ID は
 /// 決して含めない）。呼び出し側はこの戻り値だけをログに渡す。
 export function safeLogMeta(meta: {

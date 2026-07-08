@@ -39,12 +39,16 @@ class PlacesSearchState {
     this.query = '',
     this.suggestions = const [],
     this.failure,
+    this.isSelecting = false,
   });
 
   final PlacesSearchStatus status;
   final String query;
   final List<PlaceSuggestion> suggestions;
   final Failure? failure;
+
+  /// 候補選択（Place Details 取得）中か。UI が二重タップ抑止・進捗表示に使う。
+  final bool isSelecting;
 
   /// 結果なし／利用不可／失敗のときは手動入力へ移れる（§8.2「結果なし／中断／
   /// timeout から手動入力へ移動」）。
@@ -59,12 +63,14 @@ class PlacesSearchState {
     List<PlaceSuggestion>? suggestions,
     Failure? failure,
     bool clearFailure = false,
+    bool? isSelecting,
   }) =>
       PlacesSearchState(
         status: status ?? this.status,
         query: query ?? this.query,
         suggestions: suggestions ?? this.suggestions,
         failure: clearFailure ? null : (failure ?? this.failure),
+        isSelecting: isSelecting ?? this.isSelecting,
       );
 }
 
@@ -108,6 +114,10 @@ class PlacesSearchController extends ChangeNotifier {
 
   /// 発行済みリクエストの通し番号（stale 判定用）。
   int _seq = 0;
+
+  /// 選択（Place Details）の世代。abandon/dispose で進む。進行中 select の結果を
+  /// 「中断後は採用しない」ために比較する。
+  int _selectEpoch = 0;
 
   bool _disposed = false;
 
@@ -172,30 +182,52 @@ class PlacesSearchController extends ChangeNotifier {
   }
 
   /// 候補を選択して Place Details を取得する。autocomplete と**同じ** session
-  /// token で1セッションを完了し、以後その token は再利用しない。
-  /// セッション未確立での選択は [ValidationFailure]。
+  /// token で1セッションを完了する（Google 公式「Place Details でセッション終了・
+  /// 終了後の token 再利用禁止」）。
+  ///
+  /// 二重実行防止:
+  /// - 選択中（[PlacesSearchState.isSelecting]）の2回目は Google を呼ばず
+  ///   [OperationInProgressFailure] を返す。
+  /// - token は**通信完了を待たず同期的に消費**する（session 終了）。以後この
+  ///   token は再利用しない（**失敗しても**同じ）。1 token = Place Details 最大1回。
+  /// - abandon/dispose 後に完了した結果は UI へ採用させない（型付き Failure）。
   Future<Result<PlaceDetails>> select(PlaceSuggestion suggestion) async {
+    if (_state.isSelecting) {
+      return const Err(OperationInProgressFailure(message: '選択処理中です'));
+    }
     final token = _sessionToken;
     if (token == null) {
       return const Err(ValidationFailure('検索セッションがありません'));
     }
-    _debounce?.cancel();
-    final result = await _gateway.placeDetails(
-      placeId: suggestion.placeId,
-      sessionToken: token,
-    );
-    // セッション完了 → token 破棄（再利用禁止。次クエリで新 token）。
+    // セッション終了: token を同期的に消費する（次クエリで新 token を発行）。
     _sessionToken = null;
-    _seq++;
-    return result;
+    _debounce?.cancel();
+    _seq++; // 進行中 autocomplete を stale 化
+    final epoch = _selectEpoch;
+    _emit(_state.copyWith(isSelecting: true));
+    try {
+      final result = await _gateway.placeDetails(
+        placeId: suggestion.placeId,
+        sessionToken: token,
+      );
+      // 中断（abandon/dispose）後の結果は採用しない。
+      if (_disposed || epoch != _selectEpoch) {
+        return const Err(OperationInProgressFailure(message: '選択は中断されました'));
+      }
+      return result;
+    } finally {
+      if (!_disposed) _emit(_state.copyWith(isSelecting: false));
+    }
   }
 
   /// 候補未選択で検索を離れる（中断）。セッションを終了し token を破棄する。
-  /// 破棄した token は再利用しない（次のクエリで新しい token を発行）。
+  /// 破棄した token は再利用しない（次のクエリで新しい token を発行）。進行中の
+  /// 選択（Place Details）結果も無効化する。
   void abandon() {
     _debounce?.cancel();
     _sessionToken = null;
     _seq++; // 進行中応答を stale 化
+    _selectEpoch++; // 進行中 select の結果を無効化
     _emit(const PlacesSearchState());
   }
 
@@ -212,6 +244,7 @@ class PlacesSearchController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _selectEpoch++; // 進行中 select の結果を無効化
     _debounce?.cancel();
     super.dispose();
   }

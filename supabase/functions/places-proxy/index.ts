@@ -9,11 +9,12 @@
 //   - Google エラーの型付き変換
 //   - 機能 kill switch（環境変数）
 //   - ログから検索文・住所・座標・Place ID を除外（safeLogMeta のみログ）
-//   - 費用集計（api_usage_daily / RPC）
+//   - 費用集計（api_usage_daily / RPC・件数のみ）: Google 送信を試みる直前に1回
+//     （timeout/例外でも計上。集計 RPC 失敗は安全側で unavailable, Fix4）
 //   - Google 由来の名称・住所を共有 DB へ書かない（この関数は一切 DB 書込みしない）
 //
 // 注意: 本環境（Docker/Deno/Supabase なし）では未デプロイ・未実行の成果物。
-// import・API 形状は Supabase Edge Functions（Deno）標準に合わせている。
+// Google 呼び出し＋計上の中核は handler.ts（fetch/RPC 注入で単体テスト可能）。
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
@@ -22,11 +23,15 @@ import {
   fieldMaskError,
   isKillSwitchOn,
   isSearchableInput,
-  mapGoogleStatus,
   PLACE_DETAILS_ALLOWED_FIELDS,
-  type PlacesErrorKind,
-  safeLogMeta,
 } from "./policy.ts";
+import {
+  callGoogle,
+  errorResponse,
+  type GoogleCallDeps,
+  transformAutocomplete,
+  transformDetails,
+} from "./handler.ts";
 
 const GOOGLE_BASE = "https://places.googleapis.com/v1";
 
@@ -34,24 +39,10 @@ function env(name: string, fallback = ""): string {
   return Deno.env.get(name) ?? fallback;
 }
 
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-function errorResponse(kind: PlacesErrorKind, status: number): Response {
-  // メッセージに機微情報を含めない（type だけ返す）。
-  return jsonResponse({ error: kind }, status);
-}
-
 Deno.serve(async (req: Request): Promise<Response> => {
   const environment = env("ENVIRONMENT", "development");
 
-  if (req.method !== "POST") {
-    return errorResponse("invalid_request", 405);
-  }
+  if (req.method !== "POST") return errorResponse("invalid_request", 405);
 
   // 1) kill switch
   if (isKillSwitchOn(env("PLACES_KILL_SWITCH"))) {
@@ -71,9 +62,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   });
   const { data: userData } = await userClient.auth.getUser();
   const user = userData?.user;
-  if (!user) {
-    return errorResponse("unauthorized", 401);
-  }
+  if (!user) return errorResponse("unauthorized", 401);
 
   // 3) レート制限（内容は保存しない・件数のみ）。service role で RPC を呼ぶ。
   const admin = createClient(supabaseUrl, serviceKey);
@@ -105,34 +94,45 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const apiKey = env("GOOGLE_PLACES_API_KEY");
   if (!apiKey) return errorResponse("unavailable", 503);
-
   const timeoutMs = parseInt(env("PLACES_TIMEOUT_MS", "5000"), 10);
+
+  // 費用計上（送信直前に1回。RPC 失敗は handler 側で unavailable へ倒す）。
+  const deps: GoogleCallDeps = {
+    fetchFn: (url, init) => fetch(url, init),
+    incrementUsage: async (sku) => {
+      const { error } = await admin.rpc("increment_api_usage", {
+        p_environment: environment,
+        p_service: "places",
+        p_sku: sku,
+      });
+      if (error) throw error;
+    },
+    log: (meta) => console.log(JSON.stringify(meta)),
+  };
 
   if (action === "autocomplete") {
     const input = payload.input ?? "";
-    if (!isSearchableInput(input)) {
-      return errorResponse("invalid_request", 400);
-    }
+    if (!isSearchableInput(input)) return errorResponse("invalid_request", 400);
     const mask = buildFieldMask(AUTOCOMPLETE_ALLOWED_FIELDS);
     if (fieldMaskError(mask.split(","), AUTOCOMPLETE_ALLOWED_FIELDS)) {
       return errorResponse("invalid_request", 400);
     }
     return await callGoogle({
       environment,
-      admin,
       url: `${GOOGLE_BASE}/places:autocomplete`,
       method: "POST",
       apiKey,
       fieldMask: mask,
       timeoutMs,
       sku: "autocomplete",
+      action: "autocomplete",
       body: JSON.stringify({
         input,
         sessionToken,
         locationBias: payload.locationBias ?? undefined,
       }),
-      transform: (data) => transformAutocomplete(data),
-    });
+      transform: transformAutocomplete,
+    }, deps);
   }
 
   if (action === "details") {
@@ -146,128 +146,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       `?sessionToken=${encodeURIComponent(sessionToken)}`;
     return await callGoogle({
       environment,
-      admin,
       url,
       method: "GET",
       apiKey,
       fieldMask: mask,
       timeoutMs,
       sku: "place_details",
-      transform: (data) => transformDetails(data),
-    });
+      action: "details",
+      transform: transformDetails,
+    }, deps);
   }
 
   return errorResponse("invalid_request", 400);
 });
-
-async function callGoogle(opts: {
-  environment: string;
-  admin: ReturnType<typeof createClient>;
-  url: string;
-  method: "GET" | "POST";
-  apiKey: string;
-  fieldMask: string;
-  timeoutMs: number;
-  sku: string;
-  body?: string;
-  transform: (data: unknown) => unknown;
-}): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
-  let status = 0;
-  let errorKind: PlacesErrorKind | undefined;
-  try {
-    const res = await fetch(opts.url, {
-      method: opts.method,
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": opts.apiKey,
-        "X-Goog-FieldMask": opts.fieldMask,
-      },
-      body: opts.body,
-    });
-    status = res.status;
-    // 課金対象の Google 呼び出しを1件として集計（内容は保存しない）。
-    await opts.admin.rpc("increment_api_usage", {
-      p_environment: opts.environment,
-      p_service: "places",
-      p_sku: opts.sku,
-    });
-    if (!res.ok) {
-      errorKind = mapGoogleStatus(res.status);
-      logSafe(opts, status, undefined, errorKind);
-      return errorResponse(errorKind, status === 429 ? 429 : 502);
-    }
-    const data = await res.json();
-    const out = opts.transform(data);
-    logSafe(opts, status, countSuggestions(out), undefined);
-    return jsonResponse(out, 200);
-  } catch (e) {
-    errorKind = (e instanceof DOMException && e.name === "AbortError")
-      ? "timeout"
-      : "upstream_error";
-    logSafe(opts, status, undefined, errorKind);
-    return errorResponse(errorKind, errorKind === "timeout" ? 504 : 502);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function logSafe(
-  opts: { sku: string; environment: string },
-  status: number,
-  suggestionCount: number | undefined,
-  errorKind: PlacesErrorKind | undefined,
-): void {
-  // 検索文・住所・座標・Place ID を含めない安全なメタだけ出す。
-  console.log(JSON.stringify(safeLogMeta({
-    action: opts.sku === "autocomplete" ? "autocomplete" : "details",
-    sku: opts.sku,
-    environment: opts.environment,
-    status,
-    suggestionCount,
-    errorKind,
-  })));
-}
-
-function countSuggestions(out: unknown): number | undefined {
-  if (out && typeof out === "object" && "suggestions" in out) {
-    const s = (out as { suggestions?: unknown }).suggestions;
-    return Array.isArray(s) ? s.length : undefined;
-  }
-  return undefined;
-}
-
-// Google 応答 → 最小 DTO（Place ID・表示テキストのみ）。名称・住所は一時表示用。
-function transformAutocomplete(data: unknown): unknown {
-  const suggestions =
-    (data as { suggestions?: unknown[] })?.suggestions ?? [];
-  return {
-    suggestions: suggestions.map((s) => {
-      const p = (s as { placePrediction?: Record<string, unknown> })
-        .placePrediction ?? {};
-      const structured = (p.structuredFormat ?? {}) as Record<string, unknown>;
-      const main = (structured.mainText ?? {}) as { text?: string };
-      const secondary =
-        (structured.secondaryText ?? {}) as { text?: string };
-      const text = (p.text ?? {}) as { text?: string };
-      return {
-        placeId: p.placeId ?? "",
-        primaryText: main.text ?? text.text ?? "",
-        secondaryText: secondary.text ?? null,
-      };
-    }),
-  };
-}
-
-function transformDetails(data: unknown): unknown {
-  const d = (data ?? {}) as Record<string, unknown>;
-  const displayName = (d.displayName ?? {}) as { text?: string };
-  return {
-    placeId: d.id ?? "",
-    displayName: displayName.text ?? null,
-    formattedAddress: d.formattedAddress ?? null,
-    attributions: Array.isArray(d.attributions) ? d.attributions : [],
-  };
-}

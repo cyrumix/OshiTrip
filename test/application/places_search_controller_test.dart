@@ -14,6 +14,9 @@ class _FakeGateway implements PlacesGateway {
   /// 各 autocomplete の遅延（stale 検証用）。
   Duration autocompleteDelay = Duration.zero;
 
+  /// Place Details の遅延（二重タップ・中断検証用）。
+  Duration detailsDelay = Duration.zero;
+
   /// 差し替え応答（null なら入力に応じた既定候補1件）。
   Result<List<PlaceSuggestion>>? autocompleteResult;
   Result<PlaceDetails>? detailsResult;
@@ -38,6 +41,9 @@ class _FakeGateway implements PlacesGateway {
     required PlacesSessionToken sessionToken,
   }) async {
     detailsTokens.add(sessionToken.value);
+    if (detailsDelay > Duration.zero) {
+      await Future<void>.delayed(detailsDelay);
+    }
     return detailsResult ?? Ok(PlaceDetails(placeId: placeId));
   }
 }
@@ -144,6 +150,99 @@ void main() {
       c.onQueryChanged('おおさか');
       async.elapse(const Duration(milliseconds: 500));
       expect(gw.autocompleteTokens, ['tok-1', 'tok-2']);
+      c.dispose();
+    });
+  });
+
+  test('二重タップ: 2回目は Google を呼ばず OperationInProgressFailure', () {
+    fakeAsync((async) {
+      final gw = _FakeGateway()
+        ..detailsDelay = const Duration(milliseconds: 100);
+      final c = make(gw);
+      c.onQueryChanged('とうきょう');
+      async.elapse(const Duration(milliseconds: 500));
+
+      Result<PlaceDetails>? r1;
+      Result<PlaceDetails>? r2;
+      const s = PlaceSuggestion(placeId: 'p1', primaryText: 'x');
+      c.select(s).then((r) => r1 = r);
+      c.select(s).then((r) => r2 = r); // 同期的な2回目
+      async.flushMicrotasks();
+      // 2回目は即座に型付き失敗（Google 未呼び出し）。
+      expect(r2!.failureOrNull, isA<OperationInProgressFailure>());
+      async.elapse(const Duration(milliseconds: 150));
+      expect(r1!.isOk, isTrue);
+      // Place Details は 1 token につき最大1回。
+      expect(gw.detailsTokens, ['tok-1']);
+      c.dispose();
+    });
+  });
+
+  test('Details が失敗しても同じ token を再利用しない（次は新 token）', () {
+    fakeAsync((async) {
+      final gw = _FakeGateway()..detailsResult = const Err(NetworkFailure());
+      final c = make(gw);
+      c.onQueryChanged('とうきょう');
+      async.elapse(const Duration(milliseconds: 500));
+
+      Result<PlaceDetails>? r;
+      c
+          .select(const PlaceSuggestion(placeId: 'p1', primaryText: 'x'))
+          .then((x) => r = x);
+      async.flushMicrotasks();
+      expect(r!.isOk, isFalse); // Details 失敗
+      // 失敗でも token は消費済み（再利用しない）。
+      expect(c.debugSessionToken, isNull);
+
+      // 次の検索は新 token。以降の Details も新 token を使う。
+      gw.detailsResult = null;
+      c.onQueryChanged('おおさか');
+      async.elapse(const Duration(milliseconds: 500));
+      expect(gw.autocompleteTokens, ['tok-1', 'tok-2']);
+      c
+          .select(const PlaceSuggestion(placeId: 'p2', primaryText: 'y'))
+          .then((_) {});
+      async.flushMicrotasks();
+      expect(gw.detailsTokens, ['tok-1', 'tok-2']); // tok-1 を再利用しない
+      c.dispose();
+    });
+  });
+
+  test('中断(abandon)後に完了した Details 結果は採用されない', () {
+    fakeAsync((async) {
+      final gw = _FakeGateway()
+        ..detailsDelay = const Duration(milliseconds: 100);
+      final c = make(gw);
+      c.onQueryChanged('とうきょう');
+      async.elapse(const Duration(milliseconds: 500));
+
+      Result<PlaceDetails>? r;
+      c
+          .select(const PlaceSuggestion(placeId: 'p1', primaryText: 'x'))
+          .then((x) => r = x);
+      c.abandon(); // 選択の通信中に中断
+      async.elapse(const Duration(milliseconds: 150));
+      expect(r!.failureOrNull, isA<OperationInProgressFailure>());
+      c.dispose();
+    });
+  });
+
+  test('選択中は isSelecting=true、完了で false', () {
+    fakeAsync((async) {
+      final gw = _FakeGateway()
+        ..detailsDelay = const Duration(milliseconds: 100);
+      final c = make(gw);
+      c.onQueryChanged('とうきょう');
+      async.elapse(const Duration(milliseconds: 500));
+      expect(c.state.isSelecting, isFalse);
+
+      c
+          .select(const PlaceSuggestion(placeId: 'p1', primaryText: 'x'))
+          .then((_) {});
+      async.flushMicrotasks();
+      expect(c.state.isSelecting, isTrue);
+      async.elapse(const Duration(milliseconds: 150));
+      expect(c.state.isSelecting, isFalse);
       c.dispose();
     });
   });
