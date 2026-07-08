@@ -57,6 +57,29 @@ Flutter SDK 自体を新規に導入する場合は公式手順に従う
 - `google-services.json` / `GoogleService-Info.plist` はコミットしない（[.gitignore](../.gitignore)）。
 - **service_role キーやサーバー秘密はアプリ／リポジトリに置かない**（§15.2）。
 
+### 3.1 Google Maps Platform（旅程Phase 3 / ADR-0010）
+
+**キー分離（重要）**:
+
+- **地図SDK（クライアント）キー**: `--dart-define GOOGLE_MAPS_API_KEY=...`（`AppEnv.googleMapsApiKey`）。
+  環境別に発行し、**iOS bundle ID と対象API（Maps SDK のみ）で制限**する。Android 追加時は別キー＋署名制限。
+- **Web Service（Places/Routes）キー**: `GOOGLE_PLACES_API_KEY` を **Supabase Edge Function の環境変数**にのみ設定し、
+  **アプリ／リポジトリには置かない**（`supabase secrets set GOOGLE_PLACES_API_KEY=...`）。Places/Routes は
+  `functions/places-proxy` 経由でのみ呼ぶ。
+- 機能フラグ: `GOOGLE_MAPS_ENABLED`（既定 false）。Edge Function 側 kill switch: `PLACES_KILL_SWITCH`、
+  レート: `PLACES_RATE_LIMIT` / `PLACES_RATE_WINDOW_SECONDS`、環境名 `ENVIRONMENT`、`PLACES_TIMEOUT_MS`。
+
+**日次クォータ・予算通知（費用抑制。料金額はコードへ固定しない）**:
+
+1. Google Cloud Console → **APIs & Services → Enabled APIs**：Places API (New) / Maps SDK を有効化。
+2. 各 API の **Quotas** で**日次上限（per-day / per-minute）**を development/staging/production の
+   プロジェクト（またはキー）ごとに設定し、利用量を環境分離する。
+3. **Billing → Budgets & alerts** で予算としきい値通知（例: 50/90/100%）を作成し、通知先を設定する。
+4. アプリ側は Edge Function のレート制限（`places_rate_limit`）と kill switch で**自動取得を止め**、
+   手動登録は止めない。日次集計は `api_usage_daily`（件数のみ・内容は保存しない）で確認する。
+5. リリース前と四半期ごとに公式料金表・利用規約・キャッシュ制限・帰属要件を再確認し、
+   [decisions.md](decisions.md) の確認記録（確認日・採用 Field Mask）を更新する。
+
 ## 4. Supabase（ローカル & 認可テスト）
 
 ```powershell

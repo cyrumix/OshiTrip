@@ -32,3 +32,11 @@ enable_confirmations = false
 
 [realtime]
 enabled = true
+
+# Places プロキシ（旅程Phase 3 / ADR-0010）。platform 側でも JWT を検証し
+# （未認証を関数到達前に弾く）、関数内でも getUser で二重確認する。
+# Web Service 用 Google API キー等の秘密は環境変数（GOOGLE_PLACES_API_KEY,
+# PLACES_KILL_SWITCH, PLACES_RATE_LIMIT, ENVIRONMENT ...）で注入し、
+# リポジトリ・アプリバイナリには含めない。
+[functions.places-proxy]
+verify_jwt = true

@@ -60,3 +60,11 @@ class OperationInProgressFailure extends Failure {
   const OperationInProgressFailure({String? message, super.cause})
       : super(message ?? '処理中です。しばらく待ってから再試行してください');
 }
+
+/// 外部サービス（地図・検索など）が未設定・無効・予算上限・kill switch 等で
+/// 利用できない状態。エラーではなく「今は使えない」を型で表し、呼び出し側を
+/// 手動フォールバックへ縮退させる（ADR-0010・itinerary-plan-spec §7.9）。
+class UnavailableFailure extends Failure {
+  const UnavailableFailure({String? message, super.cause})
+      : super(message ?? '現在この機能は利用できません。手動で登録できます');
+}

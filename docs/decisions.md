@@ -766,3 +766,45 @@ D-188〜D-193（計画機能の仕様変更）のレビューで見つかった2
 - **pgTAP 実検査数**: **17**（`plan(17)` と一致）。event/goods/visited_place/food の保存・UPDATE正例・apply_mutation正例・各種負例（片方だけ/種別不一致/category不一致/別owner/別genba/存在しない）を含む。
 - **未実施**: `supabase db reset` / `supabase test db`（0019/0020/0021 の適用と pgTAP。Docker 未導入で起動不可・CLI は有）。integration_test は本修正専用シナリオ無し・デスクトッププラグイン依存のため未実行（unit/widget 684件で担保）。
 - **DB migration**: Supabase **0021**（subject_id を uuid 化・前方専用）。Drift 変更なし（SQLite は TEXT 継続）。過去 migration は不変。
+
+## 旅程Phase 3（Google Maps Platform連携, 2026-07-08, Claude Haiku 4.5）
+
+### Google公式仕様の確認記録（ADR-0010 §12・itinerary-plan-spec §8 の要求）
+
+- **確認日**: 2026-07-08。
+- **確認元**: Google Maps Platform 公式ドキュメント Place Details (New) の Field Mask とデータSKU階層
+  （developers.google.com/maps/documentation/places/web-service/place-details ほか）。
+- **採用 Field Mask（Place Details New）**: `id,displayName,formattedAddress,attributions`（`*` 禁止・本番 allowlist 強制）。
+  - `id` / `attributions`: **Place Details Essentials (IDs Only)** 相当（最低コスト）。
+  - `formattedAddress`: **Place Details Essentials** 相当。
+  - `displayName`: **Place Details Pro** 相当。
+  - → 名称＋住所を表示するため実質 **Pro SKU** に落ちる（設計上の許容。電話・URL・営業時間・写真・
+    評価・レビュー・primary type・座標は要求せず Enterprise/Atmosphere に上げない）。
+- **Autocomplete (New)**: session token（UUIDv4）で「複数 autocomplete ＋ 選択後の Place Details 1回」を
+  1セッションとして課金する。候補選択せず離脱した場合は session を終了（未課金セッション化）。3文字以上・
+  debounce・会場周辺 location bias で件数を抑制する（itinerary-plan-spec §8.2）。
+- **キャッシュ制限・帰属**: Place ID 以外の Google Places コンテンツ（名称・住所・写真等）を API 代替目的の
+  ユーザー横断恒久キャッシュへ保存しない。永続化する Google 識別子は原則 Place ID のみ。表示時は Google Maps
+  と第三者帰属を同一表示コンテナで示す（`attributions`）。料金額はコードへ固定しない（本記録の日付で四半期
+  ごとに再確認する, ADR-0010 §12）。
+- **注意**: SKU 区分・フィールド分類は Google 側で変更され得る。リリース前と四半期ごとに本記録を更新する。
+
+### D-207: 外部地図境界（PlacesGateway）とオフライン検証範囲の段階実装
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-207 | 旅程の地図/検索を地図事業者非依存の境界 `PlacesGateway`（domain）に置く。Google 未設定・障害・上限時は型付き `UnavailableFailure`（新設）を返し、手動旅程フォールバックを妨げない。Google 連携は既定で無効（`GoogleMapsConfig.enabled=false`）とし Phase 2 の全フローを緑に保つ。Field Mask は allowlist 定数＋純粋関数で検証し `*`・非許可フィールドを拒否。Place ID → Google Maps URL はアプリ側生成（追加 Details 取得なし）。名称・住所は一時 DTO 状態に留め、永続 entity へ自動転記しない | ADR-0010/spec の「境界分離・手動フォールバック必須・キー秘匿・Google コンテンツ非恒久化」を、外部インフラ（Edge Function/鍵/実機）に依存せず**オフラインで検証可能**な単位から実装する。本環境は Docker・Google 鍵・モバイル実機が無く、Edge Function 実デプロイ／実 Places 呼び出し／ネイティブ地図描画／iOS 実機検証は各環境で別途行う（本コミットでは成功扱いにしない） |
+| D-208 | Autocomplete (New) の検索制御を純粋な `PlacesSearchController`（application）に置く。3文字以上・debounce(450ms)・stale応答破棄・1検索セッション1 UUIDv4 token（選択 Details まで同一）・**完了/中断後の token 再利用禁止**（次クエリで新規発行）・結果なし/利用不可/失敗→手動フォールバック可。token 値は UI/ログへ出さない。ネットワークは `PlacesGateway`、token 生成は注入し `fake_async` で全経路を検証 | セッション課金の正しい束ね（複数 autocomplete＋1 Details＝1課金）と無駄呼び出し抑制を、UI/ネットワーク非依存の状態機械として先に確定・検証する |
+| D-209 | 権利確認済み共有施設基盤（Supabase **0022**）。`shared_facilities`（owner別下書き→pending→approved）。`data_origin` は `user_provided/facility_provided/open_data/licensed` の CHECK のみ（**'google' 値が存在しない＝Google 応答をそのまま出典にした共有登録を型/制約で不能化**）。承認（共有）は `rights_basis` 必須（テーブル CHECK＋トリガ）。承認/却下は service role のみ（一般ユーザーの自己承認をトリガで拒否, security invoker・search_path 固定）。RLS は「本人の下書き＋承認済みは全認証ユーザー閲覧」。Google Place ID は重複照合キーとして保持可（名称・住所の権利根拠にはしない）。Dart 側に同一不変条件の純粋関数 `sharedFacilityInvariantError` と `FacilityModerationStatus` を用意。pgTAP `0012`（plan(9)）を記述 | 「Google 由来を共有マスタへ昇格させない」を型・制約・トリガ・RLS の多層で担保する。ローカル下書きの Drift/Outbox 同期とモデレーション UI は後続増分（本増分はスキーマ＋サーバー強制＋不変条件まで） |
+
+| D-210 | 地図モードの座標・外部リンク・ピン選定を純粋関数（`itinerary_map_links.dart`）に置く。`spotHasMapPin`（**手動座標が両方揃うときだけ**ピン。地図のためだけに座標を追加取得しない）、`spotGoogleMapsUrl`（**Place ID→手動座標→名称検索**の優先で既存保存値だけから URL 生成。追加 Places/Details/Routes 取得なし）、`partitionSpotsForMap`（座標あり=ピン／座標なし=一覧、入力順維持）。座標なしスポットは一覧＋外部地図導線で扱う（§5） | ネイティブ地図（`google_maps_flutter`）の描画は実機依存で本環境では検証不可のため、地図ビューが消費する**データ/リンク層を先に純粋関数として確定・テスト**する。地図ウィジェット埋め込み・モード切替 UI・iOS bundle ID 制限は実機環境の後続増分（見せかけUIは追加しない） |
+
+| D-211 | Places プロキシ Edge Function（`supabase/functions/places-proxy/`）＋費用/レート基盤（Supabase **0023**）。Web Service 用 Google キーはサーバー env のみ（アプリ非埋め込み, ADR-0010 §3）。関数は認証（platform verify_jwt＋getUser）・ユーザー別レート制限（`places_rate_limit`/RPC）・Field Mask allowlist（`*`/非許可拒否・`policy.ts`）・timeout・Google エラーの型付き変換・kill switch（env）・ログ秘匿（`safeLogMeta` のみ／検索文・住所・座標・Place ID を出さない）・費用集計（`api_usage_daily`/RPC・**件数のみ**）を強制し、**共有DBへ一切書き込まない**。純粋方針は `policy.ts` に分離（Dart 側 allowlist と同一許可集合）。集計/レート表は service role のみ（RLS＋execute 権 revoke）。pgTAP `0013`（plan(6)）。setup.md に日次クォータ・予算通知・キー分離の手順を追記（料金額はコードへ固定しない） | セキュリティ境界（キー秘匿・認証・レート・allowlist・kill switch・ログ秘匿・費用可視化）を1関数に集約する。本環境は Deno/Supabase/Docker 無しで**未デプロイ・未実行の成果物**（実行検証は各実環境。allowlist の中核は Dart 側テストで担保） |
+
+### 検証状況（旅程Phase 3 オフライン増分）
+
+- `dart format` 差分なし、`dart analyze lib test integration_test` クリーン、`flutter test` **715件 全パス**（新規: `places_gateway_test` 12・`places_search_controller_test` 9・`shared_facility_test` 4・`itinerary_map_links_test` 6）、`git diff --check` クリーン。Phase 2 の全フローは無改変で緑。秘密情報のハードコード無し（Edge Function は全て env 参照）。
+- **Edge Function（D-211）は未実行の成果物**: 本環境に Deno/Supabase/Docker/Google 鍵が無く、実デプロイ・実 Places 呼び出し・`supabase test db`（0013/0012/0022 の pgTAP）は各実環境で別途行う（成功扱いにしない）。Field Mask allowlist の中核挙動は Dart 側 `places_gateway_test` で実行検証済み。
+- **実装済み（オフライン検証可能）**: Item1 境界＋型付き失敗＋設定（Google 既定無効）、Item4 クライアント側（Field Mask allowlist/`*`拒否・Place ID→URL）、Item3 Autocomplete 制御、Item6 共有施設スキーマ＋RLS＋モデレーショントリガ＋不変条件、Item5 地図リンク/ピン選定の純粋層。
+- **未実施（要・各実環境。成功扱いにしない）**: `supabase db reset`/`supabase test db`（0022 の pgTAP `0012`。Docker 未導入で未実行）、Edge Function 実デプロイ・実 Places 呼び出し・キー制限（Supabase/Docker/Google 鍵）、ネイティブ地図描画・**iOS 実機/bundle ID 制限**（モバイル実機なし → iOS 不可時は macOS 実機確認項目を引き継ぎに明記）。
+- **未着手（後続増分）**: Item2/7 Edge Function 成果物＋費用集計、Item5 地図ウィジェット埋め込み＋モード切替 UI、共有施設のローカル下書き Drift/Outbox 同期＋モデレーション UI、実ゲートウェイ（HTTP）接続。**Routes(Phase 4) 未完のため旅程 MVP 全体は完成扱いにしない**（ADR-0010・プロンプト完了条件）。
