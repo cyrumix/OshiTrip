@@ -1,6 +1,8 @@
--- pgTAP: 共有施設基盤＋モデレーション境界（旅程Phase 3 / 0022 + 0024）
+-- pgTAP: 共有施設基盤＋モデレーション境界（旅程Phase 3 / 0022 + 0024 + 0025）
 --
 -- - owner 別下書き→承認。data_origin は4種のみ、承認は rights_basis 必須。
+-- - 新規登録（INSERT）は一般ユーザーなら必ず draft から開始する（0025。pending/
+--   approved/rejected を直接 INSERT できない）。
 -- - 投稿者は自分の draft を更新・削除できるが、approved は変更・削除・差し戻し
 --   できない（Fix1）。service_role のみが承認・approved の修正を行える。
 -- - 承認済みは他ユーザーも閲覧できるが変更・削除できない。
@@ -10,7 +12,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(16);
+select plan(20);
 
 insert into auth.users (id, email)
 values
@@ -33,6 +35,40 @@ select lives_ok(
     values ('f0000000-0000-0000-0000-000000000001',
             '11111111-1111-1111-1111-111111111111', '会場前カフェ', 'user_provided')$$,
   'owner can insert own draft'
+);
+
+-- ---------------------------------------------------------------------------
+-- 0025: 新規登録は必ず draft から開始する（moderation_status='draft' 必須）
+-- ---------------------------------------------------------------------------
+
+-- 1b) moderation_status を明示的に 'draft' としても新規登録できる
+select lives_ok(
+  $$insert into public.shared_facilities
+      (id, created_by, name, data_origin, moderation_status)
+    values ('f0000000-0000-0000-0000-000000000010',
+            '11111111-1111-1111-1111-111111111111', '検証用ドラフト',
+            'user_provided', 'draft')$$,
+  'authenticated user insert with explicit moderation_status=draft succeeds'
+);
+
+-- 1c) 一般ユーザーが pending を直接 INSERT すると拒否される
+--     （BEFORE トリガが RLS WITH CHECK より先に発火するため、トリガの
+--     例外メッセージで検知する。RLS の WITH CHECK も同条件で独立に拒否する）。
+select throws_ok(
+  $$insert into public.shared_facilities
+      (id, created_by, name, data_origin, moderation_status)
+    values ('f0000000-0000-0000-0000-000000000011',
+            '11111111-1111-1111-1111-111111111111', '直接pending',
+            'user_provided', 'pending')$$,
+  'new shared facility must start as draft',
+  'authenticated user cannot insert directly as pending (trigger + RLS)'
+);
+
+-- 1d) draft(.010) → pending の正規申請（UPDATE）は引き続き成功する
+select lives_ok(
+  $$update public.shared_facilities set moderation_status = 'pending'
+    where id = 'f0000000-0000-0000-0000-000000000010'$$,
+  'draft to pending submission still works after insert hardening'
 );
 
 -- 承認なし/削除テスト用の下書き F2（プレーン insert）
@@ -105,6 +141,17 @@ select results_eq(
 reset role;
 set local role postgres;
 select set_config('request.jwt.claims', null, true);
+
+-- 0025 追加) service_role は管理／移行のため、任意の moderation_status で
+-- 直接 INSERT できる（draft-only 制限は一般ユーザーのみに適用される）。
+select lives_ok(
+  $$insert into public.shared_facilities
+      (id, created_by, name, data_origin, moderation_status, rights_basis)
+    values ('f0000000-0000-0000-0000-000000000012',
+            '11111111-1111-1111-1111-111111111111', '移行データ', 'licensed',
+            'approved', '契約データの一括移行')$$,
+  'service role can insert facility directly at any moderation_status (e.g. approved) for admin/migration use'
+);
 
 -- 8) rights_basis 付きで承認できる（Fix1 追加#5）
 select lives_ok(
