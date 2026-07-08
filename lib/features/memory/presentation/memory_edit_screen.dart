@@ -107,19 +107,23 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
   }
 
   /// 関連項目（グッズ/場所/食べもの）の削除。写真があるときは「アルバムに残す
-  /// （既定）／写真も削除」を選ばせる（§8.4）。既定は残す。
+  /// （既定）／写真も削除」を選ばせる（§8.4）。写真も削除・残すのいずれも
+  /// Repository の原子的操作で行い、途中失敗で一部だけ消えることを防ぐ（Issue1）。
   Future<void> _deleteSubjectItem({
     required String id,
     required String label,
-    required Future<Object?> Function(String id) deleteItem,
+    required MemorySubjectType subjectType,
   }) async {
     final bundle = await ref
         .read(memoryRepositoryProvider)
         .watchByGenbaId(widget.genbaId)
         .first;
-    final photoIds = bundle.photosForSubject(id).map((p) => p.id).toList();
-    if (photoIds.isEmpty) {
-      _showFailure(await deleteItem(id));
+    final photoCount = bundle.photosForSubject(id).length;
+    if (photoCount == 0) {
+      // 写真なし → 項目のみ削除（関連解除操作で項目を消す）。
+      _showFailure(
+        await _controller.deleteSubjectKeepingPhotos(subjectType, id),
+      );
       return;
     }
     if (!mounted) return;
@@ -127,7 +131,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('「$label」を削除'),
-        content: Text('この項目に紐づく写真が${photoIds.length}枚あります。どうしますか？'),
+        content: Text('この項目に紐づく写真が$photoCount枚あります。どうしますか？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -145,16 +149,11 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
       ),
     );
     if (choice == 'keep') {
-      _showFailure(await deleteItem(id));
+      _showFailure(
+        await _controller.deleteSubjectKeepingPhotos(subjectType, id),
+      );
     } else if (choice == 'delete') {
-      for (final pid in photoIds) {
-        final failure = await _controller.deletePhoto(pid);
-        if (failure != null) {
-          _showFailure(failure);
-          return;
-        }
-      }
-      _showFailure(await deleteItem(id));
+      _showFailure(await _controller.deleteSubjectWithPhotos(subjectType, id));
     }
   }
 
@@ -395,7 +394,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                 onDeleteItem: (id, label) => _deleteSubjectItem(
                   id: id,
                   label: label,
-                  deleteItem: _controller.deleteGoodsItem,
+                  subjectType: MemorySubjectType.goods,
                 ),
                 onAddPhoto: (id) => _addSubjectPhoto(
                   albumCategory: MemoryAlbumCategory.goods,
@@ -426,7 +425,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                 onDeleteItem: (id, label) => _deleteSubjectItem(
                   id: id,
                   label: label,
-                  deleteItem: _controller.deleteVisitedPlace,
+                  subjectType: MemorySubjectType.visitedPlace,
                 ),
                 onAddPhoto: (id) => _addSubjectPhoto(
                   albumCategory: MemoryAlbumCategory.visitedPlace,
@@ -457,7 +456,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                 onDeleteItem: (id, label) => _deleteSubjectItem(
                   id: id,
                   label: label,
-                  deleteItem: _controller.deleteVisitedPlace,
+                  subjectType: MemorySubjectType.visitedPlace,
                 ),
                 onAddPhoto: (id) => _addSubjectPhoto(
                   albumCategory: MemoryAlbumCategory.food,

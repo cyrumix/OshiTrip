@@ -352,6 +352,27 @@ class MemoryPhotos extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// 画像ファイル削除の再試行キュー（§8.4 / Issue1）。写真メタデータの削除は
+/// DB トランザクションで原子的に確定し、端末内の画像ファイル削除は分離して
+/// このキュー経由で行う。DB 削除後にファイル削除が失敗しても無視せず、この
+/// テーブルに残して再試行対象とする（成功時のみ行を除去する）。
+/// 端末ローカルのみで同期対象外。
+@DataClassName('PendingImageDeletionRow')
+class PendingImageDeletions extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text()();
+
+  /// 削除対象の画像参照（[ImageStore] の owner スコープ相対参照）。
+  TextColumn get ref => text()();
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  TextColumn get lastError => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DataClassName('SetlistItemRow')
 class SetlistItems extends Table {
   TextColumn get id => text()();
@@ -724,6 +745,7 @@ class FormDrafts extends Table {
     GenbaMemos,
     MemoryEntries,
     MemoryPhotos,
+    PendingImageDeletions,
     SetlistItems,
     GoodsItems,
     VisitedPlaces,
@@ -779,8 +801,12 @@ class AppDatabase extends _$AppDatabase {
   /// v13: memory_photos にアルバム分類 album_category / 関連項目 subject_type /
   /// subject_id を追加（§8.4）。既存写真は album_category='event' へ移行し消さない。
   /// 写真の保存元は memory_photos に一本化し、画面ごとに複製しない。
+  ///
+  /// v14: pending_image_deletions（画像ファイル削除の再試行キュー, Issue1）を
+  /// 追加。写真メタデータ削除は DB トランザクションで確定し、ファイル削除失敗は
+  /// このキューへ残す。新規テーブルの追加のみで既存データには触れない。
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -941,6 +967,10 @@ class AppDatabase extends _$AppDatabase {
               "UPDATE memory_photos SET album_category = 'event' "
               "WHERE album_category IS NULL OR trim(album_category) = ''",
             );
+          }
+          if (from < 14) {
+            // 画像削除の再試行キュー（新規テーブルの追加のみ）。
+            await m.createTable(pendingImageDeletions);
           }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);

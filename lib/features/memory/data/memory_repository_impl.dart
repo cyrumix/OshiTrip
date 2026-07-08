@@ -7,6 +7,7 @@ import '../../../core/db/app_database.dart';
 import '../../../core/db/owner_guard.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import '../../../core/images/image_store.dart';
 import '../../../core/network/network_timeout.dart';
 import '../../../core/sync/outbox_operation.dart';
 import '../../../core/sync/outbox_store.dart';
@@ -27,12 +28,14 @@ class MemoryRepositoryImpl implements MemoryRepository {
     required Clock clock,
     required String? Function() ownerIdResolver,
     SupabaseClient? Function()? remoteResolver,
+    ImageStore? Function()? imageStoreResolver,
   })  : _db = db,
         _outbox = outbox,
         _syncEngine = syncEngine,
         _clock = clock,
         _ownerId = ownerIdResolver,
-        _remote = remoteResolver ?? (() => null);
+        _remote = remoteResolver ?? (() => null),
+        _imageStore = imageStoreResolver ?? (() => null);
 
   final AppDatabase _db;
   final OutboxStore _outbox;
@@ -40,6 +43,13 @@ class MemoryRepositoryImpl implements MemoryRepository {
   final Clock _clock;
   final String? Function() _ownerId;
   final SupabaseClient? Function() _remote;
+  final ImageStore? Function() _imageStore;
+
+  /// テスト用の失敗注入（Issue1 のロールバック検証）。指定ステージ到達時に
+  /// 例外を投げ、原子的削除が全て巻き戻ることを確認する。ステージ名:
+  /// `photo:N`（N枚目の写真削除後） / `subject`（項目削除後） /
+  /// `outbox`（Outbox 登録時）。本番経路では常に null。
+  String? deleteFailStage;
 
   static const _uuid = Uuid();
 
@@ -303,23 +313,15 @@ class MemoryRepositoryImpl implements MemoryRepository {
   @override
   Future<Result<void>> updatePhoto(MemoryPhoto photo) async {
     final stamped = photo.copyWith(updatedAt: _now);
-    // 関連項目（グッズ/行った場所）に紐づく写真は、同一 owner+genba の項目が
-    // 実在することを検証する（§8.4。孤立した subject_id を作らない）。
-    if (stamped.subjectId != null && stamped.subjectType != null) {
-      final owner = _ownerId();
-      if (owner == null) {
-        return const Err(AuthFailure(message: 'ログインが必要です'));
-      }
-      final exists = await _subjectExists(
-        owner: owner,
-        genbaId: stamped.genbaId,
-        subjectType: stamped.subjectType!,
-        subjectId: stamped.subjectId!,
-      );
-      if (!exists) {
-        return const Err(ValidationFailure('関連する項目が見つかりません'));
-      }
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
     }
+    // 分類と関連項目の不変条件を強制する（§8.4）。形状（純粋関数）＋実在・
+    // owner/genba 一致・対象 category（spot/food）照合。Supabase 側でも同一条件を
+    // トリガで強制する（apply_mutation/直接INSERT/UPDATE を含む）。
+    final invalid = await _validatePhoto(owner, stamped);
+    if (invalid != null) return Err(invalid);
     // 写真バイナリはOutboxに載せない（メタデータのみ同期。画像本体の
     // アップロードは MemoryPhotoUploader の境界で扱う）。
     final payload = stamped.toJson()..remove('local_path');
@@ -346,35 +348,281 @@ class MemoryRepositoryImpl implements MemoryRepository {
         opType: OutboxOpType.delete,
       );
 
-  /// 関連項目（グッズ/行った場所）が同一 owner+genba に実在するか（§8.4）。
-  /// 写真の subject_id が孤立しないよう upsert 前に検証する。
-  Future<bool> _subjectExists({
-    required String owner,
-    required String genbaId,
+  @override
+  Future<Result<void>> deleteSubjectWithPhotos({
     required MemorySubjectType subjectType,
     required String subjectId,
   }) async {
-    switch (subjectType) {
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    final now = _now;
+    try {
+      await _db.transaction(() async {
+        // 1) 項目の存在・所有を確認（別owner/存在しない項目は拒否）。
+        if (!await _subjectRowExists(owner, subjectType, subjectId)) {
+          throw const _SubjectMissing();
+        }
+        // 2) 紐づく写真（owner スコープ）を取得。ファイル参照を控える。
+        final photos = await (_db.select(_db.memoryPhotos)
+              ..where(
+                (t) => t.subjectId.equals(subjectId) & t.ownerId.equals(owner),
+              ))
+            .get();
+        // 3) 写真メタデータを1件ずつ削除し、各削除を Outbox へ積む。
+        var deleted = 0;
+        for (final ph in photos) {
+          await (_db.delete(_db.memoryPhotos)
+                ..where((t) => t.id.equals(ph.id) & t.ownerId.equals(owner)))
+              .go();
+          deleted++;
+          _maybeFail('photo:$deleted');
+          await _enqueueInTxDelete(
+            owner: owner,
+            table: SyncEntity.memoryPhotos,
+            id: ph.id,
+            now: now,
+          );
+        }
+        // 4) 項目行を削除。
+        await _deleteSubjectRow(owner, subjectType, subjectId);
+        _maybeFail('subject');
+        // 5) 項目削除を Outbox へ積む。
+        _maybeFail('outbox');
+        await _enqueueInTxDelete(
+          owner: owner,
+          table: subjectType == MemorySubjectType.goods
+              ? SyncEntity.goodsItems
+              : SyncEntity.visitedPlaces,
+          id: subjectId,
+          now: now,
+        );
+        // 6) 画像ファイル削除キューへ積む（DB と同一トランザクション）。
+        for (final ph in photos) {
+          final ref = ph.localPath;
+          if (ref != null && ref.isNotEmpty) {
+            await _db.into(_db.pendingImageDeletions).insert(
+                  PendingImageDeletionsCompanion.insert(
+                    id: _uuid.v4(),
+                    ownerId: owner,
+                    ref: ref,
+                    createdAt: now.toIso8601String(),
+                    updatedAt: now.toIso8601String(),
+                  ),
+                );
+          }
+        }
+      });
+    } on _SubjectMissing {
+      return const Err(ValidationFailure('対象の項目が見つかりません'));
+    } catch (e) {
+      // 途中失敗は DB を全てロールバック済み。成功扱いにしない。
+      return Err(StorageFailure(cause: e));
+    }
+    _syncEngine.poke();
+    // DB は確定済み。ファイル削除は分離して実行し、失敗は再試行キューに残す。
+    await flushPendingImageDeletions(owner);
+    return const Ok(null);
+  }
+
+  @override
+  Future<Result<void>> deleteSubjectDetachingPhotos({
+    required MemorySubjectType subjectType,
+    required String subjectId,
+  }) async {
+    final owner = _ownerId();
+    if (owner == null) {
+      return const Err(AuthFailure(message: 'ログインが必要です'));
+    }
+    final now = _now;
+    try {
+      await _db.transaction(() async {
+        if (!await _subjectRowExists(owner, subjectType, subjectId)) {
+          throw const _SubjectMissing();
+        }
+        // 写真もファイルも消さない。関連（subject）だけ解除し、album_category は
+        // 元分類を維持する（アルバムから引き続き確認できる, §8.4）。
+        final photos = await (_db.select(_db.memoryPhotos)
+              ..where(
+                (t) => t.subjectId.equals(subjectId) & t.ownerId.equals(owner),
+              ))
+            .get();
+        for (final ph in photos) {
+          final detached = photoFromRow(ph).copyWith(
+            subjectId: null,
+            subjectType: null,
+            updatedAt: now,
+          );
+          await _db.into(_db.memoryPhotos).insertOnConflictUpdate(
+                photoToCompanion(detached, preserveLocalImage: true),
+              );
+          final payload = detached.toJson()..remove('local_path');
+          await _outbox.enqueue(
+            OutboxOperation(
+              mutationId: _uuid.v4(),
+              ownerId: owner,
+              entityTable: SyncEntity.memoryPhotos,
+              entityId: detached.id,
+              opType: OutboxOpType.upsert,
+              payload: payload,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+        }
+        await _deleteSubjectRow(owner, subjectType, subjectId);
+        await _enqueueInTxDelete(
+          owner: owner,
+          table: subjectType == MemorySubjectType.goods
+              ? SyncEntity.goodsItems
+              : SyncEntity.visitedPlaces,
+          id: subjectId,
+          now: now,
+        );
+      });
+    } on _SubjectMissing {
+      return const Err(ValidationFailure('対象の項目が見つかりません'));
+    } catch (e) {
+      return Err(StorageFailure(cause: e));
+    }
+    _syncEngine.poke();
+    return const Ok(null);
+  }
+
+  /// 画像削除キューを処理する。成功した行は除去し、失敗した行は試行回数と理由を
+  /// 記録して残す（再試行対象, Issue1）。[ImageStore] 未設定時は何もしない
+  /// （後続の起動などで再試行される）。
+  @override
+  Future<void> flushPendingImageDeletions(String owner) async {
+    final store = _imageStore();
+    if (store == null) return;
+    final rows = await (_db.select(_db.pendingImageDeletions)
+          ..where((t) => t.ownerId.equals(owner)))
+        .get();
+    for (final r in rows) {
+      try {
+        await store.deleteRefStrict(owner, r.ref);
+        await (_db.delete(_db.pendingImageDeletions)
+              ..where((t) => t.id.equals(r.id)))
+            .go();
+      } catch (e) {
+        await (_db.update(_db.pendingImageDeletions)
+              ..where((t) => t.id.equals(r.id)))
+            .write(
+          PendingImageDeletionsCompanion(
+            attempts: Value(r.attempts + 1),
+            lastError: Value(e.toString()),
+            updatedAt: Value(_now.toIso8601String()),
+          ),
+        );
+      }
+    }
+  }
+
+  void _maybeFail(String stage) {
+    if (deleteFailStage == stage) {
+      throw StateError('test failpoint: $stage');
+    }
+  }
+
+  Future<bool> _subjectRowExists(
+    String owner,
+    MemorySubjectType type,
+    String id,
+  ) async {
+    switch (type) {
+      case MemorySubjectType.goods:
+        final r = await (_db.select(_db.goodsItems)
+              ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
+            .getSingleOrNull();
+        return r != null;
+      case MemorySubjectType.visitedPlace:
+        final r = await (_db.select(_db.visitedPlaces)
+              ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
+            .getSingleOrNull();
+        return r != null;
+    }
+  }
+
+  Future<void> _deleteSubjectRow(
+    String owner,
+    MemorySubjectType type,
+    String id,
+  ) async {
+    switch (type) {
+      case MemorySubjectType.goods:
+        await (_db.delete(_db.goodsItems)
+              ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
+            .go();
+      case MemorySubjectType.visitedPlace:
+        await (_db.delete(_db.visitedPlaces)
+              ..where((t) => t.id.equals(id) & t.ownerId.equals(owner)))
+            .go();
+    }
+  }
+
+  Future<void> _enqueueInTxDelete({
+    required String owner,
+    required String table,
+    required String id,
+    required DateTime now,
+  }) {
+    return _outbox.enqueue(
+      OutboxOperation(
+        mutationId: _uuid.v4(),
+        ownerId: owner,
+        entityTable: table,
+        entityId: id,
+        opType: OutboxOpType.delete,
+        payload: const {},
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  /// 写真の分類・関連項目の不変条件（§8.4）を検証する。問題があれば型付き
+  /// [Failure]、無ければ null。形状（純粋関数）→実在・owner/genba 一致→
+  /// 対象 category（visited_place=spot / food=food）照合の順で確認する。
+  Future<Failure?> _validatePhoto(String owner, MemoryPhoto p) async {
+    final shape = memoryPhotoShapeError(p);
+    if (shape != null) return ValidationFailure(shape);
+    // event または関連解除済み（両方 null）は関連先の照合を要しない。
+    if (!memoryPhotoLinksSubject(p)) return null;
+    switch (p.subjectType!) {
       case MemorySubjectType.goods:
         final row = await (_db.select(_db.goodsItems)
               ..where(
                 (t) =>
-                    t.id.equals(subjectId) &
-                    t.genbaId.equals(genbaId) &
+                    t.id.equals(p.subjectId!) &
+                    t.genbaId.equals(p.genbaId) &
                     t.ownerId.equals(owner),
               ))
             .getSingleOrNull();
-        return row != null;
+        if (row == null) {
+          return const ValidationFailure('関連するグッズが見つかりません');
+        }
+        return null;
       case MemorySubjectType.visitedPlace:
         final row = await (_db.select(_db.visitedPlaces)
               ..where(
                 (t) =>
-                    t.id.equals(subjectId) &
-                    t.genbaId.equals(genbaId) &
+                    t.id.equals(p.subjectId!) &
+                    t.genbaId.equals(p.genbaId) &
                     t.ownerId.equals(owner),
               ))
             .getSingleOrNull();
-        return row != null;
+        if (row == null) {
+          return const ValidationFailure('関連する場所が見つかりません');
+        }
+        // 食べたものは food、行った場所は spot の visited_place を指す。
+        final expected =
+            p.albumCategory == MemoryAlbumCategory.food ? 'food' : 'spot';
+        if (row.category != expected) {
+          return const ValidationFailure('関連項目の種別が一致しません');
+        }
+        return null;
     }
   }
 
@@ -677,4 +925,10 @@ class MemoryRepositoryImpl implements MemoryRepository {
 /// 通知する番兵例外（transaction をロールバックさせ、外側で NotFoundFailure へ変換）。
 class _CoverNotFound implements Exception {
   const _CoverNotFound();
+}
+
+/// 関連項目の原子的削除で「対象の項目が存在しない/別owner」を通知する番兵例外
+/// （transaction をロールバックさせ、外側で [ValidationFailure] へ変換）。
+class _SubjectMissing implements Exception {
+  const _SubjectMissing();
 }

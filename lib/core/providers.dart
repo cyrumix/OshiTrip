@@ -228,6 +228,7 @@ final memoryRepositoryProvider = Provider<MemoryRepository>((ref) {
     clock: ref.watch(clockProvider),
     ownerIdResolver: () => scope.ownerIdOrNull,
     remoteResolver: () => _remoteClientOrNull(ref),
+    imageStoreResolver: () => ref.watch(imageStoreProvider),
   );
 });
 

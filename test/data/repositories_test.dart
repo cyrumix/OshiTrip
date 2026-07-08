@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oshi_trip/core/db/app_database.dart';
 import 'package:oshi_trip/core/error/failure.dart';
+import 'package:oshi_trip/core/images/image_store.dart';
 import 'package:oshi_trip/core/logging/app_logger.dart';
 import 'package:oshi_trip/core/network/connectivity.dart';
 import 'package:oshi_trip/core/sync/outbox_operation.dart';
@@ -19,6 +22,16 @@ import 'package:oshi_trip/features/oshi/domain/oshi.dart';
 
 import '../helpers/fixtures.dart';
 import '../helpers/test_db.dart';
+
+/// ファイル削除が必ず失敗する ImageStore（Issue1: 削除失敗が再試行対象になる検証）。
+class _ThrowingImageStore extends ImageStore {
+  _ThrowingImageStore(super.baseDir);
+
+  @override
+  Future<void> deleteRefStrict(String ownerId, String ref) async {
+    throw const FileSystemException('forced delete failure');
+  }
+}
 
 void main() {
   late AppDatabase db;
@@ -415,6 +428,281 @@ void main() {
       bundle.photosInAlbum(MemoryAlbumCategory.goods).single.id,
       'p-goods',
     );
+  });
+
+  // --------------------------------------------------------------------
+  // Issue1: 関連項目と写真の原子的削除（中途半端に消えない）
+  // --------------------------------------------------------------------
+  group('関連項目と写真の原子的削除（Issue1）', () {
+    Future<void> seedGoodsWithPhotos(int n) async {
+      await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 6, 1)));
+      await memoryRepo.upsertGoodsItem(
+        GoodsItem(
+          id: 'goods-1',
+          genbaId: 'genba-1',
+          ownerId: 'user-1',
+          name: 'アクスタ',
+          createdAt: fixedCreatedAt,
+          updatedAt: fixedCreatedAt,
+        ),
+      );
+      for (var i = 0; i < n; i++) {
+        final r = await memoryRepo.addPhoto(
+          MemoryPhoto(
+            id: 'ph-$i',
+            genbaId: 'genba-1',
+            ownerId: 'user-1',
+            localPath: 'memory-photos/user-1/memoryPhoto/ph-$i.jpg',
+            albumCategory: MemoryAlbumCategory.goods,
+            subjectType: MemorySubjectType.goods,
+            subjectId: 'goods-1',
+            createdAt: fixedCreatedAt,
+            updatedAt: fixedCreatedAt,
+          ),
+        );
+        expect(r.isOk, isTrue);
+      }
+    }
+
+    Future<int> queueCount() async =>
+        (await db.select(db.pendingImageDeletions).get()).length;
+
+    test('1. 写真3枚＋グッズの一括削除に成功する', () async {
+      await seedGoodsWithPhotos(3);
+      final res = await memoryRepo.deleteSubjectWithPhotos(
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'goods-1',
+      );
+      expect(res.isOk, isTrue);
+      final bundle = await memoryRepo.watchByGenbaId('genba-1').first;
+      expect(bundle.photos, isEmpty);
+      expect(bundle.goods, isEmpty);
+      // 写真3件＋グッズ1件の削除が Outbox に載る。
+      final ops = await outbox.pendingOps(ownerId: 'user-1');
+      expect(
+        ops
+            .where(
+              (o) =>
+                  o.entityTable == SyncEntity.memoryPhotos &&
+                  o.opType == OutboxOpType.delete,
+            )
+            .length,
+        3,
+      );
+      expect(
+        ops.where(
+          (o) =>
+              o.entityTable == SyncEntity.goodsItems &&
+              o.opType == OutboxOpType.delete,
+        ),
+        hasLength(1),
+      );
+      // ファイルは削除キューへ積まれる（この repo は ImageStore 未接続=flush no-op）。
+      expect(await queueCount(), 3);
+    });
+
+    test('2. 2枚目の削除失敗で DB 変更が全て戻る', () async {
+      await seedGoodsWithPhotos(3);
+      final opsBefore = (await outbox.pendingOps(ownerId: 'user-1')).length;
+      memoryRepo.deleteFailStage = 'photo:2';
+      final res = await memoryRepo.deleteSubjectWithPhotos(
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'goods-1',
+      );
+      memoryRepo.deleteFailStage = null;
+      expect(res.isOk, isFalse);
+      final bundle = await memoryRepo.watchByGenbaId('genba-1').first;
+      // 一部だけ消えない: 写真3枚もグッズも残る。
+      expect(bundle.photos, hasLength(3));
+      expect(bundle.goods, hasLength(1));
+      // 削除キュー・Outbox の delete も作られていない（ロールバック）。
+      expect(await queueCount(), 0);
+      expect((await outbox.pendingOps(ownerId: 'user-1')).length, opsBefore);
+    });
+
+    test('3. 項目削除の失敗で写真が残る（全ロールバック）', () async {
+      await seedGoodsWithPhotos(2);
+      memoryRepo.deleteFailStage = 'subject';
+      final res = await memoryRepo.deleteSubjectWithPhotos(
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'goods-1',
+      );
+      memoryRepo.deleteFailStage = null;
+      expect(res.isOk, isFalse);
+      final bundle = await memoryRepo.watchByGenbaId('genba-1').first;
+      expect(bundle.photos, hasLength(2));
+      expect(bundle.goods, hasLength(1));
+      expect(await queueCount(), 0);
+    });
+
+    test('4. Outbox 登録の失敗で全て戻る', () async {
+      await seedGoodsWithPhotos(2);
+      memoryRepo.deleteFailStage = 'outbox';
+      final res = await memoryRepo.deleteSubjectWithPhotos(
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'goods-1',
+      );
+      memoryRepo.deleteFailStage = null;
+      expect(res.isOk, isFalse);
+      final bundle = await memoryRepo.watchByGenbaId('genba-1').first;
+      expect(bundle.photos, hasLength(2));
+      expect(bundle.goods, hasLength(1));
+      expect(await queueCount(), 0);
+    });
+
+    test('5. ファイル削除失敗は再試行対象として記録される', () async {
+      await seedGoodsWithPhotos(2);
+      // ファイル削除が必ず失敗する ImageStore を接続した repo で削除する。
+      final dir = Directory.systemTemp.createTempSync('oshi_img_fail');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final failingRepo = MemoryRepositoryImpl(
+        db: db,
+        outbox: outbox,
+        syncEngine: engine,
+        clock: clock,
+        ownerIdResolver: () => 'user-1',
+        imageStoreResolver: () => _ThrowingImageStore(dir),
+      );
+      final res = await failingRepo.deleteSubjectWithPhotos(
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'goods-1',
+      );
+      // DB 側は確定（成功）。ファイル削除の失敗は成功扱いにしない＝キューに残す。
+      expect(res.isOk, isTrue);
+      final rows = await db.select(db.pendingImageDeletions).get();
+      expect(rows, hasLength(2));
+      expect(rows.every((r) => r.attempts >= 1), isTrue);
+      expect(rows.every((r) => (r.lastError ?? '').isNotEmpty), isTrue);
+    });
+
+    test('6. 「アルバムに残す」で写真行もファイルも残り、関連だけ解除される', () async {
+      await seedGoodsWithPhotos(3);
+      final res = await memoryRepo.deleteSubjectDetachingPhotos(
+        subjectType: MemorySubjectType.goods,
+        subjectId: 'goods-1',
+      );
+      expect(res.isOk, isTrue);
+      final bundle = await memoryRepo.watchByGenbaId('genba-1').first;
+      expect(bundle.goods, isEmpty);
+      // 写真は残り、関連（subject）だけ解除、album_category は goods を維持。
+      expect(bundle.photos, hasLength(3));
+      for (final p in bundle.photos) {
+        expect(p.subjectId, isNull);
+        expect(p.subjectType, isNull);
+        expect(p.albumCategory, MemoryAlbumCategory.goods);
+      }
+      // ファイル削除キューには積まれない（残すため）。
+      expect(await queueCount(), 0);
+      // アルバムのグッズ分類から引き続き確認できる。
+      expect(bundle.photosInAlbum(MemoryAlbumCategory.goods), hasLength(3));
+    });
+  });
+
+  // --------------------------------------------------------------------
+  // Issue3: 分類と関連先の整合（Repository 側の強制）
+  // --------------------------------------------------------------------
+  group('分類と関連の整合（Issue3・Repository）', () {
+    Future<void> seedGenbaAndPlaces() async {
+      await genbaRepo.upsertGenba(makeGenba(eventDate: DateTime(2026, 6, 1)));
+      await memoryRepo.upsertVisitedPlace(
+        VisitedPlace(
+          id: 'spot-1',
+          genbaId: 'genba-1',
+          ownerId: 'user-1',
+          name: '聖地',
+          createdAt: fixedCreatedAt,
+          updatedAt: fixedCreatedAt,
+        ),
+      );
+      await memoryRepo.upsertVisitedPlace(
+        VisitedPlace(
+          id: 'food-1',
+          genbaId: 'genba-1',
+          ownerId: 'user-1',
+          name: 'ラーメン',
+          category: 'food',
+          createdAt: fixedCreatedAt,
+          updatedAt: fixedCreatedAt,
+        ),
+      );
+    }
+
+    MemoryPhoto photo({
+      required MemoryAlbumCategory album,
+      MemorySubjectType? type,
+      String? subjectId,
+      String id = 'p-1',
+      String genbaId = 'genba-1',
+    }) =>
+        MemoryPhoto(
+          id: id,
+          genbaId: genbaId,
+          ownerId: 'user-1',
+          albumCategory: album,
+          subjectType: type,
+          subjectId: subjectId,
+          createdAt: fixedCreatedAt,
+          updatedAt: fixedCreatedAt,
+        );
+
+    test('食べたもの→spot、行った場所→food は種別不一致で拒否', () async {
+      await seedGenbaAndPlaces();
+      final foodToSpot = await memoryRepo.addPhoto(
+        photo(
+          album: MemoryAlbumCategory.food,
+          type: MemorySubjectType.visitedPlace,
+          subjectId: 'spot-1',
+        ),
+      );
+      expect(foodToSpot.isOk, isFalse);
+      final placeToFood = await memoryRepo.addPhoto(
+        photo(
+          album: MemoryAlbumCategory.visitedPlace,
+          type: MemorySubjectType.visitedPlace,
+          subjectId: 'food-1',
+        ),
+      );
+      expect(placeToFood.isOk, isFalse);
+      // 正しい対応は保存できる。
+      final ok = await memoryRepo.addPhoto(
+        photo(
+          album: MemoryAlbumCategory.food,
+          type: MemorySubjectType.visitedPlace,
+          subjectId: 'food-1',
+          id: 'p-ok',
+        ),
+      );
+      expect(ok.isOk, isTrue);
+    });
+
+    test('形状違反（event に subject）は Repository で拒否', () async {
+      await seedGenbaAndPlaces();
+      final res = await memoryRepo.addPhoto(
+        photo(
+          album: MemoryAlbumCategory.event,
+          type: MemorySubjectType.goods,
+          subjectId: 'spot-1',
+        ),
+      );
+      expect(res.isOk, isFalse);
+    });
+
+    test('別genba の項目参照は拒否', () async {
+      await seedGenbaAndPlaces();
+      await genbaRepo.upsertGenba(
+        makeGenba(id: 'genba-2', eventDate: DateTime(2026, 6, 2)),
+      );
+      final res = await memoryRepo.addPhoto(
+        photo(
+          album: MemoryAlbumCategory.visitedPlace,
+          type: MemorySubjectType.visitedPlace,
+          subjectId: 'spot-1', // genba-1 の項目を genba-2 の写真から参照
+          genbaId: 'genba-2',
+          id: 'p-x',
+        ),
+      );
+      expect(res.isOk, isFalse);
+    });
   });
 
   // --------------------------------------------------------------------

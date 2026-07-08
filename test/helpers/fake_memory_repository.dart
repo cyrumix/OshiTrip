@@ -58,6 +58,30 @@ class FakeMemoryRepository implements MemoryRepository {
   Future<Result<void>> deletePhoto(String id) => _inner.deletePhoto(id);
 
   @override
+  Future<Result<void>> deleteSubjectWithPhotos({
+    required MemorySubjectType subjectType,
+    required String subjectId,
+  }) =>
+      _inner.deleteSubjectWithPhotos(
+        subjectType: subjectType,
+        subjectId: subjectId,
+      );
+
+  @override
+  Future<Result<void>> deleteSubjectDetachingPhotos({
+    required MemorySubjectType subjectType,
+    required String subjectId,
+  }) =>
+      _inner.deleteSubjectDetachingPhotos(
+        subjectType: subjectType,
+        subjectId: subjectId,
+      );
+
+  @override
+  Future<void> flushPendingImageDeletions(String owner) =>
+      _inner.flushPendingImageDeletions(owner);
+
+  @override
   Future<Result<void>> setCoverPhoto({
     required String genbaId,
     required String photoId,

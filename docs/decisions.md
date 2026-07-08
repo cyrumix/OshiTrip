@@ -732,3 +732,21 @@ D-188〜D-193（計画機能の仕様変更）のレビューで見つかった2
 - 新規/更新テスト: `memory_album_test`（アルバム分類/関連項目/表紙のドメイン整理・v12→v13 移行で既存写真が event へ移行し消えない）、`repositories_test`（関連項目に紐づく写真の owner+genba 実在検証: 実在しない subject は拒否・実在すれば保存／**関連項目を削除しても写真はアルバムへ残る**）、`memory_album_screen_test`（分類チップの件数表示・絞り込み・空状態・**320pt幅×文字200%でのオーバーフロー無し**）、`memory_edit_stages_test`（行った場所/食べたものの分割表示）。
 - **写真添付・削除確認のフルフロー Widget テスト**は ImagePicker のプラットフォームチャネル依存のため見送り、写真リンクの検証・分類フィルタ・分割表示・実在検証・削除時の残存はデータ層＋表示テストで担保した。追加中心・後方互換で既存の写真・思い出を消さない。
 - **未実施**: `supabase test db`（0019 の pgTAP。Docker 未導入）。integration_test は本機能専用シナリオが無く、既存スイートは Windows デスクトップでのプラグイン（sqlcipher/image_picker/supabase）依存が重いため未実行（unit/widget 663件で担保）。
+
+## Phase 3前調整（レビュー指摘対応, 2026-07-08, Claude Haiku 4.5）: アルバム3件修正
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-202 | **[High] 写真と関連項目の削除を原子的にする**。UI で写真を1枚ずつ消す方式を撤廃し、Repository に `deleteSubjectWithPhotos`（写真メタデータ削除＋項目削除＋Outbox 登録＋画像削除キュー積みを**同一トランザクション**、途中失敗で全ロールバック）と `deleteSubjectDetachingPhotos`（アルバムに残す＝写真行・ファイルを消さず関連 subjectType/subjectId のみ解除し album_category は維持）を追加。画像ファイル削除は DB トランザクションと分離し、新テーブル `pending_image_deletions`（Drift **v14**）＋`ImageStore.deleteRefStrict`（失敗を握りつぶさない）で再試行キュー化。DB 削除後のファイル削除失敗は無視せず試行回数・理由を記録して残す | 途中失敗で写真だけ・項目だけが消える不整合を排除する。DB 整合はトランザクションで、ファイル削除は失敗しても後で再試行できるキューで補償することで、「成功していない処理を成功表示しない」を満たす。「残す」は既定で写真・ファイルを保全し、関連解除で分類だけ維持する |
+| D-203 | **[Medium] アルバムから当日の写真を直接追加**。`MemoryAlbumScreen` に拡張FAB「写真を追加」（albumCategory=event / subject なし）。二重タップは `_adding` フラグ＋`onPressed:null` で防止、キャンセルは何も保存しない、取り込み・DB保存失敗の後始末は controller が担う（既存の孤立ファイル掃除を継承）。autoDispose の途中破棄を防ぐため `memoryEditControllerProvider` を build で watch。画像選択は注入可能（`pickImagePath`）にしてアルバム画面経由の Widget テストで pick→保存→即時表示（すべて/当日）を検証 | 記録画面を経由せずアルバムから直接足せる導線が要望。event 固定で subject を持たせないことで不変条件を自然に満たす |
+| D-204 | **[Medium] 写真分類と関連先の不変条件を純粋関数化し二重で強制**。ドメインに `memoryPhotoShapeError`（event=subject無 / goods=goods+id / visited_place=visited_place+id(spot) / food=visited_place+id(food) / 関連解除=両方null を許可、片方だけ・種別不一致・event+subject を拒否）を追加し、Repository は形状＋実在＋owner/genba＋対象 category(spot/food) を検証。Supabase は **0020** で検証トリガ `enforce_memory_photo_subject`（**security invoker**・`search_path` 固定）を追加し、直接 INSERT/UPDATE・apply_mutation 全経路で同条件を強制（RLS だけに依存しない）。pgTAP 負例 `0011` を追加 | 分類と関連の不整合（別owner/別genba/category不一致/孤立参照）をローカルとサーバーの双方で塞ぐ。トリガは definer ではなく invoker とし owner/genba を明示比較することで、RLS バイパス文脈でも越境参照を成立させない |
+
+### 検証状況（レビュー3件修正）
+
+- `dart format` 差分なし、`dart analyze lib test integration_test` クリーン、`flutter test` **677件 全パス**、`git diff --check` クリーン。
+- 新規/更新テスト:
+  - Issue1（`repositories_test`）: 3枚＋グッズ一括削除成功／2枚目失敗で全ロールバック／項目削除失敗で写真残存／Outbox失敗で全ロールバック／ファイル削除失敗が再試行対象（attempts・lastError 記録）／「アルバムに残す」で写真行・ファイル保全＋関連解除。失敗注入は `deleteFailStage` シームで各ステージを実経路で検証。
+  - Issue2（`memory_album_screen_test`）: アルバムFABから追加→すべて/当日へ即時表示（event・subject無）／キャンセルで無保存／二重タップで1枚のみ／FABの a11y ラベル・320pt×200%可視。
+  - Issue3（`memory_album_test` ドメイン＋`repositories_test`）: 形状不変条件の許可/拒否マトリクス／food→spot・場所→food の category 不一致拒否／event+subject 拒否／別genba 参照拒否。
+- **未実施**: `supabase test db`（0019/0020 の pgTAP。Docker 未導入で起動不可。CLI は有）。integration_test は本修正専用シナリオ無し・デスクトッププラグイン依存のため未実行（unit/widget 677件で担保）。
+- **DB migration**: Drift **v14**（`pending_image_deletions` 追加のみ・既存不変）、Supabase **0020**（検証トリガ追加）。いずれも追加専用で過去 migration は不変。

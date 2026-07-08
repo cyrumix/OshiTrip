@@ -184,6 +184,28 @@ class MemoryEditController
     return result.failureOrNull;
   }
 
+  /// 関連項目と紐づく写真（メタデータ＋ファイル）を原子的に削除する（§8.4/Issue1）。
+  Future<Failure?> deleteSubjectWithPhotos(
+    MemorySubjectType type,
+    String id,
+  ) async {
+    final result = await ref
+        .read(memoryRepositoryProvider)
+        .deleteSubjectWithPhotos(subjectType: type, subjectId: id);
+    return result.failureOrNull;
+  }
+
+  /// 関連項目を削除しつつ写真はアルバムへ残す（関連のみ解除, 既定, §8.4）。
+  Future<Failure?> deleteSubjectKeepingPhotos(
+    MemorySubjectType type,
+    String id,
+  ) async {
+    final result = await ref
+        .read(memoryRepositoryProvider)
+        .deleteSubjectDetachingPhotos(subjectType: type, subjectId: id);
+    return result.failureOrNull;
+  }
+
   Future<Failure?> addVisitedPlace(String name, String category) async {
     final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
     final now = ref.read(clockProvider).now().toUtc();

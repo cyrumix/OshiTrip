@@ -18,6 +18,28 @@ abstract interface class MemoryRepository {
   Future<Result<void>> updatePhoto(MemoryPhoto photo);
   Future<Result<void>> deletePhoto(String id);
 
+  /// 関連項目（グッズ/行った場所）と、それに紐づく写真メタデータ・ファイルを
+  /// **原子的に**削除する（§8.4 / Issue1）。写真行・項目行の削除と Outbox 登録・
+  /// 画像削除キューへの積み込みを同一トランザクションで行い、途中失敗時は DB を
+  /// 全てロールバックする。画像ファイルの物理削除はトランザクション外で行い、
+  /// 失敗しても再試行キューに残す（DB 側は確定済み・成功扱いにしない）。
+  Future<Result<void>> deleteSubjectWithPhotos({
+    required MemorySubjectType subjectType,
+    required String subjectId,
+  });
+
+  /// 関連項目を削除しつつ、紐づく写真は**アルバムへ残す**（既定, §8.4）。
+  /// 写真行・ファイルは削除せず、関連（subjectType/subjectId）のみ解除して
+  /// album_category は元分類を維持する。項目削除と写真の関連解除を同一
+  /// トランザクションで行う。
+  Future<Result<void>> deleteSubjectDetachingPhotos({
+    required MemorySubjectType subjectType,
+    required String subjectId,
+  });
+
+  /// 画像ファイル削除の再試行キューを処理する（成功行は除去・失敗行は残す）。
+  Future<void> flushPendingImageDeletions(String owner);
+
   /// [photoId] を表紙にする。同一現場の他の cover を必ず外し、cover は
   /// 常に最大1件（design-spec §12.1）。DB の部分ユニーク索引と、旧 cover を
   /// 先に外してから設定する順序の両方で一意性を担保する。

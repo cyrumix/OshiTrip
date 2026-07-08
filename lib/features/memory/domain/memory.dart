@@ -98,6 +98,51 @@ enum MemorySubjectType {
   visitedPlace,
 }
 
+/// [MemoryPhoto] の分類と関連項目の**形状不変条件**（§8.4）。DB に依存しない
+/// フィールドの組み合わせのみを検証する純粋関数。実在・owner/genba 一致・
+/// 対象 category（spot/food）の照合は Repository と Supabase トリガで担保する。
+///
+/// 許可する形状:
+/// - event: subjectType==null かつ subjectId==null
+/// - goods: (subjectType==goods かつ subjectId 非空) または 両方 null（関連解除済み）
+/// - visitedPlace/food: (subjectType==visitedPlace かつ subjectId 非空) または 両方 null
+///
+/// 「両方 null」は、関連項目（グッズ/場所）の削除時に写真をアルバムへ残しつつ
+/// 関連を解除した状態（albumCategory は元分類を維持）を表す。
+///
+/// 問題があれば理由文字列、無ければ null を返す。
+String? memoryPhotoShapeError(MemoryPhoto p) {
+  final hasType = p.subjectType != null;
+  final hasId = p.subjectId != null && p.subjectId!.isNotEmpty;
+  switch (p.albumCategory) {
+    case MemoryAlbumCategory.event:
+      if (hasType || hasId) {
+        return '当日の写真に関連項目は設定できません';
+      }
+      return null;
+    case MemoryAlbumCategory.goods:
+      if (!hasType && !hasId) return null; // 関連解除済み（アルバムに残す）
+      if (p.subjectType != MemorySubjectType.goods) {
+        return 'グッズ写真の関連種別が不正です';
+      }
+      if (!hasId) return 'グッズ写真には関連項目IDが必要です';
+      return null;
+    case MemoryAlbumCategory.visitedPlace:
+    case MemoryAlbumCategory.food:
+      if (!hasType && !hasId) return null; // 関連解除済み（アルバムに残す）
+      if (p.subjectType != MemorySubjectType.visitedPlace) {
+        return '場所・食べもの写真の関連種別が不正です';
+      }
+      if (!hasId) return '場所・食べもの写真には関連項目IDが必要です';
+      return null;
+  }
+}
+
+/// [memoryPhotoShapeError] が指す、写真が関連項目を「参照している」状態か。
+/// （両方設定済み＝実在・category 照合が必要な状態）。
+bool memoryPhotoLinksSubject(MemoryPhoto p) =>
+    p.subjectType != null && p.subjectId != null && p.subjectId!.isNotEmpty;
+
 /// 思い出写真。[localPath]（端末参照）と [storagePath]（Supabase Storage）を
 /// 別フィールドで持ち、仮の単一文字列で済ませない。
 @freezed

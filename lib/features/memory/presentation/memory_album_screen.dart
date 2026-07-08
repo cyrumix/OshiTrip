@@ -3,19 +3,34 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../../core/error/failure.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
 import '../application/memory_controllers.dart';
 import '../domain/memory.dart';
 
+/// 端末ギャラリーから画像を選び、そのパスを返す（キャンセルは null）。
+Future<String?> _pickGalleryImagePath() async {
+  final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+  return picked?.path;
+}
+
 /// 思い出アルバム（§8.4）。写真の保存元は [MemoryPhoto] に一本化し、
 /// 分類（すべて/当日の写真/グッズ/行った場所/食べたもの）で絞り込む。
 /// 各写真から関連元（グッズ・場所）へ辿れる。
 class MemoryAlbumScreen extends ConsumerStatefulWidget {
-  const MemoryAlbumScreen({super.key, required this.genbaId});
+  const MemoryAlbumScreen({
+    super.key,
+    required this.genbaId,
+    this.pickImagePath = _pickGalleryImagePath,
+  });
 
   final String genbaId;
+
+  /// 画像選択の注入点（テスト用）。既定は端末ギャラリー。
+  final Future<String?> Function() pickImagePath;
 
   @override
   ConsumerState<MemoryAlbumScreen> createState() => _MemoryAlbumScreenState();
@@ -25,11 +40,46 @@ class _MemoryAlbumScreenState extends ConsumerState<MemoryAlbumScreen> {
   /// null は「すべて」。
   MemoryAlbumCategory? _selected;
 
+  /// 写真追加の多重起動を防ぐ（二重タップ対策, Issue2）。
+  bool _adding = false;
+
+  /// アルバムから当日の写真を直接追加する（albumCategory=event, subject なし）。
+  /// キャンセル時は何も保存しない。取り込み・DB保存失敗の後始末は controller が
+  /// 担う（コピー済みファイルの掃除・成功していない処理を成功表示しない）。
+  Future<void> _addEventPhoto() async {
+    if (_adding) return;
+    setState(() => _adding = true);
+    try {
+      final path = await widget.pickImagePath();
+      if (path == null) return; // キャンセル → 何も保存しない
+      final controller =
+          ref.read(memoryEditControllerProvider(widget.genbaId).notifier);
+      // 既定で albumCategory=event / subjectType=null / subjectId=null。
+      final Failure? failure = await controller.addPhoto(path);
+      if (failure != null && mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(failure.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 追加操作で使う controller を生存させる（autoDispose の途中破棄を防ぐ）。
+    ref.watch(memoryEditControllerProvider(widget.genbaId));
     final bundleAsync = ref.watch(memoryBundleProvider(widget.genbaId));
     return Scaffold(
       appBar: AppBar(title: const Text('思い出アルバム')),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'album_add_photo_fab',
+        // 取り込み中は onPressed を無効化して多重起動を防ぐ（二重タップ対策）。
+        onPressed: _adding ? null : _addEventPhoto,
+        icon: const Icon(Icons.add_a_photo_outlined),
+        label: const Text('写真を追加'),
+        tooltip: '当日の写真を追加',
+      ),
       body: AsyncValueView<MemoryBundle>(
         value: bundleAsync,
         data: (bundle) {

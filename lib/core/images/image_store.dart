@@ -181,6 +181,18 @@ class ImageStore {
     );
   }
 
+  /// [deleteRef] の厳格版。削除に失敗した場合は例外を投げ、呼び出し側が
+  /// 再試行キューへ積めるようにする（Issue1: DB 削除後のファイル削除失敗を
+  /// 無視しない）。無効・別owner 参照は不正として [ImageAccessException]。
+  /// 対象が既に存在しなければ成功として扱う（冪等）。
+  Future<void> deleteRefStrict(String ownerId, String ref) async {
+    _validateOwnedRef(ownerId, ref);
+    final file = File(p.joinAll([_baseDir.path, ...ref.split('/')]));
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
   void _validateOwnedRef(String ownerId, String ref) {
     if (!_isValidOwnedRef(ownerId, ref)) {
       throw const ImageAccessException('不正または別ユーザーの画像参照です');

@@ -33,6 +33,134 @@ void main() {
         updatedAt: DateTime.utc(2026, 1, day),
       );
 
+  group('memoryPhotoShapeError（分類と関連の形状不変条件, §8.4/Issue3）', () {
+    MemoryPhoto p({
+      required MemoryAlbumCategory album,
+      MemorySubjectType? type,
+      String? subjectId,
+    }) =>
+        MemoryPhoto(
+          id: 'x',
+          genbaId: 'g',
+          ownerId: 'u',
+          albumCategory: album,
+          subjectType: type,
+          subjectId: subjectId,
+          createdAt: DateTime.utc(2026, 1, 1),
+          updatedAt: DateTime.utc(2026, 1, 1),
+        );
+
+    test('許可: event(subject無) / goods・場所・食べもの(正しい関連) / 関連解除(両方null)', () {
+      expect(
+        memoryPhotoShapeError(p(album: MemoryAlbumCategory.event)),
+        isNull,
+      );
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.goods,
+            type: MemorySubjectType.goods,
+            subjectId: 'g1',
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.visitedPlace,
+            type: MemorySubjectType.visitedPlace,
+            subjectId: 'v1',
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.food,
+            type: MemorySubjectType.visitedPlace,
+            subjectId: 'v1',
+          ),
+        ),
+        isNull,
+      );
+      // 関連解除済み（アルバムに残す）: 分類は維持、両方 null。
+      expect(
+        memoryPhotoShapeError(p(album: MemoryAlbumCategory.goods)),
+        isNull,
+      );
+      expect(
+        memoryPhotoShapeError(p(album: MemoryAlbumCategory.food)),
+        isNull,
+      );
+    });
+
+    test('拒否: event+subject / 片方だけ / 種別不一致', () {
+      // event に subject を設定。
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.event,
+            type: MemorySubjectType.goods,
+          ),
+        ),
+        isNotNull,
+      );
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.event,
+            subjectId: 'g1',
+          ),
+        ),
+        isNotNull,
+      );
+      // subjectType だけ（id 無し）。
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.goods,
+            type: MemorySubjectType.goods,
+          ),
+        ),
+        isNotNull,
+      );
+      // subjectId だけ（type 無し）。
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.goods,
+            subjectId: 'g1',
+          ),
+        ),
+        isNotNull,
+      );
+      // goods から visited_place を参照（種別不一致）。
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.goods,
+            type: MemorySubjectType.visitedPlace,
+            subjectId: 'v1',
+          ),
+        ),
+        isNotNull,
+      );
+      // food から goods 種別を参照（種別不一致）。
+      expect(
+        memoryPhotoShapeError(
+          p(
+            album: MemoryAlbumCategory.food,
+            type: MemorySubjectType.goods,
+            subjectId: 'g1',
+          ),
+        ),
+        isNotNull,
+      );
+    });
+  });
+
   group('MemoryBundle アルバム整理', () {
     final bundle = MemoryBundle(
       genbaId: 'g',

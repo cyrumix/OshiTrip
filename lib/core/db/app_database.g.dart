@@ -5698,6 +5698,396 @@ class MemoryPhotosCompanion extends UpdateCompanion<MemoryPhotoRow> {
   }
 }
 
+class $PendingImageDeletionsTable extends PendingImageDeletions
+    with TableInfo<$PendingImageDeletionsTable, PendingImageDeletionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingImageDeletionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _refMeta = const VerificationMeta('ref');
+  @override
+  late final GeneratedColumn<String> ref = GeneratedColumn<String>(
+      'ref', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _attemptsMeta =
+      const VerificationMeta('attempts');
+  @override
+  late final GeneratedColumn<int> attempts = GeneratedColumn<int>(
+      'attempts', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastErrorMeta =
+      const VerificationMeta('lastError');
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+      'last_error', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, ownerId, ref, attempts, lastError, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_image_deletions';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<PendingImageDeletionRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('ref')) {
+      context.handle(
+          _refMeta, ref.isAcceptableOrUnknown(data['ref']!, _refMeta));
+    } else if (isInserting) {
+      context.missing(_refMeta);
+    }
+    if (data.containsKey('attempts')) {
+      context.handle(_attemptsMeta,
+          attempts.isAcceptableOrUnknown(data['attempts']!, _attemptsMeta));
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(_lastErrorMeta,
+          lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PendingImageDeletionRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingImageDeletionRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      ref: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ref'])!,
+      attempts: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempts'])!,
+      lastError: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $PendingImageDeletionsTable createAlias(String alias) {
+    return $PendingImageDeletionsTable(attachedDatabase, alias);
+  }
+}
+
+class PendingImageDeletionRow extends DataClass
+    implements Insertable<PendingImageDeletionRow> {
+  final String id;
+  final String ownerId;
+
+  /// 削除対象の画像参照（[ImageStore] の owner スコープ相対参照）。
+  final String ref;
+  final int attempts;
+  final String? lastError;
+  final String createdAt;
+  final String updatedAt;
+  const PendingImageDeletionRow(
+      {required this.id,
+      required this.ownerId,
+      required this.ref,
+      required this.attempts,
+      this.lastError,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['ref'] = Variable<String>(ref);
+    map['attempts'] = Variable<int>(attempts);
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  PendingImageDeletionsCompanion toCompanion(bool nullToAbsent) {
+    return PendingImageDeletionsCompanion(
+      id: Value(id),
+      ownerId: Value(ownerId),
+      ref: Value(ref),
+      attempts: Value(attempts),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PendingImageDeletionRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingImageDeletionRow(
+      id: serializer.fromJson<String>(json['id']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      ref: serializer.fromJson<String>(json['ref']),
+      attempts: serializer.fromJson<int>(json['attempts']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'ref': serializer.toJson<String>(ref),
+      'attempts': serializer.toJson<int>(attempts),
+      'lastError': serializer.toJson<String?>(lastError),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  PendingImageDeletionRow copyWith(
+          {String? id,
+          String? ownerId,
+          String? ref,
+          int? attempts,
+          Value<String?> lastError = const Value.absent(),
+          String? createdAt,
+          String? updatedAt}) =>
+      PendingImageDeletionRow(
+        id: id ?? this.id,
+        ownerId: ownerId ?? this.ownerId,
+        ref: ref ?? this.ref,
+        attempts: attempts ?? this.attempts,
+        lastError: lastError.present ? lastError.value : this.lastError,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  PendingImageDeletionRow copyWithCompanion(
+      PendingImageDeletionsCompanion data) {
+    return PendingImageDeletionRow(
+      id: data.id.present ? data.id.value : this.id,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      ref: data.ref.present ? data.ref.value : this.ref,
+      attempts: data.attempts.present ? data.attempts.value : this.attempts,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingImageDeletionRow(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('ref: $ref, ')
+          ..write('attempts: $attempts, ')
+          ..write('lastError: $lastError, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, ownerId, ref, attempts, lastError, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingImageDeletionRow &&
+          other.id == this.id &&
+          other.ownerId == this.ownerId &&
+          other.ref == this.ref &&
+          other.attempts == this.attempts &&
+          other.lastError == this.lastError &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PendingImageDeletionsCompanion
+    extends UpdateCompanion<PendingImageDeletionRow> {
+  final Value<String> id;
+  final Value<String> ownerId;
+  final Value<String> ref;
+  final Value<int> attempts;
+  final Value<String?> lastError;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const PendingImageDeletionsCompanion({
+    this.id = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.ref = const Value.absent(),
+    this.attempts = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PendingImageDeletionsCompanion.insert({
+    required String id,
+    required String ownerId,
+    required String ref,
+    this.attempts = const Value.absent(),
+    this.lastError = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        ownerId = Value(ownerId),
+        ref = Value(ref),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<PendingImageDeletionRow> custom({
+    Expression<String>? id,
+    Expression<String>? ownerId,
+    Expression<String>? ref,
+    Expression<int>? attempts,
+    Expression<String>? lastError,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (ref != null) 'ref': ref,
+      if (attempts != null) 'attempts': attempts,
+      if (lastError != null) 'last_error': lastError,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PendingImageDeletionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? ownerId,
+      Value<String>? ref,
+      Value<int>? attempts,
+      Value<String?>? lastError,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return PendingImageDeletionsCompanion(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      ref: ref ?? this.ref,
+      attempts: attempts ?? this.attempts,
+      lastError: lastError ?? this.lastError,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (ref.present) {
+      map['ref'] = Variable<String>(ref.value);
+    }
+    if (attempts.present) {
+      map['attempts'] = Variable<int>(attempts.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingImageDeletionsCompanion(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('ref: $ref, ')
+          ..write('attempts: $attempts, ')
+          ..write('lastError: $lastError, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SetlistItemsTable extends SetlistItems
     with TableInfo<$SetlistItemsTable, SetlistItemRow> {
   @override
@@ -15256,6 +15646,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $GenbaMemosTable genbaMemos = $GenbaMemosTable(this);
   late final $MemoryEntriesTable memoryEntries = $MemoryEntriesTable(this);
   late final $MemoryPhotosTable memoryPhotos = $MemoryPhotosTable(this);
+  late final $PendingImageDeletionsTable pendingImageDeletions =
+      $PendingImageDeletionsTable(this);
   late final $SetlistItemsTable setlistItems = $SetlistItemsTable(this);
   late final $GoodsItemsTable goodsItems = $GoodsItemsTable(this);
   late final $VisitedPlacesTable visitedPlaces = $VisitedPlacesTable(this);
@@ -15290,6 +15682,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         genbaMemos,
         memoryEntries,
         memoryPhotos,
+        pendingImageDeletions,
         setlistItems,
         goodsItems,
         visitedPlaces,
@@ -17841,6 +18234,216 @@ typedef $$MemoryPhotosTableProcessedTableManager = ProcessedTableManager<
     ),
     MemoryPhotoRow,
     PrefetchHooks Function()>;
+typedef $$PendingImageDeletionsTableCreateCompanionBuilder
+    = PendingImageDeletionsCompanion Function({
+  required String id,
+  required String ownerId,
+  required String ref,
+  Value<int> attempts,
+  Value<String?> lastError,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$PendingImageDeletionsTableUpdateCompanionBuilder
+    = PendingImageDeletionsCompanion Function({
+  Value<String> id,
+  Value<String> ownerId,
+  Value<String> ref,
+  Value<int> attempts,
+  Value<String?> lastError,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$PendingImageDeletionsTableFilterComposer
+    extends Composer<_$AppDatabase, $PendingImageDeletionsTable> {
+  $$PendingImageDeletionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ref => $composableBuilder(
+      column: $table.ref, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get attempts => $composableBuilder(
+      column: $table.attempts, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$PendingImageDeletionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PendingImageDeletionsTable> {
+  $$PendingImageDeletionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ref => $composableBuilder(
+      column: $table.ref, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get attempts => $composableBuilder(
+      column: $table.attempts, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$PendingImageDeletionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PendingImageDeletionsTable> {
+  $$PendingImageDeletionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get ref =>
+      $composableBuilder(column: $table.ref, builder: (column) => column);
+
+  GeneratedColumn<int> get attempts =>
+      $composableBuilder(column: $table.attempts, builder: (column) => column);
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$PendingImageDeletionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $PendingImageDeletionsTable,
+    PendingImageDeletionRow,
+    $$PendingImageDeletionsTableFilterComposer,
+    $$PendingImageDeletionsTableOrderingComposer,
+    $$PendingImageDeletionsTableAnnotationComposer,
+    $$PendingImageDeletionsTableCreateCompanionBuilder,
+    $$PendingImageDeletionsTableUpdateCompanionBuilder,
+    (
+      PendingImageDeletionRow,
+      BaseReferences<_$AppDatabase, $PendingImageDeletionsTable,
+          PendingImageDeletionRow>
+    ),
+    PendingImageDeletionRow,
+    PrefetchHooks Function()> {
+  $$PendingImageDeletionsTableTableManager(
+      _$AppDatabase db, $PendingImageDeletionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingImageDeletionsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PendingImageDeletionsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PendingImageDeletionsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> ref = const Value.absent(),
+            Value<int> attempts = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PendingImageDeletionsCompanion(
+            id: id,
+            ownerId: ownerId,
+            ref: ref,
+            attempts: attempts,
+            lastError: lastError,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String ownerId,
+            required String ref,
+            Value<int> attempts = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PendingImageDeletionsCompanion.insert(
+            id: id,
+            ownerId: ownerId,
+            ref: ref,
+            attempts: attempts,
+            lastError: lastError,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$PendingImageDeletionsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $PendingImageDeletionsTable,
+        PendingImageDeletionRow,
+        $$PendingImageDeletionsTableFilterComposer,
+        $$PendingImageDeletionsTableOrderingComposer,
+        $$PendingImageDeletionsTableAnnotationComposer,
+        $$PendingImageDeletionsTableCreateCompanionBuilder,
+        $$PendingImageDeletionsTableUpdateCompanionBuilder,
+        (
+          PendingImageDeletionRow,
+          BaseReferences<_$AppDatabase, $PendingImageDeletionsTable,
+              PendingImageDeletionRow>
+        ),
+        PendingImageDeletionRow,
+        PrefetchHooks Function()>;
 typedef $$SetlistItemsTableCreateCompanionBuilder = SetlistItemsCompanion
     Function({
   required String id,
@@ -22379,6 +22982,8 @@ class $AppDatabaseManager {
       $$MemoryEntriesTableTableManager(_db, _db.memoryEntries);
   $$MemoryPhotosTableTableManager get memoryPhotos =>
       $$MemoryPhotosTableTableManager(_db, _db.memoryPhotos);
+  $$PendingImageDeletionsTableTableManager get pendingImageDeletions =>
+      $$PendingImageDeletionsTableTableManager(_db, _db.pendingImageDeletions);
   $$SetlistItemsTableTableManager get setlistItems =>
       $$SetlistItemsTableTableManager(_db, _db.setlistItems);
   $$GoodsItemsTableTableManager get goodsItems =>
