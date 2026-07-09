@@ -823,3 +823,99 @@ Google公式仕様の再確認: **2026-07-08**、`attributions[]` は `{provider
 - **実装済み（オフライン検証可能）**: Item1 境界＋型付き失敗＋設定（Google 既定無効）、Item4 クライアント側（Field Mask allowlist/`*`拒否・Place ID→URL）、Item3 Autocomplete 制御、Item6 共有施設スキーマ＋RLS＋モデレーショントリガ＋不変条件、Item5 地図リンク/ピン選定の純粋層。
 - **未実施（要・各実環境。成功扱いにしない）**: `supabase db reset`/`supabase test db`（0022 の pgTAP `0012`。Docker 未導入で未実行）、Edge Function 実デプロイ・実 Places 呼び出し・キー制限（Supabase/Docker/Google 鍵）、ネイティブ地図描画・**iOS 実機/bundle ID 制限**（モバイル実機なし → iOS 不可時は macOS 実機確認項目を引き継ぎに明記）。
 - **未着手（後続増分）**: Item2/7 Edge Function 成果物＋費用集計、Item5 地図ウィジェット埋め込み＋モード切替 UI、共有施設のローカル下書き Drift/Outbox 同期＋モデレーション UI、実ゲートウェイ（HTTP）接続。**Routes(Phase 4) 未完のため旅程 MVP 全体は完成扱いにしない**（ADR-0010・プロンプト完了条件）。
+
+## 旅程Phase 4（Google Routes連携, 2026-07-09, Claude Sonnet 5）
+
+### Google公式仕様の確認記録（本セッションで確認、四半期ごとの再確認要件, ADR-0010 §12）
+
+- **確認日**: 2026-07-09。
+- **Field Mask**（developers.google.com/maps/documentation/routes/choose_fields、
+  .../reference/rest/v2/TopLevel/computeRoutes）: `routes.duration`,
+  `routes.distanceMeters`, `routes.localizedValues.transitFare`,
+  `routes.legs.steps.transitDetails.transitLine.{name,nameShort,vehicle.type}`,
+  `routes.legs.steps.transitDetails.headsign`,
+  `routes.legs.steps.transitDetails.stopDetails.{departureStop,arrivalStop}.name`
+  が有効パス。polyline系（`routes.polyline.encodedPolyline` 等）は要求しない
+  （§6.2 の最小範囲。本Phaseは地図描画・経路線を扱わない）。
+- **SKU/料金**（.../routes/usage-and-billing、2回一致取得で確認）: Compute Routes
+  は Essentials/Pro/Enterprise の3層。"Essentials: 基本機能・中間waypoint最大10"、
+  "Pro: `TRAFFIC_AWARE`/`TRAFFIC_AWARE_OPTIMAL` route modifier使用時"、
+  "Enterprise: two-wheel routing等の高度機能使用時"。→ `routingPreference` を
+  一切送らず、travelModeに`TWO_WHEELER`を使わず`BICYCLE`のみ使用することで、
+  対応4手段（徒歩/公共交通/車/自転車）は常に最安のEssentials SKUに収まる設計にした。
+- **公共交通の制約**（.../routes/transit-route）: `departureTime`/`arrivalTime`は
+  RFC3339 UTC必須。対応範囲は現在時刻から**過去7日〜未来100日**。中間waypoint
+  **非対応**。運賃は「全ステップで算定可能な場合のみ」返る（nullable）。「時刻表は
+  頻繁に変わり、先の予測の一貫性は保証されない」と明記。
+- **キャッシュ制限**（.../maps-service-terms + 検索結果、既存 D-181 と整合を再確認）:
+  緯度経度は最長30日でキャッシュ可、Place IDのみ無期限。**それ以外の内容
+  （所要時間・距離・路線・運賃・経路概要）は永続キャッシュの許可が確認できない**。
+  既存方針（Googleライブ応答は一時DTOのみ、永続entityへ暗黙変換しない）を維持する
+  根拠として再確認した。
+- **帰属**（.../routes/policies）: Google Mapに表示する場合を除き「Google Maps」
+  ロゴまたは文字列を結果の近くに表示する必要がある。Routes APIの応答自体には
+  Places の `attributions[]` のような帰属フィールドは含まれない（表示ポリシー上の
+  要件であり、API応答の一部ではない）。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-214 | プレミアムentitlementを最小テーブル `user_entitlements`（owner_id主キー・`premium_routes_live boolean default false`）で実装する。課金・購入フロー自体はこのPhaseでも実装しない（spec §14.4「現時点では課金制御を実装せず」）。RLSは本人SELECTのみ、INSERT/UPDATEポリシーは作らない（一般ユーザーは自己付与不可・service_role限定）。Edge Functionは`has_premium_routes_entitlement` RPCでサーバー側検証し、クライアントの premium 主張を信用しない | タスクの完了条件「entitlementをクライアントだけで偽装できない」を満たすには、購入フローが無くても「サーバー側で強制する」ゲート機構自体が必要。既存の課金UI非実装方針（§14.4）と、entitlement強制インフラ自体は別物と整理した |
+| D-215 | Google Routesのライブ結果を`_LegEditor`の手動欄へ自動コピーする機能は作らない。ライブ結果は`route_live_panel.dart`の閲覧専用パネルにのみ表示し、ユーザーが値を残したい場合は目視で入力し直す | Places実装（D-178/D-179）が「Google応答を自動コピーせず、ユーザーが独立入力した値のみuser_providedとして保存する」を徹底しているのに合わせた。コピー導線自体が「暗黙の永続保存」に近づくリスクを避ける。Google Routesの応答内容（所要時間・路線・運賃等）はGoogle公式規約上、緯度経度以外の恒久キャッシュ許可が確認できないため、`ItineraryLeg`（永続entity）へ自動的にも手動ボタン経由でも書き込まない設計にした |
+| D-216 | 共有概算経路（spec §12.6 `route_estimates`）は、Phase 3の`shared_facilities`と同じ理由でスキーマ・不変条件・サーバー強制（`shared_route_estimates`, draft-only insert・承認済みは投稿者変更不可）までとし、クライアント側の投稿・閲覧UIは後続増分とする。タスク項目3の「保存済み概算経路を優先しGoogleを呼ばない」という中核動作は、既存`itinerary_legs`（1計画内でorigin/destination entry対ごとに一意な行）の`value_origin`/`representative_time_bucket`/`is_stale`で機能的に充足する。新規クロスユーザーテーブルが無くても「保存済み優先→明示操作のみGoogle」の動作は成立する | D-209の前例（shared_facilitiesもスキーマ＋不変条件のみで、クライアント下書き同期・モデレーションUIは後続増分と明記）を踏襲し、本Phaseで新規に大きな共有マーケットプレイス機能を先行実装しない（プロンプトの「このPhaseより後の機能を先行実装しない」を遵守） |
+| D-217 | Google Routesの経路取得は**登録スポット↔スポットの区間のみ**を対象にする。`ItineraryEntryOption`にspotId/googlePlaceId/latitude/longitudeを追加し、transport/lodging/note端点はこれらが常にnullのため`RouteLivePanel`が自然に何も表示しない（`RouteEndpoint.hasLocation`がfalse） | タスクの依頼文自体が「登録スポット間の権利確認済み概算経路と、Google Routesによる最新経路の明示取得を実装してください」とスコープをスポット間に限定している。transport/lodging由来の区間は元データに座標を持たないため対象外は自然な帰結であり、既存の手動入力のみで運用する |
+| D-218 | `isLegStale`（位置・順序・日時・手段変更でstale）を純粋関数として実装し単体テストで検証したが、タイムラインUI（`_LegRow`）へは接続しない。Googleライブ結果を`ItineraryLeg.cacheKey`/`source`へ書き込む経路が存在しない（D-215）ため、これらの列は本Phaseでは常にnull/manualのままであり、UIへ接続すると「一度もGoogle取得していない手動区間」まで常時stale表示になり誤解を招く | 将来Googleから書面許諾等を得てライブ結果の部分的永続化が許可された場合に備え、判定ロジック自体は確定・テスト済みにしておく。実際にcacheKeyが書き込まれるようになった時点でUI接続する（次Phase以降） |
+
+### 実装対象（本Phaseで完成した範囲）
+
+1. `RoutesGateway`（domain抽象、DTO、`UnavailableRoutesGateway`既定）＋
+   `routesGatewayProvider`（Routes無効時は常に利用不可、Phase 1〜3を壊さない）。
+2. 対応手段（徒歩・公共交通・車・自転車）。taxi/flight/otherはこの境界に到達しない
+   （クライアント・Edge Function双方でtravelMode変換テーブルに存在しないため拒否）。
+3. 概算経路とGoogleライブ結果の分離: `ItineraryLeg`の既存フィールド
+   （value_origin/representative_time_bucket/last_verified_at/is_stale）が
+   永続概算を表し、`RouteLiveResult`は一時DTO（`route_live_panel.dart`の画面状態
+   にのみ存在、`upsertLeg`を一切呼ばない）。
+4. 公共交通の制約: 過去7日〜未来100日の範囲外は`invalid_request`で拒否
+   （Edge Function側）、中間waypoint非対応、運賃nullable、遠い未来（30日超）は
+   UIで「最新ではない可能性」相当の注記を表示。
+5. 再計算と重複抑止: `routeRequestFingerprint`＋`RouteRecalculationController`の
+   single-flight（同一fingerprintの同時呼び出しはGoogle呼び出し1回）。呼び出しは
+   「経路詳細を開く」「最新ルートを更新」の明示タップからのみ発生し、初期表示・
+   並び替え・保存では一切呼ばれない（構造的に保証、widget/application両テストで検証）。
+6. タイムラインへの移動区間表示は既存のまま（§5.4の間に合い判定・警告は無改変）。
+   `route_live_panel.dart`が保存済み概算（非プレミアム含め常時閲覧可）＋
+   Google帰属表示（「Google Maps」固定文言＋外部リンク）を追加。
+7. 費用制御: `routes_rate_limit`（ユーザー別日次相当のレート制限）、Field Mask
+   allowlist固定（Essentials維持）、権利確認済み概算経路ヒット時はAPIを呼ばない
+   （明示操作のみ）、ルート最適化は実装しない。
+
+### 検証状況（旅程Phase 4, 2026-07-09, Windows host / ASCIIパス `C:\src\OshiTrip`）
+
+- `dart format lib test`: 差分なし。`dart analyze lib test integration_test`: クリーン。
+- `flutter test`: **817件 全パス**（Phase 3までの729件 + 本Phase新規: domain
+  `routes_gateway_test`15・`route_request_fingerprint_test`5・
+  `representative_time_bucket_test`8・`route_staleness_test`5、application
+  `route_recalculation_controller_test`6、data
+  `routes_entitlement_repository_test`6・`routes_entitlement_migration_test`1、
+  widget `route_live_panel_test`5、既存Drift v16マイグレーション影響分を含む）。
+  widgetテストの1件（`route_live_panel_test`の非プレミアム検証）が実装バグ
+  （expand操作が非プレミアムでも一度Google呼び出しを試み拒否されるだけの空振りを
+  していた）を検出し、修正した（`_expanded`トグルの`isPremium`ガード追加）。
+  Phase 1〜3の既存テストは無改変で全件green。
+- **未実行（各実環境。成功扱いにしない）**: `deno check`／`handler_test.ts`
+  （routes-proxy用、**Deno未導入**）、`supabase db reset`／`supabase test db`
+  （0027の pgTAP `0014`、**Docker未導入・ローカルpsqlも無し**、静的レビューのみ）、
+  Edge Function実デプロイ・実Google Routes呼び出し・Google Cloud側の日次クォータ/
+  予算通知設定、entitlement付与の実運用（service_roleからのINSERT/UPDATE）、
+  非プレミアム/プレミアム双方の実機E2E、ネイティブ地図描画（本Phase対象外）。
+- **実装済み（オフライン検証可能）**: 上記「実装対象」1〜7の全項目。Field Mask
+  allowlist・fingerprint・staleness判定・single-flight・entitlementゲート・
+  transit時刻範囲判定の中核ロジックはDart側テストで実行検証済み。Edge Function
+  （routes-proxy）は`places-proxy`と同型4ファイル構成で作成したが未実行の成果物。
+- **旅程MVP判定について**: requirements.md §7.9は「Phase 4のRoutes完了までは
+  旅程MVP完成と判定しない」としている。本セッションでPhase 4のコード実装・
+  オフライン検証可能な範囲のテストは完了したが、Edge Function実デプロイ・実
+  Google Routes呼び出し・pgTAP実行・entitlement付与の実運用・実機検証は本環境
+  （Docker/Deno/Google鍵/モバイル実機いずれも無し）では行えていない。したがって
+  「旅程MVP完成」を最終判定するのは、これらの実環境検証が完了した後とする
+  （成功していない検証を成功と報告しない）。

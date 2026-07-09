@@ -222,6 +222,28 @@ DateTime? _combineDateTime(DateTime? date, ItineraryClockTime? t) =>
   return (departure: departure, arrival: arrival, block: null);
 }
 
+/// 移動区間(leg)が経路の再計算を要するか（旅程Phase 4, itinerary-plan-spec §6.3）。
+/// 位置・順序・日時・移動手段のいずれかが変われば true になる。
+///
+/// - [adjacent] は `itinerary_timeline.dart` の `placeItineraryLegs` が返す
+///   `ItineraryLegPlacement.adjacent`（出発・到着項目が表示順で隣接しているか
+///   ＝順序変更の検知）。
+/// - [storedFingerprint] は `leg.cacheKey`、[currentFingerprint] は現在の位置・
+///   日時・手段から `routeRequestFingerprint` で算出した値（位置・日時・
+///   手段変更の検知）。
+/// - [persistedStale] は `leg.isStale`（既存の明示フラグを尊重し、true なら
+///   このフラグだけでも stale とする）。
+bool isLegStale({
+  required bool adjacent,
+  required bool persistedStale,
+  required String? storedFingerprint,
+  required String currentFingerprint,
+}) =>
+    persistedStale ||
+    !adjacent ||
+    storedFingerprint == null ||
+    storedFingerprint != currentFingerprint;
+
 /// 実効的な表示日だけが必要な場合の軽量版（並び替えの同一日検証などで使う）。
 DateTime? effectiveItineraryLocalDate(
   ItineraryEntry entry, {

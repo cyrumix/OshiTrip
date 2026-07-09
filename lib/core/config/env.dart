@@ -44,6 +44,12 @@ class AppEnv {
   /// デモ・未設定・無効では false → 呼び出し側は [UnavailableFailure] で手動へ縮退。
   bool get googlePlacesAvailable => googleMapsEnabled && hasSupabaseConfig;
 
+  /// Routes（経路のライブ取得）が利用可能か。Places と同じ前提（地図/検索の
+  /// 有効化＋Supabase認証基盤）に加え、実際の呼び出し可否はプレミアム
+  /// entitlementのサーバー側検証に依存する（ここではクライアント側の
+  /// 大枠フラグのみ判定する, 旅程Phase 4）。
+  bool get googleRoutesAvailable => googleMapsEnabled && hasSupabaseConfig;
+
   static AppEnv fromDartDefine(Flavor flavor) {
     return AppEnv(
       flavor: flavor,

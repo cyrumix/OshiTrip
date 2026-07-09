@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -10,6 +11,7 @@ import '../domain/itinerary_entry.dart';
 import '../domain/itinerary_leg.dart';
 import '../domain/itinerary_schedule.dart';
 import 'itinerary_sheet_scaffold.dart';
+import 'route_live_panel.dart';
 
 const _uuid = Uuid();
 
@@ -287,10 +289,22 @@ class ItineraryEntryOption {
     required this.id,
     required this.label,
     this.date,
+    this.spotId,
+    this.googlePlaceId,
+    this.latitude,
+    this.longitude,
   });
   final String id;
   final String label;
   final DateTime? date;
+
+  /// スポット訪問項目のときだけ非null（旅程Phase 4: Google Routesの経路取得は
+  /// スポット↔スポットのみを対象にするため、transport/lodging端点では
+  /// これらが null のままとなり自然に対象外になる）。
+  final String? spotId;
+  final String? googlePlaceId;
+  final double? latitude;
+  final double? longitude;
 }
 
 Future<void> showItineraryLegEditor(
@@ -624,6 +638,13 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
             helperText: 'https のみ。外部遷移前にドメインを確認します',
           ),
           keyboardType: TextInputType.url,
+        ),
+        RouteLivePanel(
+          origin: widget.options.firstWhereOrNull((o) => o.id == _origin),
+          destination:
+              widget.options.firstWhereOrNull((o) => o.id == _destination),
+          travelMode: _mode,
+          existingLeg: widget.existing,
         ),
       ],
     );

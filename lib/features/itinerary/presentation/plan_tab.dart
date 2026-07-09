@@ -983,11 +983,20 @@ List<ItineraryEntryOption> buildLegEntryOptions({
   return [
     for (final it in items)
       if (it.entry.kind != ItineraryEntryKind.note)
-        ItineraryEntryOption(
-          id: it.entry.id,
-          label: labelOf(it.entry),
-          date: it.effectiveLocalDate,
-        ),
+        () {
+          final spot = it.entry.kind == ItineraryEntryKind.spot
+              ? aggregate.spots.firstWhereOrNull((s) => s.id == it.entry.spotId)
+              : null;
+          return ItineraryEntryOption(
+            id: it.entry.id,
+            label: labelOf(it.entry),
+            date: it.effectiveLocalDate,
+            spotId: spot?.id,
+            googlePlaceId: spot?.googlePlaceId,
+            latitude: spot?.latitude,
+            longitude: spot?.longitude,
+          );
+        }(),
   ];
 }
 

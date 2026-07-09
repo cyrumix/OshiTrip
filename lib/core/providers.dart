@@ -12,7 +12,9 @@ import '../features/genba/data/memo_template_repository_impl.dart';
 import '../features/genba/domain/genba_repository.dart';
 import '../features/genba/domain/memo_template_repository.dart';
 import '../features/itinerary/data/itinerary_repository_impl.dart';
+import '../features/itinerary/data/routes_entitlement_repository_impl.dart';
 import '../features/itinerary/domain/itinerary_repository.dart';
+import '../features/itinerary/domain/routes_entitlement.dart';
 import '../features/memory/data/memory_repository_impl.dart';
 import '../features/memory/data/supabase_photo_uploader.dart';
 import '../features/memory/domain/memory_repository.dart';
@@ -284,6 +286,18 @@ final itineraryRepositoryProvider = Provider<ItineraryRepository>((ref) {
   );
 });
 
+/// プレミアムentitlement（Google Routesライブ取得の可否）の読み取り専用境界
+/// （旅程Phase 4）。クライアントはこの値へ一切書き込まない。
+final routesEntitlementRepositoryProvider =
+    Provider<RoutesEntitlementRepository>((ref) {
+  final scope = ref.watch(localDataScopeProvider);
+  return RoutesEntitlementRepositoryImpl(
+    db: ref.watch(databaseProvider),
+    ownerIdResolver: () => scope.ownerIdOrNull,
+    remoteResolver: () => _remoteClientOrNull(ref),
+  );
+});
+
 /// drain の駆動タイミング調停（H-02）。デモでは周期タイマーを作らない。
 final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   final env = ref.watch(envProvider);
@@ -314,6 +328,8 @@ final sessionRefresherProvider = Provider<SessionRefresher>((ref) {
     refreshMemoTemplate: (isStale) => ref
         .read(memoTemplateRepositoryProvider)
         .refreshFromRemote(isStale: isStale),
+    refreshRoutesEntitlement: (isStale) =>
+        ref.read(routesEntitlementRepositoryProvider).refreshFromRemote(),
   );
 });
 

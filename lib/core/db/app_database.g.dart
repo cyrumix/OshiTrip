@@ -10394,6 +10394,248 @@ class MemoTemplatesCompanion extends UpdateCompanion<MemoTemplateRow> {
   }
 }
 
+class $RoutesEntitlementsTable extends RoutesEntitlements
+    with TableInfo<$RoutesEntitlementsTable, RoutesEntitlementRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RoutesEntitlementsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _premiumRoutesLiveMeta =
+      const VerificationMeta('premiumRoutesLive');
+  @override
+  late final GeneratedColumn<bool> premiumRoutesLive = GeneratedColumn<bool>(
+      'premium_routes_live', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("premium_routes_live" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [ownerId, premiumRoutesLive, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'routes_entitlements';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<RoutesEntitlementRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('premium_routes_live')) {
+      context.handle(
+          _premiumRoutesLiveMeta,
+          premiumRoutesLive.isAcceptableOrUnknown(
+              data['premium_routes_live']!, _premiumRoutesLiveMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {ownerId};
+  @override
+  RoutesEntitlementRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RoutesEntitlementRow(
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      premiumRoutesLive: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}premium_routes_live'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $RoutesEntitlementsTable createAlias(String alias) {
+    return $RoutesEntitlementsTable(attachedDatabase, alias);
+  }
+}
+
+class RoutesEntitlementRow extends DataClass
+    implements Insertable<RoutesEntitlementRow> {
+  final String ownerId;
+  final bool premiumRoutesLive;
+  final String updatedAt;
+  const RoutesEntitlementRow(
+      {required this.ownerId,
+      required this.premiumRoutesLive,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['owner_id'] = Variable<String>(ownerId);
+    map['premium_routes_live'] = Variable<bool>(premiumRoutesLive);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  RoutesEntitlementsCompanion toCompanion(bool nullToAbsent) {
+    return RoutesEntitlementsCompanion(
+      ownerId: Value(ownerId),
+      premiumRoutesLive: Value(premiumRoutesLive),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory RoutesEntitlementRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RoutesEntitlementRow(
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      premiumRoutesLive: serializer.fromJson<bool>(json['premiumRoutesLive']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'ownerId': serializer.toJson<String>(ownerId),
+      'premiumRoutesLive': serializer.toJson<bool>(premiumRoutesLive),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  RoutesEntitlementRow copyWith(
+          {String? ownerId, bool? premiumRoutesLive, String? updatedAt}) =>
+      RoutesEntitlementRow(
+        ownerId: ownerId ?? this.ownerId,
+        premiumRoutesLive: premiumRoutesLive ?? this.premiumRoutesLive,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  RoutesEntitlementRow copyWithCompanion(RoutesEntitlementsCompanion data) {
+    return RoutesEntitlementRow(
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      premiumRoutesLive: data.premiumRoutesLive.present
+          ? data.premiumRoutesLive.value
+          : this.premiumRoutesLive,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RoutesEntitlementRow(')
+          ..write('ownerId: $ownerId, ')
+          ..write('premiumRoutesLive: $premiumRoutesLive, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(ownerId, premiumRoutesLive, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RoutesEntitlementRow &&
+          other.ownerId == this.ownerId &&
+          other.premiumRoutesLive == this.premiumRoutesLive &&
+          other.updatedAt == this.updatedAt);
+}
+
+class RoutesEntitlementsCompanion
+    extends UpdateCompanion<RoutesEntitlementRow> {
+  final Value<String> ownerId;
+  final Value<bool> premiumRoutesLive;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const RoutesEntitlementsCompanion({
+    this.ownerId = const Value.absent(),
+    this.premiumRoutesLive = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RoutesEntitlementsCompanion.insert({
+    required String ownerId,
+    this.premiumRoutesLive = const Value.absent(),
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : ownerId = Value(ownerId),
+        updatedAt = Value(updatedAt);
+  static Insertable<RoutesEntitlementRow> custom({
+    Expression<String>? ownerId,
+    Expression<bool>? premiumRoutesLive,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (ownerId != null) 'owner_id': ownerId,
+      if (premiumRoutesLive != null) 'premium_routes_live': premiumRoutesLive,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RoutesEntitlementsCompanion copyWith(
+      {Value<String>? ownerId,
+      Value<bool>? premiumRoutesLive,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return RoutesEntitlementsCompanion(
+      ownerId: ownerId ?? this.ownerId,
+      premiumRoutesLive: premiumRoutesLive ?? this.premiumRoutesLive,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (premiumRoutesLive.present) {
+      map['premium_routes_live'] = Variable<bool>(premiumRoutesLive.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RoutesEntitlementsCompanion(')
+          ..write('ownerId: $ownerId, ')
+          ..write('premiumRoutesLive: $premiumRoutesLive, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ItineraryPlansTable extends ItineraryPlans
     with TableInfo<$ItineraryPlansTable, ItineraryPlanRow> {
   @override
@@ -16236,6 +16478,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TodoTemplateItemsTable todoTemplateItems =
       $TodoTemplateItemsTable(this);
   late final $MemoTemplatesTable memoTemplates = $MemoTemplatesTable(this);
+  late final $RoutesEntitlementsTable routesEntitlements =
+      $RoutesEntitlementsTable(this);
   late final $ItineraryPlansTable itineraryPlans = $ItineraryPlansTable(this);
   late final $ItinerarySpotsTable itinerarySpots = $ItinerarySpotsTable(this);
   late final $ItinerarySpotLinksTable itinerarySpotLinks =
@@ -16270,6 +16514,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         todoTemplates,
         todoTemplateItems,
         memoTemplates,
+        routesEntitlements,
         itineraryPlans,
         itinerarySpots,
         itinerarySpotLinks,
@@ -21173,6 +21418,155 @@ typedef $$MemoTemplatesTableProcessedTableManager = ProcessedTableManager<
     ),
     MemoTemplateRow,
     PrefetchHooks Function()>;
+typedef $$RoutesEntitlementsTableCreateCompanionBuilder
+    = RoutesEntitlementsCompanion Function({
+  required String ownerId,
+  Value<bool> premiumRoutesLive,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$RoutesEntitlementsTableUpdateCompanionBuilder
+    = RoutesEntitlementsCompanion Function({
+  Value<String> ownerId,
+  Value<bool> premiumRoutesLive,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$RoutesEntitlementsTableFilterComposer
+    extends Composer<_$AppDatabase, $RoutesEntitlementsTable> {
+  $$RoutesEntitlementsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get premiumRoutesLive => $composableBuilder(
+      column: $table.premiumRoutesLive,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$RoutesEntitlementsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RoutesEntitlementsTable> {
+  $$RoutesEntitlementsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get premiumRoutesLive => $composableBuilder(
+      column: $table.premiumRoutesLive,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RoutesEntitlementsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RoutesEntitlementsTable> {
+  $$RoutesEntitlementsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<bool> get premiumRoutesLive => $composableBuilder(
+      column: $table.premiumRoutesLive, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$RoutesEntitlementsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RoutesEntitlementsTable,
+    RoutesEntitlementRow,
+    $$RoutesEntitlementsTableFilterComposer,
+    $$RoutesEntitlementsTableOrderingComposer,
+    $$RoutesEntitlementsTableAnnotationComposer,
+    $$RoutesEntitlementsTableCreateCompanionBuilder,
+    $$RoutesEntitlementsTableUpdateCompanionBuilder,
+    (
+      RoutesEntitlementRow,
+      BaseReferences<_$AppDatabase, $RoutesEntitlementsTable,
+          RoutesEntitlementRow>
+    ),
+    RoutesEntitlementRow,
+    PrefetchHooks Function()> {
+  $$RoutesEntitlementsTableTableManager(
+      _$AppDatabase db, $RoutesEntitlementsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RoutesEntitlementsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RoutesEntitlementsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RoutesEntitlementsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> ownerId = const Value.absent(),
+            Value<bool> premiumRoutesLive = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RoutesEntitlementsCompanion(
+            ownerId: ownerId,
+            premiumRoutesLive: premiumRoutesLive,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String ownerId,
+            Value<bool> premiumRoutesLive = const Value.absent(),
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RoutesEntitlementsCompanion.insert(
+            ownerId: ownerId,
+            premiumRoutesLive: premiumRoutesLive,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RoutesEntitlementsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $RoutesEntitlementsTable,
+    RoutesEntitlementRow,
+    $$RoutesEntitlementsTableFilterComposer,
+    $$RoutesEntitlementsTableOrderingComposer,
+    $$RoutesEntitlementsTableAnnotationComposer,
+    $$RoutesEntitlementsTableCreateCompanionBuilder,
+    $$RoutesEntitlementsTableUpdateCompanionBuilder,
+    (
+      RoutesEntitlementRow,
+      BaseReferences<_$AppDatabase, $RoutesEntitlementsTable,
+          RoutesEntitlementRow>
+    ),
+    RoutesEntitlementRow,
+    PrefetchHooks Function()>;
 typedef $$ItineraryPlansTableCreateCompanionBuilder = ItineraryPlansCompanion
     Function({
   required String id,
@@ -23859,6 +24253,8 @@ class $AppDatabaseManager {
       $$TodoTemplateItemsTableTableManager(_db, _db.todoTemplateItems);
   $$MemoTemplatesTableTableManager get memoTemplates =>
       $$MemoTemplatesTableTableManager(_db, _db.memoTemplates);
+  $$RoutesEntitlementsTableTableManager get routesEntitlements =>
+      $$RoutesEntitlementsTableTableManager(_db, _db.routesEntitlements);
   $$ItineraryPlansTableTableManager get itineraryPlans =>
       $$ItineraryPlansTableTableManager(_db, _db.itineraryPlans);
   $$ItinerarySpotsTableTableManager get itinerarySpots =>

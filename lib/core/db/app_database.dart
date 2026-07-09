@@ -309,6 +309,21 @@ class GenbaMemos extends Table {
   // v12 で「現場×種類ごと1件」のユニーク制約を撤廃し、同一種類の複数メモを許容。
 }
 
+/// プレミアムentitlement（旅程Phase 4 / schema v16）。サーバー（Supabase
+/// `user_entitlements`）が管理する値の**読み取り専用レプリカ**。クライアントは
+/// このテーブルへ一切書き込まない（Outbox対象外）。行が無い owner は非プレミアム
+/// として扱う（itinerary-plan-spec §14.4、D-214）。
+@DataClassName('RoutesEntitlementRow')
+class RoutesEntitlements extends Table {
+  TextColumn get ownerId => text()();
+  BoolColumn get premiumRoutesLive =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {ownerId};
+}
+
 /// メモテンプレート（§7.7 改訂 / schema v15）。Todo テンプレートと同様に owner
 /// スコープで保存・同期する。雛形の構造化データは content(JSON) に持つ（単一行）。
 @DataClassName('MemoTemplateRow')
@@ -780,6 +795,7 @@ class FormDrafts extends Table {
     TodoTemplates,
     TodoTemplateItems,
     MemoTemplates,
+    RoutesEntitlements,
     ItineraryPlans,
     ItinerarySpots,
     ItinerarySpotLinks,
@@ -835,8 +851,12 @@ class AppDatabase extends _$AppDatabase {
   /// v15: メモ種類（§7.7 改訂）。genba_memos に kind/content を追加（既存メモは
   /// kind='free'・content=NULL の自由メモ扱い、消さない）。memo_templates
   /// テーブルを新規追加（Todo テンプレートと同思想の保存・再利用）。
+  ///
+  /// v16: 旅程Phase 4（Google Routes連携）。routes_entitlements（プレミアム
+  /// entitlementの読み取り専用レプリカ、クライアントは書き込まない）を新規
+  /// 追加。新規テーブルの追加のみで既存データには一切触れない。
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1017,6 +1037,11 @@ class AppDatabase extends _$AppDatabase {
             );
             // メモテンプレート（新規テーブルの追加のみ）。
             await m.createTable(memoTemplates);
+          }
+          if (from < 16) {
+            // 旅程Phase 4: プレミアムentitlementの読み取り専用レプリカ
+            // （新規テーブルの追加のみ、既存データには一切触れない）。
+            await m.createTable(routesEntitlements);
           }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);

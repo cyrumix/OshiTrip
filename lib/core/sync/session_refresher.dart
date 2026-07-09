@@ -31,12 +31,14 @@ class SessionRefresher {
     required ScopedRefresh refreshTemplate,
     required ScopedRefresh refreshItinerary,
     ScopedRefresh refreshMemoTemplate = _noRefresh,
+    ScopedRefresh refreshRoutesEntitlement = _noRefresh,
   })  : _refreshGenba = refreshGenba,
         _refreshMemory = refreshMemory,
         _refreshOshi = refreshOshi,
         _refreshTemplate = refreshTemplate,
         _refreshItinerary = refreshItinerary,
-        _refreshMemoTemplate = refreshMemoTemplate;
+        _refreshMemoTemplate = refreshMemoTemplate,
+        _refreshRoutesEntitlement = refreshRoutesEntitlement;
 
   final ScopedRefresh _refreshGenba;
   final ScopedRefresh _refreshMemory;
@@ -44,6 +46,7 @@ class SessionRefresher {
   final ScopedRefresh _refreshTemplate;
   final ScopedRefresh _refreshItinerary;
   final ScopedRefresh _refreshMemoTemplate;
+  final ScopedRefresh _refreshRoutesEntitlement;
 
   int _generation = 0;
   String? _activeOwner;
@@ -136,6 +139,7 @@ class SessionRefresher {
       _refreshTemplate(isStale),
       _refreshItinerary(isStale),
       _refreshMemoTemplate(isStale),
+      _refreshRoutesEntitlement(isStale),
     ]);
     lastResults.addAll(rest);
     // 完了時点でも current なら「この owner は pull 済み」と記録する。
