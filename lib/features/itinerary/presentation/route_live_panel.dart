@@ -44,6 +44,10 @@ class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
   bool _expanded = false;
   Future<Result<RouteLiveResult>>? _liveFuture;
 
+  /// 公共交通の代表時刻が Google Routes の対応範囲外（過去7日〜未来100日）の
+  /// ときの案内文言。設定されている間は Google Routes を呼ばない（修正5）。
+  String? _rangeNotice;
+
   RouteEndpoint? _endpointOf(ItineraryEntryOption? o) {
     if (o == null || o.spotId == null) return null;
     final endpoint = RouteEndpoint(
@@ -64,6 +68,7 @@ class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
         oldWidget.travelMode != widget.travelMode) {
       _expanded = false;
       _liveFuture = null;
+      _rangeNotice = null;
     }
   }
 
@@ -75,6 +80,19 @@ class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
 
   void _fetch(RouteEndpoint origin, RouteEndpoint destination, bool isPremium) {
     final bucket = _representativeTime();
+    // 公共交通は対応範囲（過去7日〜未来100日）外だと Google Routes が取得
+    // できないため、**呼ぶ前に**案内を出して API を呼ばない（修正5）。保存済み
+    // 概算・手動入力はそのまま使える。
+    if (widget.travelMode == ItineraryTravelMode.transit &&
+        bucket.isOutOfSupportedRange) {
+      setState(() {
+        _rangeNotice = '公共交通の最新経路は、出発日時が現在から過去7日〜未来100日の'
+            '範囲内のときだけ取得できます。日程を近づけるか、保存済みの概算経路・'
+            '手動入力をご利用ください。';
+        _liveFuture = null;
+      });
+      return;
+    }
     final fingerprint = routeRequestFingerprint(
       originSignature: origin.signature,
       destinationSignature: destination.signature,
@@ -88,6 +106,7 @@ class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
       representativeDepartureUtc: bucket.requestUtc,
     );
     setState(() {
+      _rangeNotice = null;
       _liveFuture = ref.read(routeRecalculationControllerProvider).recalculate(
             request: request,
             isPremium: isPremium,
@@ -136,6 +155,16 @@ class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
         if (leg != null) _SavedEstimateView(leg: leg),
         if (_expanded) ...[
           const SizedBox(height: 8),
+          if (_rangeNotice != null)
+            Padding(
+              key: const Key('route_range_notice'),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _rangeNotice!,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.error),
+              ),
+            ),
           if (!isPremium)
             Text(
               '最新ルートの取得はプレミアム限定です。保存済みの概算経路は引き続き閲覧できます。',

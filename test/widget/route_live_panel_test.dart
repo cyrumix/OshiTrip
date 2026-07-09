@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:oshi_trip/core/error/failure.dart';
 import 'package:oshi_trip/core/error/result.dart';
+import 'package:oshi_trip/core/providers.dart';
 import 'package:oshi_trip/core/time/clock.dart';
 import 'package:oshi_trip/features/itinerary/application/routes_providers.dart';
 import 'package:oshi_trip/features/itinerary/domain/itinerary_leg.dart';
@@ -149,7 +150,7 @@ void main() {
         ),
       ),
     );
-    await pumpPanel(tester, gateway: gateway);
+    final container = await pumpPanel(tester, gateway: gateway);
 
     expect(gateway.callCount, 0);
     await tester.tap(find.byKey(const Key('route_detail_toggle')));
@@ -166,6 +167,10 @@ void main() {
     expect(find.textContaining('新宿駅'), findsOneWidget);
     expect(find.text('Google Maps'), findsOneWidget); // 帰属表示
     expect(find.text('最新ルートを更新'), findsOneWidget);
+
+    // Googleライブ結果は ItineraryLeg（永続entity）へ書き込まない（D-215維持）。
+    final db = container.read(databaseProvider);
+    expect(await db.select(db.itineraryLegs).get(), isEmpty);
 
     // 再タップでも明示的な更新ボタン経由でのみ再度呼ぶ。
     await tester.tap(find.byKey(const Key('route_refresh_button')));
@@ -204,5 +209,37 @@ void main() {
 
     expect(find.byKey(const Key('route_live_error')), findsOneWidget);
     expect(find.text('通信に失敗しました'), findsOneWidget);
+  });
+
+  testWidgets('公共交通で代表時刻が対応範囲外なら、APIを呼ばず案内を出す（修正5）', (tester) async {
+    var callCount = 0;
+    final gateway = _FakeGateway(() {
+      callCount++;
+      return const Err(UnavailableFailure());
+    });
+    // clock は 2026-07-09。出発が未来100日超（範囲外）の transit 区間。
+    final farLeg = ItineraryLeg(
+      id: 'leg-far',
+      planId: 'plan-1',
+      ownerId: 'user-1',
+      originEntryId: 'e1',
+      destinationEntryId: 'e2',
+      travelMode: ItineraryTravelMode.transit,
+      departureAt: DateTime.utc(2027, 1, 1), // ~176日後 → 範囲外
+      durationMinutes: 20,
+      distanceMeters: 3000,
+      createdAt: DateTime.utc(2026, 7, 1),
+      updatedAt: DateTime.utc(2026, 7, 1),
+    );
+    await pumpPanel(tester, gateway: gateway, existingLeg: farLeg);
+
+    await tester.tap(find.byKey(const Key('route_detail_toggle')));
+    await tester.pumpAndSettle();
+
+    expect(callCount, 0); // Google Routes を呼ばない
+    expect(find.byKey(const Key('route_range_notice')), findsOneWidget);
+    // 保存済み概算は引き続き見える。
+    expect(find.byKey(const Key('route_saved_estimate')), findsOneWidget);
+    expect(find.byKey(const Key('route_live_result')), findsNothing);
   });
 }

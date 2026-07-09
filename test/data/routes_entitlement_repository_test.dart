@@ -93,4 +93,50 @@ void main() {
     expect(result.isOk, isTrue);
     expect(await db.select(db.routesEntitlements).get(), isEmpty);
   });
+
+  group('applyEntitlement の isStale 書き込み抑止（修正3）', () {
+    RoutesEntitlementRepositoryImpl repoFor(AppDatabase db) =>
+        RoutesEntitlementRepositoryImpl(
+          db: db,
+          ownerIdResolver: () => 'user-1',
+          remoteResolver: () => null,
+        );
+
+    test('isStale が true なら取得結果をローカルへ書き込まない', () async {
+      final db = createTestDb();
+      addTearDown(db.close);
+      await repoFor(db).applyEntitlement(
+        owner: 'user-1',
+        isPremium: true,
+        updatedAt: '2026-07-09T00:00:00.000Z',
+        isStale: () => true, // 認証切替後
+      );
+      expect(await db.select(db.routesEntitlements).get(), isEmpty);
+    });
+
+    test('isStale が false なら書き込む', () async {
+      final db = createTestDb();
+      addTearDown(db.close);
+      await repoFor(db).applyEntitlement(
+        owner: 'user-1',
+        isPremium: true,
+        updatedAt: '2026-07-09T00:00:00.000Z',
+        isStale: () => false,
+      );
+      final rows = await db.select(db.routesEntitlements).get();
+      expect(rows.single.ownerId, 'user-1');
+      expect(rows.single.premiumRoutesLive, isTrue);
+    });
+
+    test('isStale 未指定でも書き込む（従来動作）', () async {
+      final db = createTestDb();
+      addTearDown(db.close);
+      await repoFor(db).applyEntitlement(
+        owner: 'user-1',
+        isPremium: false,
+        updatedAt: '2026-07-09T00:00:00.000Z',
+      );
+      expect(await db.select(db.routesEntitlements).get(), hasLength(1));
+    });
+  });
 }

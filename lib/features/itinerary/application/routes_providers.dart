@@ -1,22 +1,38 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
+import '../data/routes_gateway_impl.dart';
 import '../domain/routes_gateway.dart';
 import 'route_recalculation_controller.dart';
 
-/// 経路取得ゲートウェイ（ADR-0010 §1、旅程Phase 4）。Google Routes が利用可能で
-/// ない限り [UnavailableRoutesGateway] を返し、呼び出し側を手動フォールバックへ
-/// 縮退させる。実 HTTP 実装（Edge Function 経由）は Routes 有効時にのみ差し込む
-/// （`placesGatewayProvider` と同じ段階実装方針の後続増分）。既定（デモ・
-/// 未設定・無効）では常に [UnavailableRoutesGateway]（Phase 1〜3を壊さない）。
-final routesGatewayProvider = Provider<RoutesGateway>((ref) {
+/// routes-proxy Edge Function を呼ぶトランスポート境界（旅程Phase 4 / 修正1）。
+///
+/// Routes が無効（デモ・未設定・機能フラグOFF）または Supabase クライアントが
+/// 無いときは null を返し、[routesGatewayProvider] を [UnavailableRoutesGateway]
+/// へ縮退させる。Google API キーはアプリに埋め込まず、routes-proxy（サーバー）
+/// が保持する（ADR-0010 §3）。テストではこの provider を差し替えて実 Gateway の
+/// payload 送出・エラー変換を検証できる。
+final routesProxyTransportProvider = Provider<RoutesProxyTransport?>((ref) {
   final env = ref.watch(envProvider);
-  if (!env.googleRoutesAvailable) {
-    return const UnavailableRoutesGateway();
-  }
-  // Routes 有効時の実ゲートウェイは後続増分で接続する。未接続の間は安全側
-  // （利用不可）へ倒し、勝手に課金APIを呼ばない。
-  return const UnavailableRoutesGateway();
+  if (!env.googleRoutesAvailable) return null;
+  final client = ref.watch(supabaseClientProvider);
+  if (client == null) return null;
+  return SupabaseRoutesProxyTransport(client);
+});
+
+/// 経路取得ゲートウェイ（ADR-0010 §1、旅程Phase 4）。
+///
+/// [routesProxyTransportProvider] が有効（Routes 有効＋Supabase クライアントあり）
+/// なら routes-proxy を呼ぶ実 Gateway（[RoutesGatewayImpl]）を、そうでなければ
+/// [UnavailableRoutesGateway] を返して手動フォールバックへ縮退させる
+/// （デモ・未設定・無効では常に利用不可, Phase 1〜3を壊さない）。
+final routesGatewayProvider = Provider<RoutesGateway>((ref) {
+  final transport = ref.watch(routesProxyTransportProvider);
+  if (transport == null) return const UnavailableRoutesGateway();
+  return RoutesGatewayImpl(
+    transport: transport,
+    clock: ref.watch(clockProvider),
+  );
 });
 
 /// 「最新ルートを更新」の実行境界（single-flight込み）。アプリ全体で1インスタンス

@@ -103,8 +103,16 @@ Claude Opus 4.8 で R8-A → R8-C → R8-B の順に是正した（`docs/decisio
 18. **Google Maps／Places MVP連携**（サーバー仲介、Field Mask、session token、帰属、クォータ）
 19. **Google Routes MVP連携**（公共交通、手動フォールバック、キャッシュ、明示再計算）
 20. **旅程共有・共同編集・通知・思い出連携**
+21. **共有概算経路（`shared_route_estimates`）のFlutter側再利用**: Phase 4では
+    DB基盤（スキーマ・RLS・モデレーション・不変条件・pgTAP）と、routes-proxy／
+    RoutesGateway実装（Google Routesライブ取得）までを実装した。**共有概算経路を
+    Flutter側で検索・通常表示に使うクライアント実装（owner境界・approvedのみ・
+    data_origin/rights_basis確認つきの再利用UI/Repository）は未実装**。旅程作成の
+    通常表示で「保存済み概算経路を優先」する動作は、各旅程内の `itinerary_legs`
+    （手動または権利根拠つきの永続概算値）で機能的に満たしており、クロスユーザー
+    再利用（他人の権利確認済み概算経路を共有マスタから引く）は本項目で実装する。
 
-詳細仕様は `docs/itinerary-plan-spec.md`、技術判断はADR-0010、実装指示は `docs/itinerary-implementation-prompts.md` を参照する。16〜19を旅程MVPとし、Google連携を含めて完成判定する。AI旅程、混雑予測、ルート最適化、本課金はこのフェーズの対象外。
+詳細仕様は `docs/itinerary-plan-spec.md`、技術判断はADR-0010、実装指示は `docs/itinerary-implementation-prompts.md` を参照する。16〜19を旅程MVPとし、Google連携を含めて完成判定する。**共有概算経路のFlutter側再利用（項目21）が未実装のため、旅程MVPは完成扱いにしない**（実環境検証未了と併せ、decisions.md「旅程Phase 4 レビュー是正」節を参照）。AI旅程、混雑予測、ルート最適化、本課金はこのフェーズの対象外。
 
 ## 検証の未完了項目（環境依存）
 

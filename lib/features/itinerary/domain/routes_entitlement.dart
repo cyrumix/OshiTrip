@@ -14,5 +14,9 @@ abstract interface class RoutesEntitlementRepository {
 
   /// リモート（Supabase `user_entitlements`）から現在値を取り込む。
   /// デモ・未ログインでは何もしない。
-  Future<Result<void>> refreshFromRemote();
+  ///
+  /// [isStale] は認証切替検出フック（他 Repository の `refreshFromRemote` と同じ）。
+  /// リモート取得後、ローカルDBへ書き込む直前に `isStale() == true` なら、前owner
+  /// の値を書かずに成功扱いで中断する（C-01 / H-02）。
+  Future<Result<void>> refreshFromRemote({bool Function()? isStale});
 }

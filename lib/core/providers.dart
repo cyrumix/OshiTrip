@@ -328,8 +328,9 @@ final sessionRefresherProvider = Provider<SessionRefresher>((ref) {
     refreshMemoTemplate: (isStale) => ref
         .read(memoTemplateRepositoryProvider)
         .refreshFromRemote(isStale: isStale),
-    refreshRoutesEntitlement: (isStale) =>
-        ref.read(routesEntitlementRepositoryProvider).refreshFromRemote(),
+    refreshRoutesEntitlement: (isStale) => ref
+        .read(routesEntitlementRepositoryProvider)
+        .refreshFromRemote(isStale: isStale),
   );
 });
 

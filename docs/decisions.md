@@ -919,3 +919,34 @@ Google公式仕様の再確認: **2026-07-08**、`attributions[]` は `{provider
   （Docker/Deno/Google鍵/モバイル実機いずれも無し）では行えていない。したがって
   「旅程MVP完成」を最終判定するのは、これらの実環境検証が完了した後とする
   （成功していない検証を成功と報告しない）。
+
+## 旅程Phase 4 レビュー是正（2026-07-09, Claude Opus 4.8）
+
+旅程Phase 4（Google Routes連携）のレビュー指摘5件を是正した。Google Routes応答を
+許可なく共有DB／ItineraryLegへ永続保存しない方針（D-180/D-181/D-215）は維持する。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-219（修正1） | `RoutesGatewayImpl`（data層）と `SupabaseRoutesProxyTransport`（routes-proxy Edge Function 呼び出し）を新設し、`routesProxyTransportProvider`→`routesGatewayProvider` の2段で接続した。`env.googleRoutesAvailable == true` かつ Supabase クライアントありなら実 Gateway、無効・デモ・未設定・クライアント無しなら従来どおり `UnavailableRoutesGateway`。`RouteLiveRequest`→routes-proxy の JSON payload（origin/destination の placeId優先・座標フォールバック、travelMode の wire文字列、representativeDepartureUtc の UTC ISO8601）へ変換し、応答を `RouteLiveResult`（`requestedAt` は受信時刻をUTCで付与）へ変換。エラー `{error: kind}` は純粋関数 `routesProxyErrorToFailure` で型付き Failure へ変換（not_entitled→PermissionFailure／unauthorized→AuthFailure／rate_limited→NetworkFailure／invalid_request→ValidationFailure／unavailable→UnavailableFailure／timeout・upstream_error→NetworkFailure、kind不明時は status で概略判定）。TimeoutException・通信断は NetworkFailure。taxi/flight/other は送信せず ValidationFailure（非対応・費用制御, §6.1）。Google API キーはアプリに埋め込まず routes-proxy が保持（ADR-0010 §3） | Phase 4初版は `routesGatewayProvider` が常に `UnavailableRoutesGateway` を返すスタブだった（実 Gateway 未接続）。`SupabaseMutationTransport` と同じトランスポート seam を採用し、SupabaseClient 依存を `RoutesProxyTransport` へ閉じ込めることで、実 Gateway の payload 送出・エラー変換を Supabase 非依存で単体テストできる。ライブ結果は一時 DTO としてのみ返し、`ItineraryLeg`／共有DBへ書き込まない（D-215 維持） |
+| D-220（修正2） | `RoutesEntitlementRepositoryImpl.refreshFromRemote()` の Supabase 取得に既存 `.withRemoteTimeout()` を付け、`TimeoutException` を `NetworkFailure` として扱うようにした（R8-C の通信タイムアウト方針に統一） | 初版は entitlement 取得にタイムアウトが無く、無期限ハングの余地があった。他の Repository（`_pullTable`／`SupabaseMutationTransport`）と同じ方針へ揃えた |
+| D-221（修正3） | `RoutesEntitlementRepository.refreshFromRemote({bool Function()? isStale})` を追加し、`SessionRefresher` から `isStale` を渡すようにした。リモート取得後・ローカル書き込み直前に `isStale() == true`（別owner／世代交代／pause）なら、前owner の値を書かず成功扱いで中断する | 初版は `refreshFromRemote()` が `isStale` を受け取らず、認証切替と競合すると前owner の entitlement をローカルへ書き込む余地があった。他 Repository の pull（C-01 / H-02）と同じ「取得後・適用前チェック」に揃えた |
+| D-222（修正4） | **共有概算経路（`shared_route_estimates`）のFlutter側再利用（検索・通常表示）は本Phaseでは未実装**とし、DB基盤（スキーマ・RLS・モデレーション・不変条件・pgTAP）までに留めることを明文化した。`docs/implementation-status.md`・`docs/follow-up-work.md`（項目21）へ「未実装」と明記し、**旅程MVPを完成扱いにしない**判定に反映した | クライアント側の共有再利用（owner境界・approvedのみ・data_origin/rights_basis確認つき）を今Phaseで新規実装すると「このPhaseより後の機能の先行実装」に当たる（D-216）。旅程内の「保存済み概算を優先」は各旅程の `itinerary_legs` で機能的に満たしており、クロスユーザー共有再利用は follow-up として分離。ステータス文書に反映して「未実装なら完成扱いにしない」を担保 |
+| D-223（修正5） | `RouteLivePanel` で、公共交通の代表時刻が Google Routes の対応範囲（過去7日〜未来100日）外なら、**Edge Function を呼ぶ前に**案内文言（`route_range_notice`）を表示し、Google Routes を呼ばない。保存済み概算経路・手動入力は引き続き利用可能 | `resolveRepresentativeRequestTime` の `isOutOfSupportedRange`（既存の純粋関数）を UI へ接続し、範囲外リクエストで確実に失敗する API 呼び出し（＝無駄な課金試行）を未然に防ぐ。範囲判定は Edge Function 側でも二重に行う（多層防御） |
+
+### 検証状況（旅程Phase 4 レビュー是正, 2026-07-09, Windows host / ASCIIパス `C:\src\OshiTrip`）
+
+- `dart format` 差分なし、`dart analyze lib test integration_test` クリーン、
+  `flutter test` **全パス**（本是正の新規テスト: `routes_gateway_impl_test`
+  ＝payload送出・エラー変換・timeout・欠落フィールド耐性・非対応mode拒否・
+  ライブ結果を永続保存しないこと、`routes_providers_test` ＝env有効/無効での
+  Gateway選択・transport seam、entitlement の timeout/isStale、`route_live_panel_test`
+  へ transit範囲外案内＝API非呼び出しを追加）。既存の Phase 1〜3 テストは無改変で緑。
+- **未実行（各実環境。成功扱いにしない）**: 実 Google Routes 呼び出し・routes-proxy
+  実デプロイ（**Deno/Docker/Google 鍵なし**）、`supabase test db`（pgTAP `0014`、
+  **Docker 未導入**、静的レビューのみ）、entitlement 付与の実運用・実機E2E。
+  実 Gateway の payload 送出・エラー変換・timeout・欠落耐性の中核は、トランスポート
+  seam（fake transport）を使った Dart 側テストで実行検証済み。実 Supabase Functions
+  への到達性・routes-proxy 側の認証/entitlement/レート/Field Mask 強制は各実環境で別途確認する。
+- **旅程MVP完成判定**: 未完成。(1) 共有概算経路のFlutter側再利用が未実装（D-222）、
+  (2) 実 Google Routes／pgTAP／実機検証が環境不足で未了。この2点が解消するまで
+  旅程MVPは完成扱いにしない。
