@@ -6,8 +6,10 @@ import '../../../../core/widgets/async_view.dart';
 import '../../../templates/presentation/template_sheets.dart';
 import '../../application/genba_actions_controller.dart';
 import '../../domain/genba.dart';
+import '../memo_template_manage_screen.dart';
 import 'action_feedback.dart';
 import 'child_editors.dart';
+import 'memo_editors.dart';
 
 /// 現場詳細の子データタブ（チケット/交通/宿泊/Todo/メモ, design-spec §7.2）。
 ///
@@ -558,42 +560,14 @@ class MemoTab extends ConsumerWidget {
 
   final GenbaAggregate aggregate;
 
-  /// 追加時にテンプレート（種類）を選ばせる。テンプレートは初期値・入力例の補助で
-  /// あり、選ばずに「テンプレートなし」も選べる（§7.7）。
-  Future<void> _addMemo(BuildContext context, WidgetRef ref) async {
-    final category = await showModalBottomSheet<MemoCategory>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(AppSpace.md),
-              child: Text('テンプレートを選ぶ'),
-            ),
-            for (final c in MemoCategoryLabel.templateChoices)
-              ListTile(
-                leading: Icon(
-                  c == MemoCategory.other
-                      ? Icons.edit_note
-                      : Icons.sticky_note_2_outlined,
-                ),
-                title: Text(c.templateChoiceLabel),
-                onTap: () => Navigator.of(context).pop(c),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (category == null || !context.mounted) return;
-    await showMemoEditor(
-      context,
-      ref,
-      genbaId: aggregate.genba.id,
-      category: category,
-      initialSortOrder: aggregate.memos.length,
-    );
-  }
+  /// 追加時にメモ種類を選び、その種類のテンプレート（またはテンプレートなし）を
+  /// 選んでから編集する（§7.7 改訂）。
+  Future<void> _addMemo(BuildContext context, WidgetRef ref) => showAddMemoFlow(
+        context,
+        ref,
+        genbaId: aggregate.genba.id,
+        initialSortOrder: aggregate.memos.length,
+      );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -608,36 +582,50 @@ class MemoTab extends ConsumerWidget {
         SectionHeader(
           title: 'メモ',
           padding: const EdgeInsets.only(bottom: AppSpace.sm),
-          action: TextButton.icon(
-            key: const Key('memo_add_button'),
-            onPressed: () => _addMemo(context, ref),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('追加'),
+          action: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'メモテンプレートを管理',
+                icon: const Icon(Icons.bookmark_border, size: 20),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MemoTemplateManageScreen(),
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                key: const Key('memo_add_button'),
+                onPressed: () => _addMemo(context, ref),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('追加'),
+              ),
+            ],
           ),
         ),
         if (memos.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpace.sm),
-            child: Text('メモはまだありません。＋からテンプレートを選んで追加できます。'),
+            child: Text('メモはまだありません。＋から種類とテンプレートを選んで追加できます。'),
           ),
         for (var i = 0; i < memos.length; i++)
           AppCard(
             margin: const EdgeInsets.only(bottom: AppSpace.sm),
             padding: EdgeInsets.zero,
             child: ListTile(
-              leading: const Icon(Icons.sticky_note_2_outlined),
+              leading: Icon(_memoKindIcon(memos[i].kind)),
               title: Text(
                 memos[i].title.isNotEmpty
                     ? memos[i].title
-                    : memos[i].category.label,
+                    : memos[i].kind.label,
               ),
-              subtitle: memos[i].body.isNotEmpty
-                  ? Text(
-                      memos[i].body,
+              subtitle: _memoSummary(memos[i]) == null
+                  ? null
+                  : Text(
+                      _memoSummary(memos[i])!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                    )
-                  : null,
+                    ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -682,13 +670,39 @@ class MemoTab extends ConsumerWidget {
                 context,
                 ref,
                 genbaId: genbaId,
-                category: memos[i].category,
                 existing: memos[i],
               ),
             ),
           ),
       ],
     );
+  }
+
+  IconData _memoKindIcon(MemoKind kind) => switch (kind) {
+        MemoKind.free => Icons.sticky_note_2_outlined,
+        MemoKind.checklist => Icons.checklist_rtl,
+        MemoKind.bingo => Icons.grid_view_rounded,
+        MemoKind.vote => Icons.how_to_vote_outlined,
+      };
+
+  /// 一覧のサブタイトル要約（種類ごと）。
+  String? _memoSummary(GenbaMemo m) {
+    switch (m.kind) {
+      case MemoKind.free:
+        return m.body.isNotEmpty ? m.body : null;
+      case MemoKind.checklist:
+        final items = m.content?.checklist ?? const [];
+        final done = items.where((i) => i.checked).length;
+        return 'チェックリスト・${items.length}項目（$done完了）';
+      case MemoKind.bingo:
+        final b = m.content?.bingo;
+        final size = b?.size ?? 3;
+        final lines = b?.lineCount ?? 0;
+        return 'BINGO・$size×$size${lines > 0 ? '（BINGO! ×$lines）' : ''}';
+      case MemoKind.vote:
+        final v = m.content?.vote;
+        return '投票・${v?.options.length ?? 0}択・${v?.votes.length ?? 0}票';
+    }
   }
 
   Future<void> _move(

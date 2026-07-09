@@ -3965,6 +3965,13 @@ class $GenbaMemosTable extends GenbaMemos
   late final GeneratedColumn<String> category = GeneratedColumn<String>(
       'category', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('free'));
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
@@ -3979,6 +3986,12 @@ class $GenbaMemosTable extends GenbaMemos
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _contentMeta =
+      const VerificationMeta('content');
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+      'content', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _sortOrderMeta =
       const VerificationMeta('sortOrder');
   @override
@@ -4005,8 +4018,10 @@ class $GenbaMemosTable extends GenbaMemos
         genbaId,
         ownerId,
         category,
+        kind,
         title,
         body,
+        content,
         sortOrder,
         createdAt,
         updatedAt
@@ -4044,6 +4059,10 @@ class $GenbaMemosTable extends GenbaMemos
     } else if (isInserting) {
       context.missing(_categoryMeta);
     }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    }
     if (data.containsKey('title')) {
       context.handle(
           _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
@@ -4051,6 +4070,10 @@ class $GenbaMemosTable extends GenbaMemos
     if (data.containsKey('body')) {
       context.handle(
           _bodyMeta, body.isAcceptableOrUnknown(data['body']!, _bodyMeta));
+    }
+    if (data.containsKey('content')) {
+      context.handle(_contentMeta,
+          content.isAcceptableOrUnknown(data['content']!, _contentMeta));
     }
     if (data.containsKey('sort_order')) {
       context.handle(_sortOrderMeta,
@@ -4085,10 +4108,14 @@ class $GenbaMemosTable extends GenbaMemos
           .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
       category: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
       title: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
       body: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}body'])!,
+      content: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content']),
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
       createdAt: attachedDatabase.typeMapping
@@ -4110,9 +4137,15 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
   final String ownerId;
   final String category;
 
+  /// メモ種類（§7.7 改訂, schema v15）: free/checklist/bingo/vote。既存は free。
+  final String kind;
+
   /// メモのタイトル（複数メモ化, schema v12）。既存行は種類名を初期値に移行。
   final String title;
   final String body;
+
+  /// 種類別の構造化コンテンツ（JSON, schema v15）。自由メモは NULL。
+  final String? content;
 
   /// 現場内の並び順（v12）。
   final int sortOrder;
@@ -4123,8 +4156,10 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       required this.genbaId,
       required this.ownerId,
       required this.category,
+      required this.kind,
       required this.title,
       required this.body,
+      this.content,
       required this.sortOrder,
       required this.createdAt,
       required this.updatedAt});
@@ -4135,8 +4170,12 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
     map['genba_id'] = Variable<String>(genbaId);
     map['owner_id'] = Variable<String>(ownerId);
     map['category'] = Variable<String>(category);
+    map['kind'] = Variable<String>(kind);
     map['title'] = Variable<String>(title);
     map['body'] = Variable<String>(body);
+    if (!nullToAbsent || content != null) {
+      map['content'] = Variable<String>(content);
+    }
     map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
@@ -4149,8 +4188,12 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       genbaId: Value(genbaId),
       ownerId: Value(ownerId),
       category: Value(category),
+      kind: Value(kind),
       title: Value(title),
       body: Value(body),
+      content: content == null && nullToAbsent
+          ? const Value.absent()
+          : Value(content),
       sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -4165,8 +4208,10 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       genbaId: serializer.fromJson<String>(json['genbaId']),
       ownerId: serializer.fromJson<String>(json['ownerId']),
       category: serializer.fromJson<String>(json['category']),
+      kind: serializer.fromJson<String>(json['kind']),
       title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String>(json['body']),
+      content: serializer.fromJson<String?>(json['content']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
@@ -4180,8 +4225,10 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       'genbaId': serializer.toJson<String>(genbaId),
       'ownerId': serializer.toJson<String>(ownerId),
       'category': serializer.toJson<String>(category),
+      'kind': serializer.toJson<String>(kind),
       'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String>(body),
+      'content': serializer.toJson<String?>(content),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
@@ -4193,8 +4240,10 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
           String? genbaId,
           String? ownerId,
           String? category,
+          String? kind,
           String? title,
           String? body,
+          Value<String?> content = const Value.absent(),
           int? sortOrder,
           String? createdAt,
           String? updatedAt}) =>
@@ -4203,8 +4252,10 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
         genbaId: genbaId ?? this.genbaId,
         ownerId: ownerId ?? this.ownerId,
         category: category ?? this.category,
+        kind: kind ?? this.kind,
         title: title ?? this.title,
         body: body ?? this.body,
+        content: content.present ? content.value : this.content,
         sortOrder: sortOrder ?? this.sortOrder,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -4215,8 +4266,10 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
       genbaId: data.genbaId.present ? data.genbaId.value : this.genbaId,
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       category: data.category.present ? data.category.value : this.category,
+      kind: data.kind.present ? data.kind.value : this.kind,
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
+      content: data.content.present ? data.content.value : this.content,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -4230,8 +4283,10 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
           ..write('genbaId: $genbaId, ')
           ..write('ownerId: $ownerId, ')
           ..write('category: $category, ')
+          ..write('kind: $kind, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('content: $content, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -4240,8 +4295,8 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
   }
 
   @override
-  int get hashCode => Object.hash(id, genbaId, ownerId, category, title, body,
-      sortOrder, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, genbaId, ownerId, category, kind, title,
+      body, content, sortOrder, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4250,8 +4305,10 @@ class GenbaMemoRow extends DataClass implements Insertable<GenbaMemoRow> {
           other.genbaId == this.genbaId &&
           other.ownerId == this.ownerId &&
           other.category == this.category &&
+          other.kind == this.kind &&
           other.title == this.title &&
           other.body == this.body &&
+          other.content == this.content &&
           other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -4262,8 +4319,10 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
   final Value<String> genbaId;
   final Value<String> ownerId;
   final Value<String> category;
+  final Value<String> kind;
   final Value<String> title;
   final Value<String> body;
+  final Value<String?> content;
   final Value<int> sortOrder;
   final Value<String> createdAt;
   final Value<String> updatedAt;
@@ -4273,8 +4332,10 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
     this.genbaId = const Value.absent(),
     this.ownerId = const Value.absent(),
     this.category = const Value.absent(),
+    this.kind = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.content = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -4285,8 +4346,10 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
     required String genbaId,
     required String ownerId,
     required String category,
+    this.kind = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.content = const Value.absent(),
     this.sortOrder = const Value.absent(),
     required String createdAt,
     required String updatedAt,
@@ -4302,8 +4365,10 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
     Expression<String>? genbaId,
     Expression<String>? ownerId,
     Expression<String>? category,
+    Expression<String>? kind,
     Expression<String>? title,
     Expression<String>? body,
+    Expression<String>? content,
     Expression<int>? sortOrder,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
@@ -4314,8 +4379,10 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
       if (genbaId != null) 'genba_id': genbaId,
       if (ownerId != null) 'owner_id': ownerId,
       if (category != null) 'category': category,
+      if (kind != null) 'kind': kind,
       if (title != null) 'title': title,
       if (body != null) 'body': body,
+      if (content != null) 'content': content,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -4328,8 +4395,10 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
       Value<String>? genbaId,
       Value<String>? ownerId,
       Value<String>? category,
+      Value<String>? kind,
       Value<String>? title,
       Value<String>? body,
+      Value<String?>? content,
       Value<int>? sortOrder,
       Value<String>? createdAt,
       Value<String>? updatedAt,
@@ -4339,8 +4408,10 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
       genbaId: genbaId ?? this.genbaId,
       ownerId: ownerId ?? this.ownerId,
       category: category ?? this.category,
+      kind: kind ?? this.kind,
       title: title ?? this.title,
       body: body ?? this.body,
+      content: content ?? this.content,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -4363,11 +4434,17 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
     }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
@@ -4391,8 +4468,10 @@ class GenbaMemosCompanion extends UpdateCompanion<GenbaMemoRow> {
           ..write('genbaId: $genbaId, ')
           ..write('ownerId: $ownerId, ')
           ..write('category: $category, ')
+          ..write('kind: $kind, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('content: $content, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -9809,6 +9888,504 @@ class TodoTemplateItemsCompanion extends UpdateCompanion<TodoTemplateItemRow> {
           ..write('priority: $priority, ')
           ..write('memo: $memo, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemoTemplatesTable extends MemoTemplates
+    with TableInfo<$MemoTemplatesTable, MemoTemplateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoTemplatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('free'));
+  static const VerificationMeta _categoryMeta =
+      const VerificationMeta('category');
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+      'category', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('other'));
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+      'body', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _contentMeta =
+      const VerificationMeta('content');
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+      'content', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        ownerId,
+        name,
+        kind,
+        category,
+        title,
+        body,
+        content,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memo_templates';
+  @override
+  VerificationContext validateIntegrity(Insertable<MemoTemplateRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    }
+    if (data.containsKey('category')) {
+      context.handle(_categoryMeta,
+          category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+          _bodyMeta, body.isAcceptableOrUnknown(data['body']!, _bodyMeta));
+    }
+    if (data.containsKey('content')) {
+      context.handle(_contentMeta,
+          content.isAcceptableOrUnknown(data['content']!, _contentMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemoTemplateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoTemplateRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      category: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      body: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}body'])!,
+      content: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MemoTemplatesTable createAlias(String alias) {
+    return $MemoTemplatesTable(attachedDatabase, alias);
+  }
+}
+
+class MemoTemplateRow extends DataClass implements Insertable<MemoTemplateRow> {
+  final String id;
+  final String ownerId;
+  final String name;
+  final String kind;
+  final String category;
+  final String title;
+  final String body;
+  final String? content;
+  final String createdAt;
+  final String updatedAt;
+  const MemoTemplateRow(
+      {required this.id,
+      required this.ownerId,
+      required this.name,
+      required this.kind,
+      required this.category,
+      required this.title,
+      required this.body,
+      this.content,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['name'] = Variable<String>(name);
+    map['kind'] = Variable<String>(kind);
+    map['category'] = Variable<String>(category);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || content != null) {
+      map['content'] = Variable<String>(content);
+    }
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  MemoTemplatesCompanion toCompanion(bool nullToAbsent) {
+    return MemoTemplatesCompanion(
+      id: Value(id),
+      ownerId: Value(ownerId),
+      name: Value(name),
+      kind: Value(kind),
+      category: Value(category),
+      title: Value(title),
+      body: Value(body),
+      content: content == null && nullToAbsent
+          ? const Value.absent()
+          : Value(content),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MemoTemplateRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoTemplateRow(
+      id: serializer.fromJson<String>(json['id']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      name: serializer.fromJson<String>(json['name']),
+      kind: serializer.fromJson<String>(json['kind']),
+      category: serializer.fromJson<String>(json['category']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      content: serializer.fromJson<String?>(json['content']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'name': serializer.toJson<String>(name),
+      'kind': serializer.toJson<String>(kind),
+      'category': serializer.toJson<String>(category),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'content': serializer.toJson<String?>(content),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  MemoTemplateRow copyWith(
+          {String? id,
+          String? ownerId,
+          String? name,
+          String? kind,
+          String? category,
+          String? title,
+          String? body,
+          Value<String?> content = const Value.absent(),
+          String? createdAt,
+          String? updatedAt}) =>
+      MemoTemplateRow(
+        id: id ?? this.id,
+        ownerId: ownerId ?? this.ownerId,
+        name: name ?? this.name,
+        kind: kind ?? this.kind,
+        category: category ?? this.category,
+        title: title ?? this.title,
+        body: body ?? this.body,
+        content: content.present ? content.value : this.content,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MemoTemplateRow copyWithCompanion(MemoTemplatesCompanion data) {
+    return MemoTemplateRow(
+      id: data.id.present ? data.id.value : this.id,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      name: data.name.present ? data.name.value : this.name,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      category: data.category.present ? data.category.value : this.category,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      content: data.content.present ? data.content.value : this.content,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoTemplateRow(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('category: $category, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, ownerId, name, kind, category, title,
+      body, content, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoTemplateRow &&
+          other.id == this.id &&
+          other.ownerId == this.ownerId &&
+          other.name == this.name &&
+          other.kind == this.kind &&
+          other.category == this.category &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.content == this.content &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MemoTemplatesCompanion extends UpdateCompanion<MemoTemplateRow> {
+  final Value<String> id;
+  final Value<String> ownerId;
+  final Value<String> name;
+  final Value<String> kind;
+  final Value<String> category;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<String?> content;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const MemoTemplatesCompanion({
+    this.id = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.category = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.content = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemoTemplatesCompanion.insert({
+    required String id,
+    required String ownerId,
+    required String name,
+    this.kind = const Value.absent(),
+    this.category = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.content = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        ownerId = Value(ownerId),
+        name = Value(name),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<MemoTemplateRow> custom({
+    Expression<String>? id,
+    Expression<String>? ownerId,
+    Expression<String>? name,
+    Expression<String>? kind,
+    Expression<String>? category,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<String>? content,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (name != null) 'name': name,
+      if (kind != null) 'kind': kind,
+      if (category != null) 'category': category,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (content != null) 'content': content,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemoTemplatesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? ownerId,
+      Value<String>? name,
+      Value<String>? kind,
+      Value<String>? category,
+      Value<String>? title,
+      Value<String>? body,
+      Value<String?>? content,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return MemoTemplatesCompanion(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      name: name ?? this.name,
+      kind: kind ?? this.kind,
+      category: category ?? this.category,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoTemplatesCompanion(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('category: $category, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('content: $content, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -15658,6 +16235,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TodoTemplatesTable todoTemplates = $TodoTemplatesTable(this);
   late final $TodoTemplateItemsTable todoTemplateItems =
       $TodoTemplateItemsTable(this);
+  late final $MemoTemplatesTable memoTemplates = $MemoTemplatesTable(this);
   late final $ItineraryPlansTable itineraryPlans = $ItineraryPlansTable(this);
   late final $ItinerarySpotsTable itinerarySpots = $ItinerarySpotsTable(this);
   late final $ItinerarySpotLinksTable itinerarySpotLinks =
@@ -15691,6 +16269,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         oshiAnniversaries,
         todoTemplates,
         todoTemplateItems,
+        memoTemplates,
         itineraryPlans,
         itinerarySpots,
         itinerarySpotLinks,
@@ -17418,8 +17997,10 @@ typedef $$GenbaMemosTableCreateCompanionBuilder = GenbaMemosCompanion Function({
   required String genbaId,
   required String ownerId,
   required String category,
+  Value<String> kind,
   Value<String> title,
   Value<String> body,
+  Value<String?> content,
   Value<int> sortOrder,
   required String createdAt,
   required String updatedAt,
@@ -17430,8 +18011,10 @@ typedef $$GenbaMemosTableUpdateCompanionBuilder = GenbaMemosCompanion Function({
   Value<String> genbaId,
   Value<String> ownerId,
   Value<String> category,
+  Value<String> kind,
   Value<String> title,
   Value<String> body,
+  Value<String?> content,
   Value<int> sortOrder,
   Value<String> createdAt,
   Value<String> updatedAt,
@@ -17459,11 +18042,17 @@ class $$GenbaMemosTableFilterComposer
   ColumnFilters<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get title => $composableBuilder(
       column: $table.title, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get body => $composableBuilder(
       column: $table.body, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
@@ -17496,11 +18085,17 @@ class $$GenbaMemosTableOrderingComposer
   ColumnOrderings<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get title => $composableBuilder(
       column: $table.title, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get body => $composableBuilder(
       column: $table.body, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
@@ -17533,11 +18128,17 @@ class $$GenbaMemosTableAnnotationComposer
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
 
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
@@ -17579,8 +18180,10 @@ class $$GenbaMemosTableTableManager extends RootTableManager<
             Value<String> genbaId = const Value.absent(),
             Value<String> ownerId = const Value.absent(),
             Value<String> category = const Value.absent(),
+            Value<String> kind = const Value.absent(),
             Value<String> title = const Value.absent(),
             Value<String> body = const Value.absent(),
+            Value<String?> content = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<String> createdAt = const Value.absent(),
             Value<String> updatedAt = const Value.absent(),
@@ -17591,8 +18194,10 @@ class $$GenbaMemosTableTableManager extends RootTableManager<
             genbaId: genbaId,
             ownerId: ownerId,
             category: category,
+            kind: kind,
             title: title,
             body: body,
+            content: content,
             sortOrder: sortOrder,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -17603,8 +18208,10 @@ class $$GenbaMemosTableTableManager extends RootTableManager<
             required String genbaId,
             required String ownerId,
             required String category,
+            Value<String> kind = const Value.absent(),
             Value<String> title = const Value.absent(),
             Value<String> body = const Value.absent(),
+            Value<String?> content = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             required String createdAt,
             required String updatedAt,
@@ -17615,8 +18222,10 @@ class $$GenbaMemosTableTableManager extends RootTableManager<
             genbaId: genbaId,
             ownerId: ownerId,
             category: category,
+            kind: kind,
             title: title,
             body: body,
+            content: content,
             sortOrder: sortOrder,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -20316,6 +20925,254 @@ typedef $$TodoTemplateItemsTableProcessedTableManager = ProcessedTableManager<
     ),
     TodoTemplateItemRow,
     PrefetchHooks Function()>;
+typedef $$MemoTemplatesTableCreateCompanionBuilder = MemoTemplatesCompanion
+    Function({
+  required String id,
+  required String ownerId,
+  required String name,
+  Value<String> kind,
+  Value<String> category,
+  Value<String> title,
+  Value<String> body,
+  Value<String?> content,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$MemoTemplatesTableUpdateCompanionBuilder = MemoTemplatesCompanion
+    Function({
+  Value<String> id,
+  Value<String> ownerId,
+  Value<String> name,
+  Value<String> kind,
+  Value<String> category,
+  Value<String> title,
+  Value<String> body,
+  Value<String?> content,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MemoTemplatesTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoTemplatesTable> {
+  $$MemoTemplatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get body => $composableBuilder(
+      column: $table.body, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MemoTemplatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoTemplatesTable> {
+  $$MemoTemplatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get body => $composableBuilder(
+      column: $table.body, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MemoTemplatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoTemplatesTable> {
+  $$MemoTemplatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MemoTemplatesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MemoTemplatesTable,
+    MemoTemplateRow,
+    $$MemoTemplatesTableFilterComposer,
+    $$MemoTemplatesTableOrderingComposer,
+    $$MemoTemplatesTableAnnotationComposer,
+    $$MemoTemplatesTableCreateCompanionBuilder,
+    $$MemoTemplatesTableUpdateCompanionBuilder,
+    (
+      MemoTemplateRow,
+      BaseReferences<_$AppDatabase, $MemoTemplatesTable, MemoTemplateRow>
+    ),
+    MemoTemplateRow,
+    PrefetchHooks Function()> {
+  $$MemoTemplatesTableTableManager(_$AppDatabase db, $MemoTemplatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoTemplatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoTemplatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoTemplatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> category = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String> body = const Value.absent(),
+            Value<String?> content = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoTemplatesCompanion(
+            id: id,
+            ownerId: ownerId,
+            name: name,
+            kind: kind,
+            category: category,
+            title: title,
+            body: body,
+            content: content,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String ownerId,
+            required String name,
+            Value<String> kind = const Value.absent(),
+            Value<String> category = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String> body = const Value.absent(),
+            Value<String?> content = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoTemplatesCompanion.insert(
+            id: id,
+            ownerId: ownerId,
+            name: name,
+            kind: kind,
+            category: category,
+            title: title,
+            body: body,
+            content: content,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MemoTemplatesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MemoTemplatesTable,
+    MemoTemplateRow,
+    $$MemoTemplatesTableFilterComposer,
+    $$MemoTemplatesTableOrderingComposer,
+    $$MemoTemplatesTableAnnotationComposer,
+    $$MemoTemplatesTableCreateCompanionBuilder,
+    $$MemoTemplatesTableUpdateCompanionBuilder,
+    (
+      MemoTemplateRow,
+      BaseReferences<_$AppDatabase, $MemoTemplatesTable, MemoTemplateRow>
+    ),
+    MemoTemplateRow,
+    PrefetchHooks Function()>;
 typedef $$ItineraryPlansTableCreateCompanionBuilder = ItineraryPlansCompanion
     Function({
   required String id,
@@ -23000,6 +23857,8 @@ class $AppDatabaseManager {
       $$TodoTemplatesTableTableManager(_db, _db.todoTemplates);
   $$TodoTemplateItemsTableTableManager get todoTemplateItems =>
       $$TodoTemplateItemsTableTableManager(_db, _db.todoTemplateItems);
+  $$MemoTemplatesTableTableManager get memoTemplates =>
+      $$MemoTemplatesTableTableManager(_db, _db.memoTemplates);
   $$ItineraryPlansTableTableManager get itineraryPlans =>
       $$ItineraryPlansTableTableManager(_db, _db.itineraryPlans);
   $$ItinerarySpotsTableTableManager get itinerarySpots =>

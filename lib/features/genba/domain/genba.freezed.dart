@@ -2834,12 +2834,20 @@ mixin _$GenbaMemo {
   String get genbaId => throw _privateConstructorUsedError;
   String get ownerId => throw _privateConstructorUsedError;
 
-  /// 種類（テンプレート由来。同一種類の複数作成を許容する）。
+  /// レガシー/テンプレート由来の種類ラベル（旧§7.7）。メモ種類は [kind] が主。
+  /// 既定テンプレートの識別（today_card の集合メモ表示など）に用いる。
   MemoCategory get category => throw _privateConstructorUsedError;
 
-  /// メモのタイトル（新規時は種類名を初期値にする）。
+  /// メモ種類（§7.7 改訂）: 自由メモ/チェックリスト/BINGO/投票。動き・UI・
+  /// データ構造を表す。既存メモは [MemoKind.free]。
+  MemoKind get kind => throw _privateConstructorUsedError;
+
+  /// タイトル（全種類で使う。自由メモは本文も使う）。
   String get title => throw _privateConstructorUsedError;
   String get body => throw _privateConstructorUsedError;
+
+  /// 種類別の構造化コンテンツ（自由メモは null。checklist/bingo/vote で使用）。
+  MemoContent? get content => throw _privateConstructorUsedError;
 
   /// 現場内での並び順（小さいほど上）。
   int get sortOrder => throw _privateConstructorUsedError;
@@ -2868,11 +2876,15 @@ abstract class $GenbaMemoCopyWith<$Res> {
       String genbaId,
       String ownerId,
       MemoCategory category,
+      MemoKind kind,
       String title,
       String body,
+      MemoContent? content,
       int sortOrder,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
+
+  $MemoContentCopyWith<$Res>? get content;
 }
 
 /// @nodoc
@@ -2894,8 +2906,10 @@ class _$GenbaMemoCopyWithImpl<$Res, $Val extends GenbaMemo>
     Object? genbaId = null,
     Object? ownerId = null,
     Object? category = null,
+    Object? kind = null,
     Object? title = null,
     Object? body = null,
+    Object? content = freezed,
     Object? sortOrder = null,
     Object? createdAt = null,
     Object? updatedAt = null,
@@ -2917,6 +2931,10 @@ class _$GenbaMemoCopyWithImpl<$Res, $Val extends GenbaMemo>
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
               as MemoCategory,
+      kind: null == kind
+          ? _value.kind
+          : kind // ignore: cast_nullable_to_non_nullable
+              as MemoKind,
       title: null == title
           ? _value.title
           : title // ignore: cast_nullable_to_non_nullable
@@ -2925,6 +2943,10 @@ class _$GenbaMemoCopyWithImpl<$Res, $Val extends GenbaMemo>
           ? _value.body
           : body // ignore: cast_nullable_to_non_nullable
               as String,
+      content: freezed == content
+          ? _value.content
+          : content // ignore: cast_nullable_to_non_nullable
+              as MemoContent?,
       sortOrder: null == sortOrder
           ? _value.sortOrder
           : sortOrder // ignore: cast_nullable_to_non_nullable
@@ -2938,6 +2960,20 @@ class _$GenbaMemoCopyWithImpl<$Res, $Val extends GenbaMemo>
           : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime,
     ) as $Val);
+  }
+
+  /// Create a copy of GenbaMemo
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $MemoContentCopyWith<$Res>? get content {
+    if (_value.content == null) {
+      return null;
+    }
+
+    return $MemoContentCopyWith<$Res>(_value.content!, (value) {
+      return _then(_value.copyWith(content: value) as $Val);
+    });
   }
 }
 
@@ -2954,11 +2990,16 @@ abstract class _$$GenbaMemoImplCopyWith<$Res>
       String genbaId,
       String ownerId,
       MemoCategory category,
+      MemoKind kind,
       String title,
       String body,
+      MemoContent? content,
       int sortOrder,
       @UtcDateTimeConverter() DateTime createdAt,
       @UtcDateTimeConverter() DateTime updatedAt});
+
+  @override
+  $MemoContentCopyWith<$Res>? get content;
 }
 
 /// @nodoc
@@ -2978,8 +3019,10 @@ class __$$GenbaMemoImplCopyWithImpl<$Res>
     Object? genbaId = null,
     Object? ownerId = null,
     Object? category = null,
+    Object? kind = null,
     Object? title = null,
     Object? body = null,
+    Object? content = freezed,
     Object? sortOrder = null,
     Object? createdAt = null,
     Object? updatedAt = null,
@@ -3001,6 +3044,10 @@ class __$$GenbaMemoImplCopyWithImpl<$Res>
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
               as MemoCategory,
+      kind: null == kind
+          ? _value.kind
+          : kind // ignore: cast_nullable_to_non_nullable
+              as MemoKind,
       title: null == title
           ? _value.title
           : title // ignore: cast_nullable_to_non_nullable
@@ -3009,6 +3056,10 @@ class __$$GenbaMemoImplCopyWithImpl<$Res>
           ? _value.body
           : body // ignore: cast_nullable_to_non_nullable
               as String,
+      content: freezed == content
+          ? _value.content
+          : content // ignore: cast_nullable_to_non_nullable
+              as MemoContent?,
       sortOrder: null == sortOrder
           ? _value.sortOrder
           : sortOrder // ignore: cast_nullable_to_non_nullable
@@ -3033,9 +3084,11 @@ class _$GenbaMemoImpl implements _GenbaMemo {
       {required this.id,
       required this.genbaId,
       required this.ownerId,
-      required this.category,
+      this.category = MemoCategory.other,
+      this.kind = MemoKind.free,
       this.title = '',
       this.body = '',
+      this.content,
       this.sortOrder = 0,
       @UtcDateTimeConverter() required this.createdAt,
       @UtcDateTimeConverter() required this.updatedAt});
@@ -3050,17 +3103,29 @@ class _$GenbaMemoImpl implements _GenbaMemo {
   @override
   final String ownerId;
 
-  /// 種類（テンプレート由来。同一種類の複数作成を許容する）。
+  /// レガシー/テンプレート由来の種類ラベル（旧§7.7）。メモ種類は [kind] が主。
+  /// 既定テンプレートの識別（today_card の集合メモ表示など）に用いる。
   @override
+  @JsonKey()
   final MemoCategory category;
 
-  /// メモのタイトル（新規時は種類名を初期値にする）。
+  /// メモ種類（§7.7 改訂）: 自由メモ/チェックリスト/BINGO/投票。動き・UI・
+  /// データ構造を表す。既存メモは [MemoKind.free]。
+  @override
+  @JsonKey()
+  final MemoKind kind;
+
+  /// タイトル（全種類で使う。自由メモは本文も使う）。
   @override
   @JsonKey()
   final String title;
   @override
   @JsonKey()
   final String body;
+
+  /// 種類別の構造化コンテンツ（自由メモは null。checklist/bingo/vote で使用）。
+  @override
+  final MemoContent? content;
 
   /// 現場内での並び順（小さいほど上）。
   @override
@@ -3075,7 +3140,7 @@ class _$GenbaMemoImpl implements _GenbaMemo {
 
   @override
   String toString() {
-    return 'GenbaMemo(id: $id, genbaId: $genbaId, ownerId: $ownerId, category: $category, title: $title, body: $body, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'GenbaMemo(id: $id, genbaId: $genbaId, ownerId: $ownerId, category: $category, kind: $kind, title: $title, body: $body, content: $content, sortOrder: $sortOrder, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -3088,8 +3153,10 @@ class _$GenbaMemoImpl implements _GenbaMemo {
             (identical(other.ownerId, ownerId) || other.ownerId == ownerId) &&
             (identical(other.category, category) ||
                 other.category == category) &&
+            (identical(other.kind, kind) || other.kind == kind) &&
             (identical(other.title, title) || other.title == title) &&
             (identical(other.body, body) || other.body == body) &&
+            (identical(other.content, content) || other.content == content) &&
             (identical(other.sortOrder, sortOrder) ||
                 other.sortOrder == sortOrder) &&
             (identical(other.createdAt, createdAt) ||
@@ -3101,7 +3168,7 @@ class _$GenbaMemoImpl implements _GenbaMemo {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, genbaId, ownerId, category,
-      title, body, sortOrder, createdAt, updatedAt);
+      kind, title, body, content, sortOrder, createdAt, updatedAt);
 
   /// Create a copy of GenbaMemo
   /// with the given fields replaced by the non-null parameter values.
@@ -3124,9 +3191,11 @@ abstract class _GenbaMemo implements GenbaMemo {
           {required final String id,
           required final String genbaId,
           required final String ownerId,
-          required final MemoCategory category,
+          final MemoCategory category,
+          final MemoKind kind,
           final String title,
           final String body,
+          final MemoContent? content,
           final int sortOrder,
           @UtcDateTimeConverter() required final DateTime createdAt,
           @UtcDateTimeConverter() required final DateTime updatedAt}) =
@@ -3142,15 +3211,25 @@ abstract class _GenbaMemo implements GenbaMemo {
   @override
   String get ownerId;
 
-  /// 種類（テンプレート由来。同一種類の複数作成を許容する）。
+  /// レガシー/テンプレート由来の種類ラベル（旧§7.7）。メモ種類は [kind] が主。
+  /// 既定テンプレートの識別（today_card の集合メモ表示など）に用いる。
   @override
   MemoCategory get category;
 
-  /// メモのタイトル（新規時は種類名を初期値にする）。
+  /// メモ種類（§7.7 改訂）: 自由メモ/チェックリスト/BINGO/投票。動き・UI・
+  /// データ構造を表す。既存メモは [MemoKind.free]。
+  @override
+  MemoKind get kind;
+
+  /// タイトル（全種類で使う。自由メモは本文も使う）。
   @override
   String get title;
   @override
   String get body;
+
+  /// 種類別の構造化コンテンツ（自由メモは null。checklist/bingo/vote で使用）。
+  @override
+  MemoContent? get content;
 
   /// 現場内での並び順（小さいほど上）。
   @override

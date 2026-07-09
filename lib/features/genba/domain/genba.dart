@@ -4,6 +4,9 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../core/images/image_upload_status.dart';
 import '../../../core/time/date_only.dart';
+import 'memo_content.dart';
+
+export 'memo_content.dart';
 
 part 'genba.freezed.dart';
 part 'genba.g.dart';
@@ -615,53 +618,12 @@ abstract class GenbaTodo with _$GenbaTodo {
       _$GenbaTodoFromJson(json);
 }
 
-/// メモの種類＝作成時に選べるテンプレート（§7.7）。現場ごとに同じ種類のメモを
-/// 複数作成できる。[other] は「テンプレートを使わず自由に追加」を表す。
-/// テンプレートは入力欄の初期値・入力例の補助であり、保存データとして強制しない。
-enum MemoCategory {
-  @JsonValue('free')
-  free,
-  @JsonValue('goods')
-  goods,
-  @JsonValue('meetup')
-  meetup,
-  @JsonValue('around')
-  around,
-  @JsonValue('notice')
-  notice,
-  @JsonValue('other')
-  other,
-}
+// メモ種類([MemoKind])・区分([MemoCategory])・構造化コンテンツ([MemoContent])は
+// memo_content.dart に定義し、このファイルから re-export する（§7.7 改訂）。
 
-extension MemoCategoryLabel on MemoCategory {
-  /// 種類のラベル。新規メモの初期タイトルにも使う。
-  String get label => switch (this) {
-        MemoCategory.free => '自由メモ',
-        MemoCategory.goods => '物販',
-        MemoCategory.meetup => '集合場所',
-        MemoCategory.around => '周辺施設',
-        MemoCategory.notice => '注意事項',
-        MemoCategory.other => 'メモ',
-      };
-
-  /// 作成メニューでの選択肢ラベル（[other] は「テンプレートなし」を明示）。
-  String get templateChoiceLabel =>
-      this == MemoCategory.other ? 'テンプレートなし' : label;
-
-  /// 種類選択で提示する順序（テンプレート5種→テンプレートなし）。
-  static List<MemoCategory> get templateChoices => const [
-        MemoCategory.free,
-        MemoCategory.goods,
-        MemoCategory.meetup,
-        MemoCategory.around,
-        MemoCategory.notice,
-        MemoCategory.other,
-      ];
-}
-
-/// 現場のメモ（§7.7）。同じ種類([category])のメモを複数持てる。ID単位で
-/// 作成・編集・削除・並び替え・同期する。タイトルと本文の両方が空のメモは
-/// 保存しない（呼び出し側で担保）。
+/// 現場のメモ（§7.7）。種類([kind])ごとに複数持てる。ID単位で作成・編集・削除・
+/// 並び替え・同期する。自由メモはタイトルと本文の両方が空なら保存しない
+/// （呼び出し側で担保）。
 @freezed
 abstract class GenbaMemo with _$GenbaMemo {
   @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
@@ -670,12 +632,20 @@ abstract class GenbaMemo with _$GenbaMemo {
     required String genbaId,
     required String ownerId,
 
-    /// 種類（テンプレート由来。同一種類の複数作成を許容する）。
-    required MemoCategory category,
+    /// レガシー/テンプレート由来の種類ラベル（旧§7.7）。メモ種類は [kind] が主。
+    /// 既定テンプレートの識別（today_card の集合メモ表示など）に用いる。
+    @Default(MemoCategory.other) MemoCategory category,
 
-    /// メモのタイトル（新規時は種類名を初期値にする）。
+    /// メモ種類（§7.7 改訂）: 自由メモ/チェックリスト/BINGO/投票。動き・UI・
+    /// データ構造を表す。既存メモは [MemoKind.free]。
+    @Default(MemoKind.free) MemoKind kind,
+
+    /// タイトル（全種類で使う。自由メモは本文も使う）。
     @Default('') String title,
     @Default('') String body,
+
+    /// 種類別の構造化コンテンツ（自由メモは null。checklist/bingo/vote で使用）。
+    MemoContent? content,
 
     /// 現場内での並び順（小さいほど上）。
     @Default(0) int sortOrder,

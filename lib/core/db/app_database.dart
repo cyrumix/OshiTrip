@@ -288,9 +288,15 @@ class GenbaMemos extends Table {
   TextColumn get ownerId => text()();
   TextColumn get category => text()();
 
+  /// メモ種類（§7.7 改訂, schema v15）: free/checklist/bingo/vote。既存は free。
+  TextColumn get kind => text().withDefault(const Constant('free'))();
+
   /// メモのタイトル（複数メモ化, schema v12）。既存行は種類名を初期値に移行。
   TextColumn get title => text().withDefault(const Constant(''))();
   TextColumn get body => text().withDefault(const Constant(''))();
+
+  /// 種類別の構造化コンテンツ（JSON, schema v15）。自由メモは NULL。
+  TextColumn get content => text().nullable()();
 
   /// 現場内の並び順（v12）。
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
@@ -301,6 +307,25 @@ class GenbaMemos extends Table {
   Set<Column<Object>> get primaryKey => {id};
 
   // v12 で「現場×種類ごと1件」のユニーク制約を撤廃し、同一種類の複数メモを許容。
+}
+
+/// メモテンプレート（§7.7 改訂 / schema v15）。Todo テンプレートと同様に owner
+/// スコープで保存・同期する。雛形の構造化データは content(JSON) に持つ（単一行）。
+@DataClassName('MemoTemplateRow')
+class MemoTemplates extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get name => text()();
+  TextColumn get kind => text().withDefault(const Constant('free'))();
+  TextColumn get category => text().withDefault(const Constant('other'))();
+  TextColumn get title => text().withDefault(const Constant(''))();
+  TextColumn get body => text().withDefault(const Constant(''))();
+  TextColumn get content => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
 }
 
 @DataClassName('MemoryEntryRow')
@@ -754,6 +779,7 @@ class FormDrafts extends Table {
     OshiAnniversaries,
     TodoTemplates,
     TodoTemplateItems,
+    MemoTemplates,
     ItineraryPlans,
     ItinerarySpots,
     ItinerarySpotLinks,
@@ -805,8 +831,12 @@ class AppDatabase extends _$AppDatabase {
   /// v14: pending_image_deletions（画像ファイル削除の再試行キュー, Issue1）を
   /// 追加。写真メタデータ削除は DB トランザクションで確定し、ファイル削除失敗は
   /// このキューへ残す。新規テーブルの追加のみで既存データには触れない。
+  ///
+  /// v15: メモ種類（§7.7 改訂）。genba_memos に kind/content を追加（既存メモは
+  /// kind='free'・content=NULL の自由メモ扱い、消さない）。memo_templates
+  /// テーブルを新規追加（Todo テンプレートと同思想の保存・再利用）。
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -972,6 +1002,22 @@ class AppDatabase extends _$AppDatabase {
             // 画像削除の再試行キュー（新規テーブルの追加のみ）。
             await m.createTable(pendingImageDeletions);
           }
+          if (from < 15) {
+            // メモ種類（§7.7 改訂）。genba_memos へ kind/content を冪等 addColumn
+            // し、既存メモは kind='free'（自由メモ）へ移行して消さない。
+            if (!await _hasColumn(m, 'genba_memos', 'kind')) {
+              await m.addColumn(genbaMemos, genbaMemos.kind);
+            }
+            if (!await _hasColumn(m, 'genba_memos', 'content')) {
+              await m.addColumn(genbaMemos, genbaMemos.content);
+            }
+            await m.database.customStatement(
+              "UPDATE genba_memos SET kind = 'free' "
+              "WHERE kind IS NULL OR trim(kind) = ''",
+            );
+            // メモテンプレート（新規テーブルの追加のみ）。
+            await m.createTable(memoTemplates);
+          }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
           await _createItineraryReferenceUniqueIndices(m);
@@ -1101,6 +1147,7 @@ class AppDatabase extends _$AppDatabase {
       'idx_todo_template_items_template',
       'ON todo_template_items (template_id)',
     );
+    await idx('idx_memo_templates_owner', 'ON memo_templates (owner_id)');
     await idx(
       'idx_genbas_owner_oshi_group',
       'ON genbas (owner_id, oshi_group_id)',

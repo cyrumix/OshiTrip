@@ -8,7 +8,9 @@ import '../features/auth/data/demo_auth_repository.dart';
 import '../features/auth/data/supabase_auth_repository.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/genba/data/genba_repository_impl.dart';
+import '../features/genba/data/memo_template_repository_impl.dart';
 import '../features/genba/domain/genba_repository.dart';
+import '../features/genba/domain/memo_template_repository.dart';
 import '../features/itinerary/data/itinerary_repository_impl.dart';
 import '../features/itinerary/domain/itinerary_repository.dart';
 import '../features/memory/data/memory_repository_impl.dart';
@@ -258,6 +260,18 @@ final templateRepositoryProvider = Provider<TemplateRepository>((ref) {
   );
 });
 
+final memoTemplateRepositoryProvider = Provider<MemoTemplateRepository>((ref) {
+  final scope = ref.watch(localDataScopeProvider);
+  return MemoTemplateRepositoryImpl(
+    db: ref.watch(databaseProvider),
+    outbox: ref.watch(outboxStoreProvider),
+    syncEngine: ref.watch(syncEngineProvider),
+    clock: ref.watch(clockProvider),
+    ownerIdResolver: () => scope.ownerIdOrNull,
+    remoteResolver: () => _remoteClientOrNull(ref),
+  );
+});
+
 final itineraryRepositoryProvider = Provider<ItineraryRepository>((ref) {
   final scope = ref.watch(localDataScopeProvider);
   return ItineraryRepositoryImpl(
@@ -296,6 +310,9 @@ final sessionRefresherProvider = Provider<SessionRefresher>((ref) {
         .refreshFromRemote(isStale: isStale),
     refreshItinerary: (isStale) => ref
         .read(itineraryRepositoryProvider)
+        .refreshFromRemote(isStale: isStale),
+    refreshMemoTemplate: (isStale) => ref
+        .read(memoTemplateRepositoryProvider)
         .refreshFromRemote(isStale: isStale),
   );
 });
@@ -360,6 +377,11 @@ Future<Result<void>> _adoptServerEntityRouter(
   if (_templateTables.contains(entityTable)) {
     return ref
         .read(templateRepositoryProvider)
+        .adoptServerEntity(entityTable, entityId);
+  }
+  if (entityTable == SyncEntity.memoTemplates) {
+    return ref
+        .read(memoTemplateRepositoryProvider)
         .adoptServerEntity(entityTable, entityId);
   }
   if (_itineraryTables.contains(entityTable)) {

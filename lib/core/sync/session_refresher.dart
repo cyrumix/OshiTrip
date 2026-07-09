@@ -6,6 +6,10 @@ import '../error/result.dart';
 /// 適用を中断する）。SessionRefresher が世代/pause に基づいて渡す。
 typedef ScopedRefresh = Future<Result<void>> Function(bool Function() isStale);
 
+/// 既定の no-op refresh（未指定の追加集約を安全側で無効化する）。
+Future<Result<void>> _noRefresh(bool Function() isStale) async =>
+    const Ok(null);
+
 /// 認証セッション確定（復元・ログイン）時に、リモートからのキャッシュ更新
 /// （background pull）を安全な順序・重複なし・認証切替と排他して起動する（H-02）。
 ///
@@ -26,17 +30,20 @@ class SessionRefresher {
     required ScopedRefresh refreshOshi,
     required ScopedRefresh refreshTemplate,
     required ScopedRefresh refreshItinerary,
+    ScopedRefresh refreshMemoTemplate = _noRefresh,
   })  : _refreshGenba = refreshGenba,
         _refreshMemory = refreshMemory,
         _refreshOshi = refreshOshi,
         _refreshTemplate = refreshTemplate,
-        _refreshItinerary = refreshItinerary;
+        _refreshItinerary = refreshItinerary,
+        _refreshMemoTemplate = refreshMemoTemplate;
 
   final ScopedRefresh _refreshGenba;
   final ScopedRefresh _refreshMemory;
   final ScopedRefresh _refreshOshi;
   final ScopedRefresh _refreshTemplate;
   final ScopedRefresh _refreshItinerary;
+  final ScopedRefresh _refreshMemoTemplate;
 
   int _generation = 0;
   String? _activeOwner;
@@ -128,6 +135,7 @@ class SessionRefresher {
       _refreshOshi(isStale),
       _refreshTemplate(isStale),
       _refreshItinerary(isStale),
+      _refreshMemoTemplate(isStale),
     ]);
     lastResults.addAll(rest);
     // 完了時点でも current なら「この owner は pull 済み」と記録する。

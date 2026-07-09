@@ -24,6 +24,7 @@ class SyncEntity {
   static const oshiAnniversaries = 'oshi_anniversaries';
   static const todoTemplates = 'todo_templates';
   static const todoTemplateItems = 'todo_template_items';
+  static const memoTemplates = 'memo_templates';
   static const itineraryPlans = 'itinerary_plans';
   static const itinerarySpots = 'itinerary_spots';
   static const itinerarySpotLinks = 'itinerary_spot_links';
@@ -47,6 +48,7 @@ class SyncEntity {
     oshiAnniversaries,
     todoTemplates,
     todoTemplateItems,
+    memoTemplates,
     itineraryPlans,
     itinerarySpots,
     itinerarySpotLinks,
@@ -72,6 +74,7 @@ class SyncEntity {
         oshiAnniversaries => '記念日',
         todoTemplates => 'テンプレート',
         todoTemplateItems => 'テンプレート項目',
+        memoTemplates => 'メモテンプレート',
         itineraryPlans => '計画',
         itinerarySpots => 'スポット',
         itinerarySpotLinks => 'スポットのリンク',

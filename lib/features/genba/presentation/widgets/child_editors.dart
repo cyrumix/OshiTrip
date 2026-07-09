@@ -68,24 +68,6 @@ Future<void> showTodoEditor(
       ),
     );
 
-Future<void> showMemoEditor(
-  BuildContext context,
-  WidgetRef ref, {
-  required String genbaId,
-  required MemoCategory category,
-  GenbaMemo? existing,
-  int initialSortOrder = 0,
-}) =>
-    _showEditorSheet(
-      context,
-      _MemoEditor(
-        genbaId: genbaId,
-        category: category,
-        existing: existing,
-        initialSortOrder: initialSortOrder,
-      ),
-    );
-
 Future<void> _showEditorSheet(BuildContext context, Widget child) {
   return showModalBottomSheet<void>(
     context: context,
@@ -884,105 +866,6 @@ class _TodoEditorState extends ConsumerState<_TodoEditor> {
           controller: _memo,
           decoration: const InputDecoration(labelText: 'メモ'),
           maxLines: 2,
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// メモ（§7.7）
-// ---------------------------------------------------------------------------
-
-class _MemoEditor extends ConsumerStatefulWidget {
-  const _MemoEditor({
-    required this.genbaId,
-    required this.category,
-    this.existing,
-    this.initialSortOrder = 0,
-  });
-
-  final String genbaId;
-  final MemoCategory category;
-  final GenbaMemo? existing;
-  final int initialSortOrder;
-
-  @override
-  ConsumerState<_MemoEditor> createState() => _MemoEditorState();
-}
-
-class _MemoEditorState extends ConsumerState<_MemoEditor> {
-  late final TextEditingController _title;
-  late final TextEditingController _body;
-
-  @override
-  void initState() {
-    super.initState();
-    // 新規はテンプレート種類名を初期タイトルにする（「テンプレなし」は空）。
-    // テンプレートは入力補助であり、保存データとして強制しない。
-    final initialTitle = widget.existing?.title ??
-        (widget.category == MemoCategory.other ? '' : widget.category.label);
-    _title = TextEditingController(text: initialTitle);
-    _body = TextEditingController(text: widget.existing?.body ?? '');
-  }
-
-  @override
-  void dispose() {
-    _title.dispose();
-    _body.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final title = _title.text.trim();
-    final body = _body.text.trim();
-    // タイトルと本文がどちらも空のメモは保存しない（誤保存防止）。
-    if (title.isEmpty && body.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('タイトルか本文のどちらかを入力してください')),
-      );
-      return;
-    }
-    final now = ref.read(clockProvider).now().toUtc();
-    final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
-    final memo = GenbaMemo(
-      id: widget.existing?.id ?? const Uuid().v4(),
-      genbaId: widget.genbaId,
-      ownerId: widget.existing?.ownerId ?? owner,
-      category: widget.category,
-      title: title,
-      body: body,
-      sortOrder: widget.existing?.sortOrder ?? widget.initialSortOrder,
-      createdAt: widget.existing?.createdAt ?? now,
-      updatedAt: now,
-    );
-    final result = await ref.read(genbaRepositoryProvider).upsertMemo(memo);
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    _showResult(context, result, 'メモを保存しました');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEdit = widget.existing != null;
-    return _EditorScaffold(
-      title: isEdit ? 'メモを編集' : '${widget.category.templateChoiceLabel}を追加',
-      onSave: _save,
-      children: [
-        TextField(
-          controller: _title,
-          decoration: const InputDecoration(labelText: 'タイトル'),
-          textInputAction: TextInputAction.next,
-          autofocus: !isEdit,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _body,
-          decoration: const InputDecoration(
-            labelText: '本文',
-            alignLabelWithHint: true,
-          ),
-          maxLines: 5,
         ),
       ],
     );

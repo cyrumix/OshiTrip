@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../../../core/db/app_database.dart';
 import '../../../core/images/image_upload_status.dart';
 import '../domain/genba.dart';
+import '../domain/memo_template.dart';
 
 /// Drift 行 ⇄ ドメインエンティティのマッピング。
 ///
@@ -242,8 +243,10 @@ GenbaMemo memoFromRow(GenbaMemoRow row) => GenbaMemo(
         row.category,
         MemoCategory.free,
       ),
+      kind: _enumFromJson(MemoKind.values, row.kind, MemoKind.free),
       title: row.title,
       body: row.body,
+      content: _memoContentFromJson(row.content),
       sortOrder: row.sortOrder,
       createdAt: DateTime.parse(row.createdAt),
       updatedAt: DateTime.parse(row.updatedAt),
@@ -254,12 +257,61 @@ GenbaMemosCompanion memoToCompanion(GenbaMemo m) => GenbaMemosCompanion.insert(
       genbaId: m.genbaId,
       ownerId: m.ownerId,
       category: m.category.name,
+      kind: Value(m.kind.name),
       title: Value(m.title),
       body: Value(m.body),
+      content: Value(_memoContentToJson(m.content)),
       sortOrder: Value(m.sortOrder),
       createdAt: _ts(m.createdAt),
       updatedAt: _ts(m.updatedAt),
     );
+
+/// メモテンプレート（§7.7 改訂）の行 ⇄ ドメイン。
+MemoTemplate memoTemplateFromRow(MemoTemplateRow row) => MemoTemplate(
+      id: row.id,
+      ownerId: row.ownerId,
+      name: row.name,
+      kind: _enumFromJson(MemoKind.values, row.kind, MemoKind.free),
+      category: _enumFromJson(
+        MemoCategory.values,
+        row.category,
+        MemoCategory.other,
+      ),
+      title: row.title,
+      body: row.body,
+      content: _memoContentFromJson(row.content),
+      createdAt: DateTime.parse(row.createdAt),
+      updatedAt: DateTime.parse(row.updatedAt),
+    );
+
+MemoTemplatesCompanion memoTemplateToCompanion(MemoTemplate t) =>
+    MemoTemplatesCompanion.insert(
+      id: t.id,
+      ownerId: t.ownerId,
+      name: t.name,
+      kind: Value(t.kind.name),
+      category: Value(t.category.name),
+      title: Value(t.title),
+      body: Value(t.body),
+      content: Value(_memoContentToJson(t.content)),
+      createdAt: _ts(t.createdAt),
+      updatedAt: _ts(t.updatedAt),
+    );
+
+/// content(JSON TEXT) ⇄ [MemoContent]。null/空/壊れた JSON は安全に null 扱い。
+MemoContent? _memoContentFromJson(String? raw) {
+  if (raw == null || raw.trim().isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, dynamic>) return MemoContent.fromJson(decoded);
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+String? _memoContentToJson(MemoContent? content) =>
+    content == null ? null : jsonEncode(content.toJson());
 
 String _date(DateTime d) {
   final m = d.month.toString().padLeft(2, '0');

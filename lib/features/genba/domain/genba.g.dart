@@ -363,9 +363,15 @@ _$GenbaMemoImpl _$$GenbaMemoImplFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String,
       genbaId: json['genba_id'] as String,
       ownerId: json['owner_id'] as String,
-      category: $enumDecode(_$MemoCategoryEnumMap, json['category']),
+      category: $enumDecodeNullable(_$MemoCategoryEnumMap, json['category']) ??
+          MemoCategory.other,
+      kind:
+          $enumDecodeNullable(_$MemoKindEnumMap, json['kind']) ?? MemoKind.free,
       title: json['title'] as String? ?? '',
       body: json['body'] as String? ?? '',
+      content: json['content'] == null
+          ? null
+          : MemoContent.fromJson(json['content'] as Map<String, dynamic>),
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
       createdAt:
           const UtcDateTimeConverter().fromJson(json['created_at'] as String),
@@ -379,8 +385,10 @@ Map<String, dynamic> _$$GenbaMemoImplToJson(_$GenbaMemoImpl instance) =>
       'genba_id': instance.genbaId,
       'owner_id': instance.ownerId,
       'category': _$MemoCategoryEnumMap[instance.category]!,
+      'kind': _$MemoKindEnumMap[instance.kind]!,
       'title': instance.title,
       'body': instance.body,
+      'content': instance.content?.toJson(),
       'sort_order': instance.sortOrder,
       'created_at': const UtcDateTimeConverter().toJson(instance.createdAt),
       'updated_at': const UtcDateTimeConverter().toJson(instance.updatedAt),
@@ -393,4 +401,11 @@ const _$MemoCategoryEnumMap = {
   MemoCategory.around: 'around',
   MemoCategory.notice: 'notice',
   MemoCategory.other: 'other',
+};
+
+const _$MemoKindEnumMap = {
+  MemoKind.free: 'free',
+  MemoKind.checklist: 'checklist',
+  MemoKind.bingo: 'bingo',
+  MemoKind.vote: 'vote',
 };
