@@ -2,13 +2,21 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/db/app_database.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
-import '../../../core/network/network_timeout.dart';
 import '../domain/routes_entitlement.dart';
+
+/// 現在ownerの entitlement をリモートから1行取得する関数。
+///
+/// デモ・未ログイン時は null を返すこと（呼び出し側の refresh を no-op 化する）。
+/// 本番実装（providers.dart）は Supabase を `.withRemoteTimeout()` 付きで叩く。
+/// この seam により、実 Supabase 接続なしに timeout/成功/失敗の各経路を単体
+/// テストできる（`ConflictResolver` の `fetchRemoteRows` と同じ設計）。
+typedef EntitlementFetcher = Future<Map<String, dynamic>?> Function(
+  String owner,
+);
 
 /// [RoutesEntitlementRepository] の実装。`routes_entitlements`（owner単位で1行、
 /// クライアントは書き込まない読み取り専用レプリカ）を Drift から監視し、
@@ -22,14 +30,17 @@ class RoutesEntitlementRepositoryImpl implements RoutesEntitlementRepository {
   RoutesEntitlementRepositoryImpl({
     required AppDatabase db,
     required String? Function() ownerIdResolver,
-    required SupabaseClient? Function() remoteResolver,
+    required EntitlementFetcher? Function() fetcherResolver,
   })  : _db = db,
         _ownerId = ownerIdResolver,
-        _remote = remoteResolver;
+        _fetcherResolver = fetcherResolver;
 
   final AppDatabase _db;
   final String? Function() _ownerId;
-  final SupabaseClient? Function() _remote;
+
+  /// デモ・未ログイン時は null（refresh を no-op 化）。ログイン時は Supabase を
+  /// `.withRemoteTimeout()` 付きで叩く fetcher を返す（providers.dart が供給）。
+  final EntitlementFetcher? Function() _fetcherResolver;
 
   @override
   Stream<bool> watchIsPremium() {
@@ -45,17 +56,13 @@ class RoutesEntitlementRepositoryImpl implements RoutesEntitlementRepository {
   @override
   Future<Result<void>> refreshFromRemote({bool Function()? isStale}) async {
     final owner = _ownerId();
-    final client = _remote();
-    if (owner == null || client == null) return const Ok(null); // デモ/未ログイン
+    final fetch = _fetcherResolver();
+    if (owner == null || fetch == null) return const Ok(null); // デモ/未ログイン
 
     try {
-      // 共通タイムアウトを課す（R8-C の通信タイムアウト方針。無期限ハングを禁止）。
-      final row = await client
-          .from('user_entitlements')
-          .select('premium_routes_live, updated_at')
-          .eq('owner_id', owner)
-          .maybeSingle()
-          .withRemoteTimeout();
+      // fetcher 側で共通タイムアウト（`.withRemoteTimeout()`）を課す。TimeoutException
+      // はここで NetworkFailure へ変換する（R8-C の通信タイムアウト方針）。
+      final row = await fetch(owner);
       final isPremium = row?['premium_routes_live'] as bool? ?? false;
       final updatedAt = row?['updated_at'] as String? ??
           DateTime.now().toUtc().toIso8601String();

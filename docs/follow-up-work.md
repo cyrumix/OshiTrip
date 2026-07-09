@@ -103,14 +103,21 @@ Claude Opus 4.8 で R8-A → R8-C → R8-B の順に是正した（`docs/decisio
 18. **Google Maps／Places MVP連携**（サーバー仲介、Field Mask、session token、帰属、クォータ）
 19. **Google Routes MVP連携**（公共交通、手動フォールバック、キャッシュ、明示再計算）
 20. **旅程共有・共同編集・通知・思い出連携**
-21. **共有概算経路（`shared_route_estimates`）のFlutter側再利用**: Phase 4では
-    DB基盤（スキーマ・RLS・モデレーション・不変条件・pgTAP）と、routes-proxy／
-    RoutesGateway実装（Google Routesライブ取得）までを実装した。**共有概算経路を
-    Flutter側で検索・通常表示に使うクライアント実装（owner境界・approvedのみ・
-    data_origin/rights_basis確認つきの再利用UI/Repository）は未実装**。旅程作成の
-    通常表示で「保存済み概算経路を優先」する動作は、各旅程内の `itinerary_legs`
-    （手動または権利根拠つきの永続概算値）で機能的に満たしており、クロスユーザー
-    再利用（他人の権利確認済み概算経路を共有マスタから引く）は本項目で実装する。
+21. **共有概算経路（`shared_route_estimates`）のFlutter側再利用（UI・Repository）**:
+    Phase 4では DB基盤（スキーマ・RLS・モデレーション・不変条件・pgTAP）、routes-proxy／
+    RoutesGateway実装（Google Routesライブ取得）、および**再利用の強制ゲート**
+    （`shared_route_estimate.dart`: `parseSharedRouteEstimate`／
+    `sharedRouteEstimateReuseError` — approved のみ／data_origin4種で 'google' 等を型で
+    却下／rights_basis 必須）までを実装した。**残りは、この強制ゲートを通す
+    読み取りRepository と UI表示**。UI表示は「旅程スポット→施設ID→共有経路」の突き合わせ
+    が必要で、施設ID解決には shared_facilities の Flutter クライアント（下記の前提）が
+    要る。旅程作成の通常表示で「保存済み概算経路を優先／Google自動呼び出しなし」は、
+    各旅程内の `itinerary_legs` と route_live_panel（明示タップのみ）で機能的に満たして
+    いる。クロスユーザー再利用（他人の権利確認済み概算経路を共有マスタから引く）を
+    本項目で完成させる。
+    - 前提: 18の一部（**shared_facilities の Flutter クライアント／施設ID解決**）が
+      本項目のブロッカー。18（Places連携）ではDB基盤のみ実装済みで、施設の検索・
+      ローカル同期クライアントは未実装（D-209）。
 
 詳細仕様は `docs/itinerary-plan-spec.md`、技術判断はADR-0010、実装指示は `docs/itinerary-implementation-prompts.md` を参照する。16〜19を旅程MVPとし、Google連携を含めて完成判定する。**共有概算経路のFlutter側再利用（項目21）が未実装のため、旅程MVPは完成扱いにしない**（実環境検証未了と併せ、decisions.md「旅程Phase 4 レビュー是正」節を参照）。AI旅程、混雑予測、ルート最適化、本課金はこのフェーズの対象外。
 

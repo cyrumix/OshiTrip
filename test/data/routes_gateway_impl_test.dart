@@ -66,6 +66,24 @@ void main() {
       expect(body['representativeDepartureUtc'], '2026-07-09T03:00:00.000Z');
     });
 
+    test('payload に Google API キーを一切含めない（キーはサーバー保持, ADR-0010 §3）', () async {
+      final transport = _FakeTransport(
+        response: const RoutesProxyResponse(
+          status: 200,
+          data: {'durationMinutes': 1, 'distanceMeters': 1},
+        ),
+      );
+      await gateway(transport).computeRoute(_request());
+      // 送出キーは固定の4つのみ。api/key 系のフィールドは存在しない。
+      expect(
+        transport.lastBody!.keys.toSet(),
+        {'origin', 'destination', 'travelMode', 'representativeDepartureUtc'},
+      );
+      final flat = transport.lastBody!.keys.join(',').toLowerCase();
+      expect(flat.contains('key'), isFalse);
+      expect(flat.contains('apikey'), isFalse);
+    });
+
     test('travelMode は wire 文字列へ変換される（walking/driving/bicycling）', () async {
       for (final entry in {
         ItineraryTravelMode.walking: 'walking',

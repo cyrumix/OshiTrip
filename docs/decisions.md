@@ -950,3 +950,37 @@ Google公式仕様の再確認: **2026-07-08**、`attributions[]` は `{provider
 - **旅程MVP完成判定**: 未完成。(1) 共有概算経路のFlutter側再利用が未実装（D-222）、
   (2) 実 Google Routes／pgTAP／実機検証が環境不足で未了。この2点が解消するまで
   旅程MVPは完成扱いにしない。
+
+## 旅程Phase 4 残タスク整理（2026-07-09, Claude Opus 4.8）
+
+Phase 4 の残タスク（共有概算経路の再利用・回帰テスト）を、既存実装を壊さず整理・
+実装した。Google Routes ライブ応答を恒久保存しない／共有キャッシュ化しない方針
+（D-180/D-181/D-215）は維持する。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-224 | 共有概算経路（`shared_route_estimates`）の**再利用の強制ゲートを純粋ドメイン層として先出し**した（`shared_route_estimate.dart`: `SharedRouteEstimate` DTO・`sharedRouteEstimateReuseError`・`parseSharedRouteEstimate`）。再利用の読み取りは必ず `parseSharedRouteEstimate` を通し、**approved のみ／data_origin は権利根拠4種のみ（'google' 等は型で表現不能＝弾く）／rights_basis 非空**を満たさない行を採用しない（多層防御。owner境界・approved可視性はサーバーRLSでも強制）。一方、**共有概算経路のUI表示（旅程スポット→施設ID解決→パネル表示）と読み取りRepositoryは本Phaseでも未実装**とし、次Phaseへ持ち越す | UIでの再利用は「旅程スポット↔施設ID↔共有経路」の突き合わせが必要で、施設ID解決には shared_facilities の Flutter クライアント（D-209で次Phase送り・現状 lib/ に一切存在しない）が前提になる。これを今Phaseで新規実装すると「後Phase機能の先行実装」に当たるため、**shared_facility.dart（D-209）と同じ「純粋な強制ゲートを先に出し、消費側（Repository/UI）は次Phase」方針**を踏襲。旅程内の「保存済み概算を優先」動作は各旅程の `itinerary_legs` で既に満たしており、通常表示で Google Routes を自動呼び出ししない不変条件（明示タップのみ）は route_live_panel で維持されている |
+| D-225 | `RoutesEntitlementRepositoryImpl` の Supabase 取得を `EntitlementFetcher` seam（`fetcherResolver`）へ切り出し、`refreshFromRemote` の全経路（timeout→NetworkFailure・取得成功→書込み・行なし→premium=false・認証切替 isStale→書込み抑止）を実 Supabase 接続なしで単体テストできるようにした。実クエリ＋`.withRemoteTimeout()` は providers.dart のクロージャへ移し、デモ/未ログインは fetcher=null で no-op | 初版は取得が直接 `client.from(...)` で、`client` を差し替えられず timeout/成功/失敗の回帰テストが書けなかった。`ConflictResolver.fetchRemoteRows` と同じ関数seamにして、タイムアウト・認証切替の各不変条件をテストで固定した。通信タイムアウトは provider のクロージャで全通信に適用され続ける（R8-C 方針を維持） |
+
+### 検証状況（旅程Phase 4 残タスク整理, 2026-07-09, Windows host / ASCIIパス `C:\src\OshiTrip`）
+
+- `dart analyze lib test integration_test` クリーン、`dart format` 差分整形済み、
+  `flutter test` **全パス**。本セッション新規/更新テスト:
+  `shared_route_estimate_test`（再利用ゲート・防御的パース: approved限定／
+  data_origin4種・'google'却下／rights_basis必須／非対応mode却下／欠損耐性）、
+  `routes_entitlement_repository_test`（fetcher経路の timeout→NetworkFailure・
+  取得成功書込み・行なし・isStale書込み抑止）、`routes_gateway_impl_test`（payload に
+  Google APIキーを含めない）。既存 Phase 1〜3・Phase 4 初版テストは無改変で緑。
+- **レビュー観点の担保**: (a) Google APIキーはアプリ非埋め込み（gateway payload に
+  キー無しをテスト、Web Service キーは routes-proxy が env で保持）。(b) Google Routes
+  ライブ結果は DB 非保存（panel テストで itinerary_legs 空を確認・共有DBへも書かない）。
+  (c) 通信タイムアウトは routes-proxy transport（functions.invoke）・entitlement fetcher
+  の双方で `.withRemoteTimeout()`。(d) 認証切替時は entitlement isStale で前owner値を
+  書かない（テスト済み）。(e) 無駄なGoogle呼び出し防止＝明示タップのみ・single-flight・
+  transit範囲外は呼ばない（テスト済み）。
+- **未実行（各実環境。成功扱いにしない）**: 実 Google Routes 呼び出し・routes-proxy
+  実デプロイ（**Deno/Docker/Google 鍵なし**）、`supabase test db`（pgTAP `0014`、
+  **Docker 未導入**、静的レビューのみ）、共有概算経路 UI 再利用の実機E2E（施設ID解決＝
+  shared_facilities クライアントが次Phase未実装のため、そもそも UI 導線が無い）。
+- **旅程MVP完成判定**: 変わらず**未完成**。共有概算経路の UI 再利用（施設ID解決＋表示）と
+  実 Google Routes／pgTAP／実機検証が未了。強制ゲート（D-224）と回帰テストは整備済み。

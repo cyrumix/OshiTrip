@@ -294,7 +294,18 @@ final routesEntitlementRepositoryProvider =
   return RoutesEntitlementRepositoryImpl(
     db: ref.watch(databaseProvider),
     ownerIdResolver: () => scope.ownerIdOrNull,
-    remoteResolver: () => _remoteClientOrNull(ref),
+    // デモ・未ログインでは null（refresh を no-op 化）。ログイン時は Supabase を
+    // 共通タイムアウト付きで叩く fetcher を返す（無期限ハング禁止, R8-C）。
+    fetcherResolver: () {
+      final client = _remoteClientOrNull(ref);
+      if (client == null) return null;
+      return (owner) => client
+          .from('user_entitlements')
+          .select('premium_routes_live, updated_at')
+          .eq('owner_id', owner)
+          .maybeSingle()
+          .withRemoteTimeout();
+    },
   );
 });
 
