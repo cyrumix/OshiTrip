@@ -7,6 +7,12 @@
 --   できない（Fix1）。service_role のみが承認・approved の修正を行える。
 -- - 承認済みは他ユーザーも閲覧できるが変更・削除できない。
 --
+-- service_role の検証は実際に `set local role service_role;` で実行する
+-- （postgres 超権限によるバイパスではなく、本番と同じ service_role の
+-- BYPASSRLS 属性による経路を検証する）。ロール切り替え自体は postgres
+-- （session_user、superuser）でなければ行えないため、その準備と
+-- service_role としての動作検証は明確に分離してコメントする。
+--
 -- 実行: supabase start → supabase db reset → supabase test db
 begin;
 
@@ -136,11 +142,21 @@ select results_eq(
 );
 
 -- ===========================================================================
--- service role（モデレーション）
+-- postgres 権限が必要な準備（役割切り替えのみ）
+--   `reset role` はセッション既定（postgres, superuser）へ戻す操作であり、
+--   NOLOGIN ロールである service_role への `SET ROLE` は superuser（または
+--   service_role のメンバー）でなければ行えない。ここでは役割切り替えの
+--   準備だけを行い、業務ロジックの検証は一切含めない。
 -- ===========================================================================
 reset role;
-set local role postgres;
+set local role service_role;
 select set_config('request.jwt.claims', null, true);
+
+-- ===========================================================================
+-- service_role の動作検証（以降は実際に service_role として実行する）
+--   postgres の superuser 属性ではなく、service_role 自身の BYPASSRLS 属性
+--   による RLS バイパスを検証する（本番の Edge Function 呼び出しと同じ経路）。
+-- ===========================================================================
 
 -- 0025 追加) service_role は管理／移行のため、任意の moderation_status で
 -- 直接 INSERT できる（draft-only 制限は一般ユーザーのみに適用される）。
@@ -150,7 +166,7 @@ select lives_ok(
     values ('f0000000-0000-0000-0000-000000000012',
             '11111111-1111-1111-1111-111111111111', '移行データ', 'licensed',
             'approved', '契約データの一括移行')$$,
-  'service role can insert facility directly at any moderation_status (e.g. approved) for admin/migration use'
+  'service_role can insert facility directly at any moderation_status (e.g. approved) for admin/migration use'
 );
 
 -- 8) rights_basis 付きで承認できる（Fix1 追加#5）
@@ -158,7 +174,7 @@ select lives_ok(
   $$update public.shared_facilities
       set moderation_status = 'approved', rights_basis = '施設提供の掲載許諾あり'
     where id = 'f0000000-0000-0000-0000-000000000001'$$,
-  'service role can approve with rights_basis'
+  'service_role can approve with rights_basis'
 );
 
 -- 9) rights_basis 無しの承認は拒否される
@@ -172,7 +188,7 @@ select throws_ok(
 select lives_ok(
   $$update public.shared_facilities set name = '会場前カフェ（公式表記）'
     where id = 'f0000000-0000-0000-0000-000000000001'$$,
-  'service role can manage (update) approved facility'
+  'service_role can manage (update) approved facility'
 );
 
 -- ===========================================================================
