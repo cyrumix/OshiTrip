@@ -45,7 +45,7 @@ const List<MemoTemplatePreset> kMemoTemplatePresets = [
     name: '集合',
     kind: MemoKind.free,
     category: MemoCategory.meetup,
-    title: '集合場所',
+    title: '集合',
   ),
   MemoTemplatePreset(
     presetId: 'preset.memo.around',

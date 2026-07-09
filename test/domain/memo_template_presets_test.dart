@@ -25,7 +25,7 @@ void main() {
   test('集合プリセットは today_card 互換の meetup 区分を持つ', () {
     final meetup = kMemoTemplatePresets.firstWhere((p) => p.name == '集合');
     expect(meetup.category, MemoCategory.meetup);
-    expect(meetup.title, '集合場所');
+    expect(meetup.title, '集合');
   });
 
   test('MemoTemplateOption.fromPreset は isPreset=true', () {

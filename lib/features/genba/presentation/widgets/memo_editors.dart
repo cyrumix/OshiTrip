@@ -453,11 +453,24 @@ class _MemoEditorSheetState extends ConsumerState<_MemoEditorSheet> {
       );
       return;
     }
+    // pop 後に無効化された context で ScaffoldMessenger を探さないよう、
+    // 呼び出し前（シートがまだ有効な間）に State を捕まえておく。
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _saving = true);
     final result = await ref.read(genbaRepositoryProvider).upsertMemo(memo);
     if (!mounted) return;
-    Navigator.of(context).pop();
-    _showResult(result, 'メモを保存しました');
+    result.when(
+      ok: (_) {
+        Navigator.of(context).pop();
+        messenger.showSnackBar(const SnackBar(content: Text('メモを保存しました')));
+      },
+      err: (failure) {
+        // 失敗時はシートを閉じず、入力内容を保持したまま再試行できるように
+        // する（成功したかのような表示もしない）。
+        setState(() => _saving = false);
+        messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      },
+    );
   }
 
   Future<void> _delete() async {
@@ -479,11 +492,19 @@ class _MemoEditorSheetState extends ConsumerState<_MemoEditorSheet> {
       ),
     );
     if (ok != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     final result =
         await ref.read(genbaRepositoryProvider).deleteMemo(widget.memo.id);
     if (!mounted) return;
-    Navigator.of(context).pop();
-    _showResult(result, 'メモを削除しました');
+    result.when(
+      ok: (_) {
+        Navigator.of(context).pop();
+        messenger.showSnackBar(const SnackBar(content: Text('メモを削除しました')));
+      },
+      err: (failure) {
+        messenger.showSnackBar(SnackBar(content: Text(failure.message)));
+      },
+    );
   }
 
   Future<void> _saveAsTemplate() async {
@@ -695,6 +716,12 @@ class _MemoEditorSheetState extends ConsumerState<_MemoEditorSheet> {
     );
     final lines = bingo.lineCount;
     return [
+      Text(
+        'マスの選択や内容の変更は「保存する」を押すまで反映されません',
+        style: theme.textTheme.bodySmall
+            ?.copyWith(color: theme.colorScheme.outline),
+      ),
+      const SizedBox(height: AppSpace.sm),
       Wrap(
         spacing: AppSpace.sm,
         children: [
@@ -766,6 +793,12 @@ class _MemoEditorSheetState extends ConsumerState<_MemoEditorSheet> {
     final theme = Theme.of(context);
     final voter = _voterId;
     return [
+      Text(
+        '投票や選択肢の変更は「保存する」を押すまで反映されません',
+        style: theme.textTheme.bodySmall
+            ?.copyWith(color: theme.colorScheme.outline),
+      ),
+      const SizedBox(height: AppSpace.sm),
       TextField(
         controller: _voteDescription,
         decoration: const InputDecoration(
