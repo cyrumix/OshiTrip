@@ -324,6 +324,33 @@ class RoutesEntitlements extends Table {
   Set<Column<Object>> get primaryKey => {ownerId};
 }
 
+/// 現場共有（Phase 5 前提基盤 / schema v17）。owner（現場の所有者）が現場を
+/// editor/viewer へ共有する行。owner スコープで保存・同期し、grantee はサーバー
+/// RLS で「自分に共有された行」を読めるが、この**ローカル表には owner（自分が
+/// 共有した行）だけ**が入る（`applyPulledRowsInto` の owner フィルタ）。項目単位の
+/// 共有可否は grant* で保持（安全側＝既定 false, §7.8 / ADR-0008）。
+@DataClassName('GenbaShareRow')
+class GenbaShares extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get genbaId => text()();
+  TextColumn get granteeId => text()();
+  TextColumn get role => text()();
+  BoolColumn get grantTicketImage =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get grantReservation =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get grantAddress => boolean().withDefault(const Constant(false))();
+  BoolColumn get grantImpression =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get version => integer().withDefault(const Constant(1))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// メモテンプレート（§7.7 改訂 / schema v15）。Todo テンプレートと同様に owner
 /// スコープで保存・同期する。雛形の構造化データは content(JSON) に持つ（単一行）。
 @DataClassName('MemoTemplateRow')
@@ -796,6 +823,7 @@ class FormDrafts extends Table {
     TodoTemplateItems,
     MemoTemplates,
     RoutesEntitlements,
+    GenbaShares,
     ItineraryPlans,
     ItinerarySpots,
     ItinerarySpotLinks,
@@ -855,8 +883,12 @@ class AppDatabase extends _$AppDatabase {
   /// v16: 旅程Phase 4（Google Routes連携）。routes_entitlements（プレミアム
   /// entitlementの読み取り専用レプリカ、クライアントは書き込まない）を新規
   /// 追加。新規テーブルの追加のみで既存データには一切触れない。
+  ///
+  /// v17: Phase 5 前提基盤（現場共有データ基盤）。genba_shares（owner が現場を
+  /// editor/viewer へ共有する行・項目単位grant）を新規追加。新規テーブルの追加
+  /// のみで既存データには一切触れない。
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1043,6 +1075,11 @@ class AppDatabase extends _$AppDatabase {
             // （新規テーブルの追加のみ、既存データには一切触れない）。
             await m.createTable(routesEntitlements);
           }
+          if (from < 17) {
+            // Phase 5 前提基盤: 現場共有データ基盤（新規テーブルの追加のみ、
+            // 既存データには一切触れない）。
+            await m.createTable(genbaShares);
+          }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);
           await _createItineraryReferenceUniqueIndices(m);
@@ -1173,6 +1210,8 @@ class AppDatabase extends _$AppDatabase {
       'ON todo_template_items (template_id)',
     );
     await idx('idx_memo_templates_owner', 'ON memo_templates (owner_id)');
+    await idx('idx_genba_shares_owner', 'ON genba_shares (owner_id)');
+    await idx('idx_genba_shares_genba', 'ON genba_shares (genba_id)');
     await idx(
       'idx_genbas_owner_oshi_group',
       'ON genbas (owner_id, oshi_group_id)',

@@ -22,6 +22,8 @@ import '../features/oshi/data/oshi_repository_impl.dart';
 import '../features/oshi/domain/oshi_repository.dart';
 import '../features/settings/data/supabase_account_repository.dart';
 import '../features/settings/domain/account_repository.dart';
+import '../features/sharing/data/genba_shares_repository_impl.dart';
+import '../features/sharing/domain/share.dart';
 import '../features/templates/data/template_repository_impl.dart';
 import '../features/templates/domain/template_repository.dart';
 import 'auth/local_data_scope.dart';
@@ -286,6 +288,20 @@ final itineraryRepositoryProvider = Provider<ItineraryRepository>((ref) {
   );
 });
 
+/// 現場共有（Phase 5 前提基盤）。owner が自分の現場を editor/viewer へ共有する
+/// データ基盤。owner スコープで管理・同期する（grantee 側の read は次増分）。
+final genbaSharesRepositoryProvider = Provider<ShareRepository>((ref) {
+  final scope = ref.watch(localDataScopeProvider);
+  return GenbaSharesRepositoryImpl(
+    db: ref.watch(databaseProvider),
+    outbox: ref.watch(outboxStoreProvider),
+    syncEngine: ref.watch(syncEngineProvider),
+    clock: ref.watch(clockProvider),
+    ownerIdResolver: () => scope.ownerIdOrNull,
+    remoteResolver: () => _remoteClientOrNull(ref),
+  );
+});
+
 /// プレミアムentitlement（Google Routesライブ取得の可否）の読み取り専用境界
 /// （旅程Phase 4）。クライアントはこの値へ一切書き込まない。
 final routesEntitlementRepositoryProvider =
@@ -341,6 +357,9 @@ final sessionRefresherProvider = Provider<SessionRefresher>((ref) {
         .refreshFromRemote(isStale: isStale),
     refreshRoutesEntitlement: (isStale) => ref
         .read(routesEntitlementRepositoryProvider)
+        .refreshFromRemote(isStale: isStale),
+    refreshGenbaShares: (isStale) => ref
+        .read(genbaSharesRepositoryProvider)
         .refreshFromRemote(isStale: isStale),
   );
 });
@@ -410,6 +429,11 @@ Future<Result<void>> _adoptServerEntityRouter(
   if (entityTable == SyncEntity.memoTemplates) {
     return ref
         .read(memoTemplateRepositoryProvider)
+        .adoptServerEntity(entityTable, entityId);
+  }
+  if (entityTable == SyncEntity.genbaShares) {
+    return ref
+        .read(genbaSharesRepositoryProvider)
         .adoptServerEntity(entityTable, entityId);
   }
   if (_itineraryTables.contains(entityTable)) {

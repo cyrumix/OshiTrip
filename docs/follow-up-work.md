@@ -68,10 +68,16 @@ Claude Opus 4.8 で R8-A → R8-C → R8-B の順に是正した（`docs/decisio
      （閾値未満マスキングは Edge Function/ビュー）、通報・管理者統合。
    - pgTAP: 管理者のみ統合可・少人数マスキングの検証を追加。
 7. **共有・権限（owner/editor/viewer + 項目単位）**
-   - 起点: `features/sharing/domain/share.dart`（ShareRole/FieldGrants/ShareRepository）。
-   - `genba_shares` テーブル + RLS 改修（現状は所有者のみ）。ADR-0008 の設計に従い
-     viewer/editor ポリシーと field_grants ビュー/マスキングを実装。pgTAP 拡充必須。
-   - Realtime 共同編集はさらにその後。
+   - **共有データ基盤は実装済み**（2026-07-09, D-226）: `genba_shares` テーブル（role editor/viewer
+     ＋項目grant4種＋version）・**owner 管理 RLS**（owner が自共有をCRUD／grantee は自共有を
+     SELECTのみ）・子owner トリガ・apply_mutation 登録・Drift v17・`GenbaSharesRepositoryImpl`
+     （owner スコープ CRUD＋同期）・ドメイン（`share.dart` 拡張／`shareInvariantError`）・
+     pgTAP `0015`(静的)。**既存データ表の RLS は無改変**（C-01 リスク回避）。
+   - **残り（次増分・要 pgTAP 実行環境=Docker/CI）**: grantee による共有データの実 read/write の
+     **ロール別 RLS**、**項目マスキング（view/カラム）**、**Storage 共有ポリシー**、
+     **editor write-through**（apply_mutation の owner矯正＋子ownerトリガ＋書込RLS改修）、
+     **Realtime 共同編集**、**共有向け競合UI／共有解除後キャッシュ到達不能**、招待/項目共有設定UI。
+     全表へロール別RLSを適用する変更は owner隔離(C-01)の盲目改変になるため pgTAP 実行検証を前提とする。
 
 ## フェーズD: 通知（§8.3 / §11）
 

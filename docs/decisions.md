@@ -984,3 +984,48 @@ Phase 4 の残タスク（共有概算経路の再利用・回帰テスト）を
   shared_facilities クライアントが次Phase未実装のため、そもそも UI 導線が無い）。
 - **旅程MVP完成判定**: 変わらず**未完成**。共有概算経路の UI 再利用（施設ID解決＋表示）と
   実 Google Routes／pgTAP／実機検証が未了。強制ゲート（D-224）と回帰テストは整備済み。
+
+## 旅程Phase 5 依存ギャップ＋共有データ基盤（2026-07-09, Claude Opus 4.8）
+
+Phase 5（旅程の共有・共同編集・通知・最終品質）の前提基盤を確認した結果、**現場共有・
+通知基盤はドメイン型のみのスタブで未実装**（`genba_shares` 表・ShareRepository実装・ロールRLS・
+NotificationScheduler実装・配線が一切無い）と判明した。プロンプトの「前提基盤が未完成なら
+見せかけUIを作らず、依存不足を報告して先に必要な基盤を完成させる」に従い、Phase 5本体には
+着手せず、**共有の必要基盤（保守的スライス）** を実装した。
+
+現行セキュリティは3層すべて単一owner前提（各表RLS `owner_id=auth.uid()`／子owner トリガ
+`enforce_genba_child_owner`／`apply_mutation` の insert時 owner矯正）で、Storageもパス先頭に
+ownerを埋める。**非ownerが書ける「ロール型RLS」への拡張はこの3層＋Storage全部の書き換え**に
+なり、かつ本環境は **Docker/pgTAP が無く実行検証できない**（`docs/setup.md`）。owner隔離(C-01)を
+盲目で書き換えるのは高リスクなため、ユーザー合意のもと保守的スライスを採った。
+
+| # | 判断 | 理由 |
+|---|---|---|
+| D-226 | Phase 5 前提基盤として **共有データ基盤（genba_shares）のみ**を実装する。`genba_shares` 表（role editor/viewer＋項目grant4種＋version）・**owner 管理 RLS**（owner は自共有を CRUD／grantee は自分に共有された行を SELECT のみ・書込不可、`user_entitlements` の split-policy 先例）・子owner トリガ＋CHECK・`apply_mutation` allowlist 登録（版CAS流用）・Drift v17・ShareRepository実装＋owner スコープ同期・pgTAP(静的)・Dartテストまで。**既存データ表の RLS は一切変更しない**（C-01リスクゼロ）。ロール別 read/write RLS・項目マスキングview・Storage共有・editor write-through・Realtime共同編集・共有向け競合UI・通知/FCM・iOS実機E2E は次増分へ明示繰り越し | (1) 全表へロール別RLS＋項目マスキングを適用する変更は Docker/pgTAP 不在で実行検証できず、owner隔離を盲目改変する高リスク。(2) editor write-through は apply_mutation の owner矯正＋子ownerトリガ＋書込RLS＋クライアントownerモデル＋クロスownerのCAS を一体で変える core write-path 改修であり、pgTAP検証なしに出すべきでない。→ 検証可能な環境（Docker/CI）で行う。共有データ基盤（表＋管理＋同期）は everything の substrate であり、既存RLSを触らず安全に先行実装できる（`shared_facility.dart`/`routes_entitlement` と同じ「基盤先行・enforcement/UIは次」方針） |
+| D-227 | 通知基盤（NotificationScheduler実装・FCM/APNs・許可UX・ディープリンク）は本増分では実装しない | device/Firebase 依存で本環境（実機/Firebaseプロジェクト無し）では実装・検証不可。ユーザー選択「共有基盤を先に」に従い別増分。境界型（`notification_plan.dart`）は既存のまま維持 |
+
+### 実装対象（本増分で完成した範囲）
+
+- Supabase `0028_genba_shares.sql`: 表＋owner管理RLS＋grantee-select＋set_updated_at/bump_version/
+  enforce_genba_child_owner トリガ＋apply_mutation 前方専用再定義（v_allowed に genba_shares 追加）。
+- Drift v16→v17: `GenbaShares` 表（新規追加のみ・既存データ無改変）＋owner索引。
+- ドメイン `share.dart` 拡張: `GenbaShare`(id/ownerId/version等)・`ShareRole` code・`FieldGrants`
+  copyWith/等価・`shareInvariantError`（自己共有・role・空grantee）。
+- データ `genba_shares_repository_impl.dart`＋`share_mappers.dart`: owner スコープ CRUD＋親現場
+  所有権検証（`parentBelongsToOwner`）＋Outbox＋`refreshFromRemote`/`adoptServerEntity`。
+- 配線: `SyncEntity.genbaShares`、`sessionRefresher`、`_adoptServerEntityRouter`、
+  `genbaSharesRepositoryProvider`。
+
+### 検証状況（旅程Phase 5 共有データ基盤, 2026-07-09, Windows host / ASCIIパス `C:\src\OshiTrip`）
+
+- `dart run build_runner build`（Drift v17 codegen 成功）、`dart analyze lib test integration_test`
+  クリーン、`dart format` 整形済み、`flutter test` **全パス**。本増分の新規テスト:
+  `genba_shares_repository_test`（owner CRUD＋Outbox・項目grant保持・共有解除・自己共有拒否・
+  他人の現場は共有不可＝親owner整合・owner分離C-01・owner_id偽装AuthFailure・未ログイン）、
+  `genba_shares_migration_test`（v16→v17・既存データ無傷・既定値）、`share_test`（不変条件・role
+  code・FieldGrants安全側既定）。既存 Phase 1〜4 テストは無改変で緑。
+- **未実行（各実環境。成功扱いにしない）**: `supabase test db`（pgTAP `0015_genba_shares.sql`・
+  **Docker/Supabase CLI 未導入**・静的レビューのみ）、ロール別 read/write RLS・項目マスキング・
+  Storage共有・editor write-through（次増分・要pgTAP実行環境）、通知/FCM・iOS/実機E2E。
+- **Phase 5 完成判定**: **未完成**。共有データ基盤のみ実装。共有の実 read/write・項目マスキング・
+  Storage・共同編集・競合UI・通知・実機/pgTAP検証は次増分。旅程MVPも引き続き未完成。

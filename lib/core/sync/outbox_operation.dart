@@ -30,6 +30,7 @@ class SyncEntity {
   static const itinerarySpotLinks = 'itinerary_spot_links';
   static const itineraryEntries = 'itinerary_entries';
   static const itineraryLegs = 'itinerary_legs';
+  static const genbaShares = 'genba_shares';
 
   static const all = [
     genbas,
@@ -54,6 +55,7 @@ class SyncEntity {
     itinerarySpotLinks,
     itineraryEntries,
     itineraryLegs,
+    genbaShares,
   ];
 
   /// 競合解決UI等でエンティティ種別を日本語表示するためのラベル。
@@ -80,6 +82,7 @@ class SyncEntity {
         itinerarySpotLinks => 'スポットのリンク',
         itineraryEntries => '旅程項目',
         itineraryLegs => '移動区間',
+        genbaShares => '共有',
         _ => 'データ',
       };
 }

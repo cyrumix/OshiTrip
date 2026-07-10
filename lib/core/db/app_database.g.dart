@@ -10636,6 +10636,616 @@ class RoutesEntitlementsCompanion
   }
 }
 
+class $GenbaSharesTable extends GenbaShares
+    with TableInfo<$GenbaSharesTable, GenbaShareRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $GenbaSharesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ownerIdMeta =
+      const VerificationMeta('ownerId');
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+      'owner_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _genbaIdMeta =
+      const VerificationMeta('genbaId');
+  @override
+  late final GeneratedColumn<String> genbaId = GeneratedColumn<String>(
+      'genba_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _granteeIdMeta =
+      const VerificationMeta('granteeId');
+  @override
+  late final GeneratedColumn<String> granteeId = GeneratedColumn<String>(
+      'grantee_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+      'role', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _grantTicketImageMeta =
+      const VerificationMeta('grantTicketImage');
+  @override
+  late final GeneratedColumn<bool> grantTicketImage = GeneratedColumn<bool>(
+      'grant_ticket_image', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("grant_ticket_image" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _grantReservationMeta =
+      const VerificationMeta('grantReservation');
+  @override
+  late final GeneratedColumn<bool> grantReservation = GeneratedColumn<bool>(
+      'grant_reservation', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("grant_reservation" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _grantAddressMeta =
+      const VerificationMeta('grantAddress');
+  @override
+  late final GeneratedColumn<bool> grantAddress = GeneratedColumn<bool>(
+      'grant_address', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("grant_address" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _grantImpressionMeta =
+      const VerificationMeta('grantImpression');
+  @override
+  late final GeneratedColumn<bool> grantImpression = GeneratedColumn<bool>(
+      'grant_impression', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("grant_impression" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        ownerId,
+        genbaId,
+        granteeId,
+        role,
+        grantTicketImage,
+        grantReservation,
+        grantAddress,
+        grantImpression,
+        version,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'genba_shares';
+  @override
+  VerificationContext validateIntegrity(Insertable<GenbaShareRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(_ownerIdMeta,
+          ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('genba_id')) {
+      context.handle(_genbaIdMeta,
+          genbaId.isAcceptableOrUnknown(data['genba_id']!, _genbaIdMeta));
+    } else if (isInserting) {
+      context.missing(_genbaIdMeta);
+    }
+    if (data.containsKey('grantee_id')) {
+      context.handle(_granteeIdMeta,
+          granteeId.isAcceptableOrUnknown(data['grantee_id']!, _granteeIdMeta));
+    } else if (isInserting) {
+      context.missing(_granteeIdMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+          _roleMeta, role.isAcceptableOrUnknown(data['role']!, _roleMeta));
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('grant_ticket_image')) {
+      context.handle(
+          _grantTicketImageMeta,
+          grantTicketImage.isAcceptableOrUnknown(
+              data['grant_ticket_image']!, _grantTicketImageMeta));
+    }
+    if (data.containsKey('grant_reservation')) {
+      context.handle(
+          _grantReservationMeta,
+          grantReservation.isAcceptableOrUnknown(
+              data['grant_reservation']!, _grantReservationMeta));
+    }
+    if (data.containsKey('grant_address')) {
+      context.handle(
+          _grantAddressMeta,
+          grantAddress.isAcceptableOrUnknown(
+              data['grant_address']!, _grantAddressMeta));
+    }
+    if (data.containsKey('grant_impression')) {
+      context.handle(
+          _grantImpressionMeta,
+          grantImpression.isAcceptableOrUnknown(
+              data['grant_impression']!, _grantImpressionMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  GenbaShareRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return GenbaShareRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      ownerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      genbaId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}genba_id'])!,
+      granteeId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}grantee_id'])!,
+      role: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
+      grantTicketImage: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}grant_ticket_image'])!,
+      grantReservation: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}grant_reservation'])!,
+      grantAddress: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}grant_address'])!,
+      grantImpression: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}grant_impression'])!,
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $GenbaSharesTable createAlias(String alias) {
+    return $GenbaSharesTable(attachedDatabase, alias);
+  }
+}
+
+class GenbaShareRow extends DataClass implements Insertable<GenbaShareRow> {
+  final String id;
+  final String ownerId;
+  final String genbaId;
+  final String granteeId;
+  final String role;
+  final bool grantTicketImage;
+  final bool grantReservation;
+  final bool grantAddress;
+  final bool grantImpression;
+  final int version;
+  final String createdAt;
+  final String updatedAt;
+  const GenbaShareRow(
+      {required this.id,
+      required this.ownerId,
+      required this.genbaId,
+      required this.granteeId,
+      required this.role,
+      required this.grantTicketImage,
+      required this.grantReservation,
+      required this.grantAddress,
+      required this.grantImpression,
+      required this.version,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['genba_id'] = Variable<String>(genbaId);
+    map['grantee_id'] = Variable<String>(granteeId);
+    map['role'] = Variable<String>(role);
+    map['grant_ticket_image'] = Variable<bool>(grantTicketImage);
+    map['grant_reservation'] = Variable<bool>(grantReservation);
+    map['grant_address'] = Variable<bool>(grantAddress);
+    map['grant_impression'] = Variable<bool>(grantImpression);
+    map['version'] = Variable<int>(version);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  GenbaSharesCompanion toCompanion(bool nullToAbsent) {
+    return GenbaSharesCompanion(
+      id: Value(id),
+      ownerId: Value(ownerId),
+      genbaId: Value(genbaId),
+      granteeId: Value(granteeId),
+      role: Value(role),
+      grantTicketImage: Value(grantTicketImage),
+      grantReservation: Value(grantReservation),
+      grantAddress: Value(grantAddress),
+      grantImpression: Value(grantImpression),
+      version: Value(version),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory GenbaShareRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return GenbaShareRow(
+      id: serializer.fromJson<String>(json['id']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      genbaId: serializer.fromJson<String>(json['genbaId']),
+      granteeId: serializer.fromJson<String>(json['granteeId']),
+      role: serializer.fromJson<String>(json['role']),
+      grantTicketImage: serializer.fromJson<bool>(json['grantTicketImage']),
+      grantReservation: serializer.fromJson<bool>(json['grantReservation']),
+      grantAddress: serializer.fromJson<bool>(json['grantAddress']),
+      grantImpression: serializer.fromJson<bool>(json['grantImpression']),
+      version: serializer.fromJson<int>(json['version']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'genbaId': serializer.toJson<String>(genbaId),
+      'granteeId': serializer.toJson<String>(granteeId),
+      'role': serializer.toJson<String>(role),
+      'grantTicketImage': serializer.toJson<bool>(grantTicketImage),
+      'grantReservation': serializer.toJson<bool>(grantReservation),
+      'grantAddress': serializer.toJson<bool>(grantAddress),
+      'grantImpression': serializer.toJson<bool>(grantImpression),
+      'version': serializer.toJson<int>(version),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  GenbaShareRow copyWith(
+          {String? id,
+          String? ownerId,
+          String? genbaId,
+          String? granteeId,
+          String? role,
+          bool? grantTicketImage,
+          bool? grantReservation,
+          bool? grantAddress,
+          bool? grantImpression,
+          int? version,
+          String? createdAt,
+          String? updatedAt}) =>
+      GenbaShareRow(
+        id: id ?? this.id,
+        ownerId: ownerId ?? this.ownerId,
+        genbaId: genbaId ?? this.genbaId,
+        granteeId: granteeId ?? this.granteeId,
+        role: role ?? this.role,
+        grantTicketImage: grantTicketImage ?? this.grantTicketImage,
+        grantReservation: grantReservation ?? this.grantReservation,
+        grantAddress: grantAddress ?? this.grantAddress,
+        grantImpression: grantImpression ?? this.grantImpression,
+        version: version ?? this.version,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  GenbaShareRow copyWithCompanion(GenbaSharesCompanion data) {
+    return GenbaShareRow(
+      id: data.id.present ? data.id.value : this.id,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      genbaId: data.genbaId.present ? data.genbaId.value : this.genbaId,
+      granteeId: data.granteeId.present ? data.granteeId.value : this.granteeId,
+      role: data.role.present ? data.role.value : this.role,
+      grantTicketImage: data.grantTicketImage.present
+          ? data.grantTicketImage.value
+          : this.grantTicketImage,
+      grantReservation: data.grantReservation.present
+          ? data.grantReservation.value
+          : this.grantReservation,
+      grantAddress: data.grantAddress.present
+          ? data.grantAddress.value
+          : this.grantAddress,
+      grantImpression: data.grantImpression.present
+          ? data.grantImpression.value
+          : this.grantImpression,
+      version: data.version.present ? data.version.value : this.version,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GenbaShareRow(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('genbaId: $genbaId, ')
+          ..write('granteeId: $granteeId, ')
+          ..write('role: $role, ')
+          ..write('grantTicketImage: $grantTicketImage, ')
+          ..write('grantReservation: $grantReservation, ')
+          ..write('grantAddress: $grantAddress, ')
+          ..write('grantImpression: $grantImpression, ')
+          ..write('version: $version, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      ownerId,
+      genbaId,
+      granteeId,
+      role,
+      grantTicketImage,
+      grantReservation,
+      grantAddress,
+      grantImpression,
+      version,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GenbaShareRow &&
+          other.id == this.id &&
+          other.ownerId == this.ownerId &&
+          other.genbaId == this.genbaId &&
+          other.granteeId == this.granteeId &&
+          other.role == this.role &&
+          other.grantTicketImage == this.grantTicketImage &&
+          other.grantReservation == this.grantReservation &&
+          other.grantAddress == this.grantAddress &&
+          other.grantImpression == this.grantImpression &&
+          other.version == this.version &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class GenbaSharesCompanion extends UpdateCompanion<GenbaShareRow> {
+  final Value<String> id;
+  final Value<String> ownerId;
+  final Value<String> genbaId;
+  final Value<String> granteeId;
+  final Value<String> role;
+  final Value<bool> grantTicketImage;
+  final Value<bool> grantReservation;
+  final Value<bool> grantAddress;
+  final Value<bool> grantImpression;
+  final Value<int> version;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const GenbaSharesCompanion({
+    this.id = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.genbaId = const Value.absent(),
+    this.granteeId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.grantTicketImage = const Value.absent(),
+    this.grantReservation = const Value.absent(),
+    this.grantAddress = const Value.absent(),
+    this.grantImpression = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  GenbaSharesCompanion.insert({
+    required String id,
+    required String ownerId,
+    required String genbaId,
+    required String granteeId,
+    required String role,
+    this.grantTicketImage = const Value.absent(),
+    this.grantReservation = const Value.absent(),
+    this.grantAddress = const Value.absent(),
+    this.grantImpression = const Value.absent(),
+    this.version = const Value.absent(),
+    required String createdAt,
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        ownerId = Value(ownerId),
+        genbaId = Value(genbaId),
+        granteeId = Value(granteeId),
+        role = Value(role),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<GenbaShareRow> custom({
+    Expression<String>? id,
+    Expression<String>? ownerId,
+    Expression<String>? genbaId,
+    Expression<String>? granteeId,
+    Expression<String>? role,
+    Expression<bool>? grantTicketImage,
+    Expression<bool>? grantReservation,
+    Expression<bool>? grantAddress,
+    Expression<bool>? grantImpression,
+    Expression<int>? version,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (genbaId != null) 'genba_id': genbaId,
+      if (granteeId != null) 'grantee_id': granteeId,
+      if (role != null) 'role': role,
+      if (grantTicketImage != null) 'grant_ticket_image': grantTicketImage,
+      if (grantReservation != null) 'grant_reservation': grantReservation,
+      if (grantAddress != null) 'grant_address': grantAddress,
+      if (grantImpression != null) 'grant_impression': grantImpression,
+      if (version != null) 'version': version,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  GenbaSharesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? ownerId,
+      Value<String>? genbaId,
+      Value<String>? granteeId,
+      Value<String>? role,
+      Value<bool>? grantTicketImage,
+      Value<bool>? grantReservation,
+      Value<bool>? grantAddress,
+      Value<bool>? grantImpression,
+      Value<int>? version,
+      Value<String>? createdAt,
+      Value<String>? updatedAt,
+      Value<int>? rowid}) {
+    return GenbaSharesCompanion(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      genbaId: genbaId ?? this.genbaId,
+      granteeId: granteeId ?? this.granteeId,
+      role: role ?? this.role,
+      grantTicketImage: grantTicketImage ?? this.grantTicketImage,
+      grantReservation: grantReservation ?? this.grantReservation,
+      grantAddress: grantAddress ?? this.grantAddress,
+      grantImpression: grantImpression ?? this.grantImpression,
+      version: version ?? this.version,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (genbaId.present) {
+      map['genba_id'] = Variable<String>(genbaId.value);
+    }
+    if (granteeId.present) {
+      map['grantee_id'] = Variable<String>(granteeId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (grantTicketImage.present) {
+      map['grant_ticket_image'] = Variable<bool>(grantTicketImage.value);
+    }
+    if (grantReservation.present) {
+      map['grant_reservation'] = Variable<bool>(grantReservation.value);
+    }
+    if (grantAddress.present) {
+      map['grant_address'] = Variable<bool>(grantAddress.value);
+    }
+    if (grantImpression.present) {
+      map['grant_impression'] = Variable<bool>(grantImpression.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('GenbaSharesCompanion(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('genbaId: $genbaId, ')
+          ..write('granteeId: $granteeId, ')
+          ..write('role: $role, ')
+          ..write('grantTicketImage: $grantTicketImage, ')
+          ..write('grantReservation: $grantReservation, ')
+          ..write('grantAddress: $grantAddress, ')
+          ..write('grantImpression: $grantImpression, ')
+          ..write('version: $version, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ItineraryPlansTable extends ItineraryPlans
     with TableInfo<$ItineraryPlansTable, ItineraryPlanRow> {
   @override
@@ -16480,6 +17090,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MemoTemplatesTable memoTemplates = $MemoTemplatesTable(this);
   late final $RoutesEntitlementsTable routesEntitlements =
       $RoutesEntitlementsTable(this);
+  late final $GenbaSharesTable genbaShares = $GenbaSharesTable(this);
   late final $ItineraryPlansTable itineraryPlans = $ItineraryPlansTable(this);
   late final $ItinerarySpotsTable itinerarySpots = $ItinerarySpotsTable(this);
   late final $ItinerarySpotLinksTable itinerarySpotLinks =
@@ -16515,6 +17126,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         todoTemplateItems,
         memoTemplates,
         routesEntitlements,
+        genbaShares,
         itineraryPlans,
         itinerarySpots,
         itinerarySpotLinks,
@@ -21567,6 +22179,291 @@ typedef $$RoutesEntitlementsTableProcessedTableManager = ProcessedTableManager<
     ),
     RoutesEntitlementRow,
     PrefetchHooks Function()>;
+typedef $$GenbaSharesTableCreateCompanionBuilder = GenbaSharesCompanion
+    Function({
+  required String id,
+  required String ownerId,
+  required String genbaId,
+  required String granteeId,
+  required String role,
+  Value<bool> grantTicketImage,
+  Value<bool> grantReservation,
+  Value<bool> grantAddress,
+  Value<bool> grantImpression,
+  Value<int> version,
+  required String createdAt,
+  required String updatedAt,
+  Value<int> rowid,
+});
+typedef $$GenbaSharesTableUpdateCompanionBuilder = GenbaSharesCompanion
+    Function({
+  Value<String> id,
+  Value<String> ownerId,
+  Value<String> genbaId,
+  Value<String> granteeId,
+  Value<String> role,
+  Value<bool> grantTicketImage,
+  Value<bool> grantReservation,
+  Value<bool> grantAddress,
+  Value<bool> grantImpression,
+  Value<int> version,
+  Value<String> createdAt,
+  Value<String> updatedAt,
+  Value<int> rowid,
+});
+
+class $$GenbaSharesTableFilterComposer
+    extends Composer<_$AppDatabase, $GenbaSharesTable> {
+  $$GenbaSharesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get genbaId => $composableBuilder(
+      column: $table.genbaId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get granteeId => $composableBuilder(
+      column: $table.granteeId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get grantTicketImage => $composableBuilder(
+      column: $table.grantTicketImage,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get grantReservation => $composableBuilder(
+      column: $table.grantReservation,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get grantAddress => $composableBuilder(
+      column: $table.grantAddress, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get grantImpression => $composableBuilder(
+      column: $table.grantImpression,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$GenbaSharesTableOrderingComposer
+    extends Composer<_$AppDatabase, $GenbaSharesTable> {
+  $$GenbaSharesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+      column: $table.ownerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get genbaId => $composableBuilder(
+      column: $table.genbaId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get granteeId => $composableBuilder(
+      column: $table.granteeId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get grantTicketImage => $composableBuilder(
+      column: $table.grantTicketImage,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get grantReservation => $composableBuilder(
+      column: $table.grantReservation,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get grantAddress => $composableBuilder(
+      column: $table.grantAddress,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get grantImpression => $composableBuilder(
+      column: $table.grantImpression,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$GenbaSharesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $GenbaSharesTable> {
+  $$GenbaSharesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get genbaId =>
+      $composableBuilder(column: $table.genbaId, builder: (column) => column);
+
+  GeneratedColumn<String> get granteeId =>
+      $composableBuilder(column: $table.granteeId, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<bool> get grantTicketImage => $composableBuilder(
+      column: $table.grantTicketImage, builder: (column) => column);
+
+  GeneratedColumn<bool> get grantReservation => $composableBuilder(
+      column: $table.grantReservation, builder: (column) => column);
+
+  GeneratedColumn<bool> get grantAddress => $composableBuilder(
+      column: $table.grantAddress, builder: (column) => column);
+
+  GeneratedColumn<bool> get grantImpression => $composableBuilder(
+      column: $table.grantImpression, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$GenbaSharesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $GenbaSharesTable,
+    GenbaShareRow,
+    $$GenbaSharesTableFilterComposer,
+    $$GenbaSharesTableOrderingComposer,
+    $$GenbaSharesTableAnnotationComposer,
+    $$GenbaSharesTableCreateCompanionBuilder,
+    $$GenbaSharesTableUpdateCompanionBuilder,
+    (
+      GenbaShareRow,
+      BaseReferences<_$AppDatabase, $GenbaSharesTable, GenbaShareRow>
+    ),
+    GenbaShareRow,
+    PrefetchHooks Function()> {
+  $$GenbaSharesTableTableManager(_$AppDatabase db, $GenbaSharesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$GenbaSharesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$GenbaSharesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$GenbaSharesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> ownerId = const Value.absent(),
+            Value<String> genbaId = const Value.absent(),
+            Value<String> granteeId = const Value.absent(),
+            Value<String> role = const Value.absent(),
+            Value<bool> grantTicketImage = const Value.absent(),
+            Value<bool> grantReservation = const Value.absent(),
+            Value<bool> grantAddress = const Value.absent(),
+            Value<bool> grantImpression = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String> createdAt = const Value.absent(),
+            Value<String> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              GenbaSharesCompanion(
+            id: id,
+            ownerId: ownerId,
+            genbaId: genbaId,
+            granteeId: granteeId,
+            role: role,
+            grantTicketImage: grantTicketImage,
+            grantReservation: grantReservation,
+            grantAddress: grantAddress,
+            grantImpression: grantImpression,
+            version: version,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String ownerId,
+            required String genbaId,
+            required String granteeId,
+            required String role,
+            Value<bool> grantTicketImage = const Value.absent(),
+            Value<bool> grantReservation = const Value.absent(),
+            Value<bool> grantAddress = const Value.absent(),
+            Value<bool> grantImpression = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            required String createdAt,
+            required String updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              GenbaSharesCompanion.insert(
+            id: id,
+            ownerId: ownerId,
+            genbaId: genbaId,
+            granteeId: granteeId,
+            role: role,
+            grantTicketImage: grantTicketImage,
+            grantReservation: grantReservation,
+            grantAddress: grantAddress,
+            grantImpression: grantImpression,
+            version: version,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$GenbaSharesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $GenbaSharesTable,
+    GenbaShareRow,
+    $$GenbaSharesTableFilterComposer,
+    $$GenbaSharesTableOrderingComposer,
+    $$GenbaSharesTableAnnotationComposer,
+    $$GenbaSharesTableCreateCompanionBuilder,
+    $$GenbaSharesTableUpdateCompanionBuilder,
+    (
+      GenbaShareRow,
+      BaseReferences<_$AppDatabase, $GenbaSharesTable, GenbaShareRow>
+    ),
+    GenbaShareRow,
+    PrefetchHooks Function()>;
 typedef $$ItineraryPlansTableCreateCompanionBuilder = ItineraryPlansCompanion
     Function({
   required String id,
@@ -24255,6 +25152,8 @@ class $AppDatabaseManager {
       $$MemoTemplatesTableTableManager(_db, _db.memoTemplates);
   $$RoutesEntitlementsTableTableManager get routesEntitlements =>
       $$RoutesEntitlementsTableTableManager(_db, _db.routesEntitlements);
+  $$GenbaSharesTableTableManager get genbaShares =>
+      $$GenbaSharesTableTableManager(_db, _db.genbaShares);
   $$ItineraryPlansTableTableManager get itineraryPlans =>
       $$ItineraryPlansTableTableManager(_db, _db.itineraryPlans);
   $$ItinerarySpotsTableTableManager get itinerarySpots =>
