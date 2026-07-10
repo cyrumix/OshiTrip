@@ -141,8 +141,12 @@ class TransportTab extends ConsumerWidget {
           title: '交通',
           padding: const EdgeInsets.only(bottom: AppSpace.sm),
           action: TextButton.icon(
-            onPressed: () =>
-                showTransportEditor(context, ref, genbaId: genba.id),
+            onPressed: () => showTransportEditor(
+              context,
+              ref,
+              genbaId: genba.id,
+              eventDate: genba.eventDate,
+            ),
             icon: const Icon(Icons.add, size: 18),
             label: const Text('追加'),
           ),
@@ -199,6 +203,7 @@ class TransportTab extends ConsumerWidget {
                   context,
                   ref,
                   genbaId: genba.id,
+                  eventDate: genba.eventDate,
                   existing: t,
                 ),
               ),
@@ -227,7 +232,12 @@ class LodgingTab extends ConsumerWidget {
           title: '宿泊',
           padding: const EdgeInsets.only(bottom: AppSpace.sm),
           action: TextButton.icon(
-            onPressed: () => showLodgingEditor(context, ref, genbaId: genba.id),
+            onPressed: () => showLodgingEditor(
+              context,
+              ref,
+              genbaId: genba.id,
+              eventDate: genba.eventDate,
+            ),
             icon: const Icon(Icons.add, size: 18),
             label: const Text('追加'),
           ),
@@ -282,6 +292,7 @@ class LodgingTab extends ConsumerWidget {
                   context,
                   ref,
                   genbaId: genba.id,
+                  eventDate: genba.eventDate,
                   existing: l,
                 ),
               ),

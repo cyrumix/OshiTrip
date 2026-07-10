@@ -26,7 +26,7 @@ class GenbaDetailScreen extends ConsumerWidget {
 
   final String genbaId;
 
-  static const _tabs = ['概要', 'Todo・持ち物', '計画', 'チケット', '交通', '宿泊', 'メモ'];
+  static const _tabs = ['概要', 'Todo・持ち物', 'チケット', '交通', '宿泊', '計画', 'メモ'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -133,10 +133,10 @@ class GenbaDetailScreen extends ConsumerWidget {
                 children: [
                   GenbaOverviewTab(aggregate: a, now: now),
                   TodoTab(aggregate: a),
-                  PlanTab(genbaAggregate: a),
                   TicketTab(aggregate: a),
                   TransportTab(aggregate: a),
                   LodgingTab(aggregate: a),
+                  PlanTab(genbaAggregate: a),
                   MemoTab(aggregate: a),
                 ],
               ),

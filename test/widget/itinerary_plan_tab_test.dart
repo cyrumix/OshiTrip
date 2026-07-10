@@ -60,8 +60,10 @@ void main() {
     await tester.pumpAndSettle();
     await openPlanTab(tester);
 
-    // 空状態。
-    expect(find.text('計画はまだありません'), findsOneWidget);
+    // 計画をまだ作っていなくても、公演予定は最初から確認できる。
+    expect(find.text('計画はまだありません'), findsNothing);
+    expect(find.text('公演 開演'), findsOneWidget);
+    expect(find.textContaining('計画テスト公演'), findsWidgets);
 
     // スポットを追加（自分で入力）。
     await tapAddMenu(tester, 'スポットを追加（自分で入力）');
@@ -143,12 +145,6 @@ void main() {
         );
     await tester.pumpAndSettle();
     await openPlanTab(tester);
-
-    // まず1件追加して計画を作成する（アンカーは計画表示時に出る）。
-    await tapAddMenu(tester, 'スポットを追加（自分で入力）');
-    await tester.enterText(find.byType(TextField).first, '集合');
-    await tester.tap(find.text('保存する'));
-    await tester.pumpAndSettle();
 
     expect(find.text('公演 開場'), findsOneWidget);
     expect(find.text('公演 開演'), findsOneWidget);

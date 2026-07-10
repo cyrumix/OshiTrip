@@ -33,22 +33,32 @@ Future<void> showTransportEditor(
   BuildContext context,
   WidgetRef ref, {
   required String genbaId,
+  required DateTime eventDate,
   Transport? existing,
 }) =>
     _showEditorSheet(
       context,
-      _TransportEditor(genbaId: genbaId, existing: existing),
+      _TransportEditor(
+        genbaId: genbaId,
+        eventDate: eventDate,
+        existing: existing,
+      ),
     );
 
 Future<void> showLodgingEditor(
   BuildContext context,
   WidgetRef ref, {
   required String genbaId,
+  required DateTime eventDate,
   Lodging? existing,
 }) =>
     _showEditorSheet(
       context,
-      _LodgingEditor(genbaId: genbaId, existing: existing),
+      _LodgingEditor(
+        genbaId: genbaId,
+        eventDate: eventDate,
+        existing: existing,
+      ),
     );
 
 Future<void> showTodoEditor(
@@ -344,9 +354,14 @@ class _TicketEditorState extends ConsumerState<_TicketEditor> {
 // ---------------------------------------------------------------------------
 
 class _TransportEditor extends ConsumerStatefulWidget {
-  const _TransportEditor({required this.genbaId, this.existing});
+  const _TransportEditor({
+    required this.genbaId,
+    required this.eventDate,
+    this.existing,
+  });
 
   final String genbaId;
+  final DateTime eventDate;
   final Transport? existing;
 
   @override
@@ -377,8 +392,13 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
     _reservation = TextEditingController(text: t?.reservationNumber ?? '');
     _url = TextEditingController(text: t?.url ?? '');
     _memo = TextEditingController(text: t?.memo ?? '');
-    _departAt = t?.departAt?.toLocal();
-    _arriveAt = t?.arriveAt?.toLocal();
+    final defaultDate = DateTime(
+      widget.eventDate.year,
+      widget.eventDate.month,
+      widget.eventDate.day,
+    );
+    _departAt = t?.departAt?.toLocal() ?? defaultDate;
+    _arriveAt = t?.arriveAt?.toLocal() ?? defaultDate;
   }
 
   @override
@@ -413,6 +433,8 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
   Future<void> _save() async {
     final now = ref.read(clockProvider).now().toUtc();
     final owner = ref.read(authRepositoryProvider).currentUser?.id ?? '';
+    final isNewOutbound =
+        widget.existing == null && _direction == TransportDirection.outbound;
     final transport = Transport(
       id: widget.existing?.id ?? const Uuid().v4(),
       genbaId: widget.genbaId,
@@ -437,6 +459,57 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
     final result =
         await ref.read(genbaRepositoryProvider).upsertTransport(transport);
     if (!mounted) return;
+    if (result.isOk && isNewOutbound && _method != null) {
+      final addReturn = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('復路も登録しますか？'),
+          content:
+              const Text('同様の経路で、出発地と到着地を逆にした復路を追加できます。出発時刻・到着時刻は空のまま登録します。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('登録しない'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('登録する'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (addReturn == true) {
+        final returnTransport = Transport(
+          id: const Uuid().v4(),
+          genbaId: widget.genbaId,
+          ownerId: widget.existing?.ownerId ?? owner,
+          direction: TransportDirection.inbound,
+          method: _method,
+          methodOther: _method == TransportMethod.other &&
+                  _methodOther.text.trim().isNotEmpty
+              ? _methodOther.text.trim()
+              : null,
+          fromPlace: _to.text.trim().isEmpty ? null : _to.text.trim(),
+          toPlace: _from.text.trim().isEmpty ? null : _from.text.trim(),
+          departAt: null,
+          arriveAt: null,
+          reservationNumber: null,
+          url: null,
+          memo: null,
+          createdAt: now,
+          updatedAt: now,
+        );
+        final returnResult = await ref
+            .read(genbaRepositoryProvider)
+            .upsertTransport(returnTransport);
+        if (!mounted) return;
+        if (returnResult.failureOrNull != null) {
+          _showResult(context, returnResult, '復路を登録できませんでした');
+          return;
+        }
+      }
+    }
     Navigator.of(context).pop();
     _showResult(context, result, '交通を保存しました');
   }
@@ -557,9 +630,14 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
 // ---------------------------------------------------------------------------
 
 class _LodgingEditor extends ConsumerStatefulWidget {
-  const _LodgingEditor({required this.genbaId, this.existing});
+  const _LodgingEditor({
+    required this.genbaId,
+    required this.eventDate,
+    this.existing,
+  });
 
   final String genbaId;
+  final DateTime eventDate;
   final Lodging? existing;
 
   @override
@@ -584,8 +662,13 @@ class _LodgingEditorState extends ConsumerState<_LodgingEditor> {
     _reservation = TextEditingController(text: l?.reservationNumber ?? '');
     _url = TextEditingController(text: l?.url ?? '');
     _memo = TextEditingController(text: l?.memo ?? '');
-    _checkin = l?.checkinDate;
-    _checkout = l?.checkoutDate;
+    final defaultDate = DateTime(
+      widget.eventDate.year,
+      widget.eventDate.month,
+      widget.eventDate.day,
+    );
+    _checkin = l?.checkinDate ?? defaultDate;
+    _checkout = l?.checkoutDate ?? defaultDate;
   }
 
   @override
@@ -627,7 +710,12 @@ class _LodgingEditorState extends ConsumerState<_LodgingEditor> {
     final current = checkin ? _checkin : _checkout;
     final picked = await showDatePicker(
       context: context,
-      initialDate: current ?? ref.read(clockProvider).now(),
+      initialDate: current ??
+          DateTime(
+            widget.eventDate.year,
+            widget.eventDate.month,
+            widget.eventDate.day,
+          ),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );

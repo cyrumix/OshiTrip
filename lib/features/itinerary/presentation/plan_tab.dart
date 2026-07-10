@@ -44,20 +44,85 @@ class PlanTab extends ConsumerWidget {
       body: AsyncValueView<List<ItineraryPlanAggregate>>(
         value: plansAsync,
         loadingView: const LoadingSkeleton.list(cardCount: 4),
-        isEmpty: (plans) => plans.isEmpty,
-        emptyView: const EmptyView(
-          message: '計画はまだありません',
-          description: '現場の前後に行きたい場所を追加しましょう。右下の＋から手動で登録できます。',
-          icon: Icons.map_outlined,
-        ),
-        data: (plans) => _PlanTimeline(
-          genbaAggregate: genbaAggregate,
-          aggregate: plans.first,
-        ),
+        isEmpty: (_) => false,
+        data: (plans) => plans.isEmpty
+            ? _EventSchedulePreview(genbaAggregate: genbaAggregate)
+            : _PlanTimeline(
+                genbaAggregate: genbaAggregate,
+                aggregate: plans.first,
+              ),
       ),
     );
   }
 }
+
+class _EventSchedulePreview extends StatelessWidget {
+  const _EventSchedulePreview({required this.genbaAggregate});
+
+  final GenbaAggregate genbaAggregate;
+
+  @override
+  Widget build(BuildContext context) {
+    final genba = genbaAggregate.genba;
+    final eventDateKey = DateTime(
+      genba.eventDate.year,
+      genba.eventDate.month,
+      genba.eventDate.day,
+    );
+    final venueName = genba.venue?.trim();
+    final venue = (venueName != null && venueName.isNotEmpty)
+        ? ItineraryVenue(name: venueName)
+        : null;
+    final anchors = deriveItineraryAnchors(genba);
+    final rows = buildItineraryDayRows(
+      ItineraryTimelineDay(
+        date: eventDateKey,
+        anchors: anchors,
+        entries: const [],
+      ),
+      venue: venue,
+    );
+
+    return ListView(
+      key: PageStorageKey('plan_tab_preview_${genba.id}'),
+      padding:
+          const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.lg, 96),
+      children: [
+        if (rows.isEmpty)
+          const EmptyView(
+            message: '計画はまだありません',
+            description: '現場の前後に行きたい場所を追加しましょう。右下の＋から手動で登録できます。',
+            icon: Icons.map_outlined,
+          )
+        else ...[
+          SectionHeader(
+            title:
+                '${eventDateKey.year}/${eventDateKey.month}/${eventDateKey.day}（${_weekday(eventDateKey)}）',
+            padding:
+                const EdgeInsets.only(top: AppSpace.md, bottom: AppSpace.sm),
+          ),
+          for (final row in rows)
+            switch (row) {
+              ItineraryVenueRow(:final venue) => _VenueRow(venue: venue),
+              ItineraryAnchorRow(:final anchor) => _AnchorRow(
+                  anchor: anchor,
+                  genba: genba,
+                ),
+              ItineraryEntryRow() => const SizedBox.shrink(),
+            },
+          const AppCard(
+            child: Text('行きたい場所を追加していなくても、公演時間はここで確認できます。右下の＋から予定を追加できます。'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// 曜日ラベル（月=1 … 日=7 に対応, [DateTime.weekday]）。日別セクション見出しと
+/// 計画未作成時の公演予定プレビュー見出しの両方で使う。
+String _weekday(DateTime d) =>
+    const ['月', '火', '水', '木', '金', '土', '日'][d.weekday - 1];
 
 /// タイムライン項目の短い表示名（leg の端点ラベル等に使う）。
 String _timelineEntryLabel(ItineraryTimelineEntry item) {
@@ -233,7 +298,10 @@ class _DaySection extends ConsumerWidget {
         for (final row in rows) ...[
           switch (row) {
             ItineraryVenueRow(:final venue) => _VenueRow(venue: venue),
-            ItineraryAnchorRow(:final anchor) => _AnchorRow(anchor: anchor),
+            ItineraryAnchorRow(:final anchor) => _AnchorRow(
+                anchor: anchor,
+                genba: genbaAggregate.genba,
+              ),
             ItineraryEntryRow(:final item) => _EntryCard(
                 item: item,
                 aggregate: aggregate,
@@ -272,9 +340,6 @@ class _DaySection extends ConsumerWidget {
       ],
     );
   }
-
-  static String _weekday(DateTime d) =>
-      const ['月', '火', '水', '木', '金', '土', '日'][d.weekday - 1];
 }
 
 class _VenueRow extends StatelessWidget {
@@ -324,8 +389,9 @@ class _VenueRow extends StatelessWidget {
 }
 
 class _AnchorRow extends StatelessWidget {
-  const _AnchorRow({required this.anchor});
+  const _AnchorRow({required this.anchor, required this.genba});
   final ItineraryAnchor anchor;
+  final Genba genba;
 
   @override
   Widget build(BuildContext context) {
@@ -340,17 +406,31 @@ class _AnchorRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.push_pin_outlined, size: 18),
+          const Icon(Icons.push_pin_outlined, size: 20),
           const SizedBox(width: AppSpace.sm),
           Expanded(
-            child: Text(
-              '公演 ${anchor.kind.label}',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
-              semanticsLabel: '公演${anchor.kind.label} $time',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '公演 ${anchor.kind.label}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                  semanticsLabel: '公演${anchor.kind.label} $time',
+                ),
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                  '${genba.artistName} / ${genba.title}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: tokens.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
             ),
           ),
           Text(

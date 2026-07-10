@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import '../../../core/db/app_database.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
+import '../../../core/time/clock.dart';
 import '../domain/routes_entitlement.dart';
 
 /// 現在ownerの entitlement をリモートから1行取得する関数。
@@ -31,12 +32,15 @@ class RoutesEntitlementRepositoryImpl implements RoutesEntitlementRepository {
     required AppDatabase db,
     required String? Function() ownerIdResolver,
     required EntitlementFetcher? Function() fetcherResolver,
+    Clock clock = const SystemClock(),
   })  : _db = db,
         _ownerId = ownerIdResolver,
-        _fetcherResolver = fetcherResolver;
+        _fetcherResolver = fetcherResolver,
+        _clock = clock;
 
   final AppDatabase _db;
   final String? Function() _ownerId;
+  final Clock _clock;
 
   /// デモ・未ログイン時は null（refresh を no-op 化）。ログイン時は Supabase を
   /// `.withRemoteTimeout()` 付きで叩く fetcher を返す（providers.dart が供給）。
@@ -65,7 +69,7 @@ class RoutesEntitlementRepositoryImpl implements RoutesEntitlementRepository {
       final row = await fetch(owner);
       final isPremium = row?['premium_routes_live'] as bool? ?? false;
       final updatedAt = row?['updated_at'] as String? ??
-          DateTime.now().toUtc().toIso8601String();
+          _clock.now().toUtc().toIso8601String();
       await applyEntitlement(
         owner: owner,
         isPremium: isPremium,

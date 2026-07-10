@@ -614,7 +614,7 @@ class _LinkManager extends StatelessWidget {
   }
 }
 
-class _LinkDialog extends StatefulWidget {
+class _LinkDialog extends ConsumerStatefulWidget {
   const _LinkDialog({
     required this.ownerId,
     required this.spotId,
@@ -625,10 +625,10 @@ class _LinkDialog extends StatefulWidget {
   final ItinerarySpotLink? existing;
 
   @override
-  State<_LinkDialog> createState() => _LinkDialogState();
+  ConsumerState<_LinkDialog> createState() => _LinkDialogState();
 }
 
-class _LinkDialogState extends State<_LinkDialog> {
+class _LinkDialogState extends ConsumerState<_LinkDialog> {
   late final TextEditingController _url;
   late final TextEditingController _label;
   late ItinerarySpotLinkKind _kind;
@@ -655,7 +655,7 @@ class _LinkDialogState extends State<_LinkDialog> {
       setState(() => _error = failure.message);
       return;
     }
-    final now = DateTime.now().toUtc();
+    final now = ref.read(clockProvider).now().toUtc();
     Navigator.of(context).pop(
       (widget.existing ??
               ItinerarySpotLink(

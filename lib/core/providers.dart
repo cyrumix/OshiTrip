@@ -310,6 +310,7 @@ final routesEntitlementRepositoryProvider =
   return RoutesEntitlementRepositoryImpl(
     db: ref.watch(databaseProvider),
     ownerIdResolver: () => scope.ownerIdOrNull,
+    clock: ref.watch(clockProvider),
     // デモ・未ログインでは null（refresh を no-op 化）。ログイン時は Supabase を
     // 共通タイムアウト付きで叩く fetcher を返す（無期限ハング禁止, R8-C）。
     fetcherResolver: () {

@@ -55,10 +55,10 @@ void main() {
     for (final label in [
       '概要',
       'Todo・持ち物',
-      '計画',
       'チケット',
       '交通',
       '宿泊',
+      '計画',
       'メモ',
     ]) {
       expect(

@@ -11,6 +11,9 @@ import '../../../../core/images/image_store.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/widgets/async_view.dart';
 import '../../../home/presentation/widgets/genba_card.dart';
+import '../../../itinerary/application/itinerary_providers.dart';
+import '../../../itinerary/application/itinerary_timeline.dart';
+import '../../../itinerary/domain/itinerary_entry.dart';
 import '../../application/genba_actions_controller.dart';
 import '../../domain/genba.dart';
 import '../../domain/genba_preparation.dart';
@@ -121,6 +124,7 @@ class GenbaOverviewTab extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpace.md),
+        _TodayNextPlanCard(aggregate: aggregate, now: now),
         _TodoPreviewCard(aggregate: aggregate, now: now),
         const SizedBox(height: AppSpace.md),
         _AttendanceCard(genba: genba),
@@ -195,6 +199,123 @@ class GenbaOverviewTab extends ConsumerWidget {
         _HeroImageManageCard(genba: genba),
       ],
     );
+  }
+}
+
+class _TodayNextPlanCard extends ConsumerWidget {
+  const _TodayNextPlanCard({required this.aggregate, required this.now});
+
+  final GenbaAggregate aggregate;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final genba = aggregate.genba;
+    final today = DateTime(now.year, now.month, now.day);
+    final eventDate = DateTime(
+      genba.eventDate.year,
+      genba.eventDate.month,
+      genba.eventDate.day,
+    );
+    if (today != eventDate) return const SizedBox.shrink();
+
+    final plans = ref.watch(itineraryPlansProvider(genba.id)).valueOrNull;
+    if (plans == null || plans.isEmpty || plans.first.entries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final timeline = buildItineraryTimeline(
+      aggregate: plans.first,
+      genba: genba,
+      transports: aggregate.transports,
+      lodgings: aggregate.lodgings,
+    );
+    ItineraryTimelineDay? eventDay;
+    for (final day in timeline.days) {
+      if (day.date == eventDate) {
+        eventDay = day;
+        break;
+      }
+    }
+    if (eventDay == null || eventDay.entries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    ItineraryTimelineEntry? next;
+    for (final item in eventDay.entries) {
+      final start = item.effectiveStartAt;
+      if (start == null || !start.isBefore(now)) {
+        next = item;
+        break;
+      }
+    }
+    if (next == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.md),
+      child: AppCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.route_outlined),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '次の予定',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: AppSpace.xs),
+                  Text(
+                    _nextPlanLabel(next),
+                    style: theme.textTheme.bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (_nextPlanTime(next) != null)
+                    Text(
+                      _nextPlanTime(next)!,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: tokens.textSecondary),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _nextPlanLabel(ItineraryTimelineEntry item) {
+    switch (item.entry.kind) {
+      case ItineraryEntryKind.spot:
+        return item.spot?.name ?? 'スポット';
+      case ItineraryEntryKind.transport:
+        final t = item.transport;
+        return t == null
+            ? '交通'
+            : '${t.direction.label} ${t.methodDisplay}'.trim();
+      case ItineraryEntryKind.lodging:
+        return item.lodging?.name ?? '宿泊';
+      case ItineraryEntryKind.note:
+        return item.entry.titleOverride ?? 'メモ';
+    }
+  }
+
+  String? _nextPlanTime(ItineraryTimelineEntry item) {
+    final start = item.effectiveStartAt;
+    final end = item.effectiveEndAt;
+    if (start == null && end == null) return null;
+    String fmt(DateTime dt) =>
+        '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+    if (start != null && end != null) return '${fmt(start)}〜${fmt(end)}';
+    if (start != null) return fmt(start);
+    return '〜${fmt(end!)}';
   }
 }
 
