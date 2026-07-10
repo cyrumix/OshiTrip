@@ -10,10 +10,11 @@ import '../helpers/fixtures.dart';
 import '../helpers/pump_screen.dart';
 import '../helpers/test_db.dart';
 
-/// 交通・宿泊の新規登録（§7.4/§7.5）: 出発・到着／チェックイン・チェックアウトの
-/// 初期日付は開催日にする。往路を新規保存すると復路登録の確認ダイアログを出し、
-/// 承諾時は手段を引き継ぎ出発地/到着地を逆にした復路（時刻未設定）を追加する。
-/// 既存交通の編集時にはこの確認を出さない。
+/// 交通・宿泊の新規登録（§7.4/§7.5）: 交通の出発・到着時刻はユーザーが選ぶまで
+/// 未設定のまま（日付/時刻ピッカーの初期日付だけ開催日にする）。宿泊のチェックイン・
+/// チェックアウト日は開催日を初期値として実データに入れる。往路を新規保存すると
+/// 復路登録の確認ダイアログを出し、承諾時は手段を引き継ぎ出発地/到着地を逆にした
+/// 復路（時刻未設定）を追加する。既存交通の編集時にはこの確認を出さない。
 void main() {
   const ownerId = 'demo-user-1';
   const genbaId = 'td-gb-1';
@@ -37,7 +38,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('交通を新規追加: 出発・到着時刻の初期日付は開催日、往路保存後に復路確認が出る', (tester) async {
+  testWidgets(
+      '交通を新規追加: 時刻を選ばなければ出発・到着は未設定のまま保存され、'
+      '往路保存後に復路確認が出る', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -59,10 +62,11 @@ void main() {
 
     await tapAdd(tester);
 
-    // 出発時刻・到着時刻の初期日付は開催日(2026/9/10)、時刻は00:00。
-    expect(find.text('9/10 0:00'), findsNWidgets(2));
+    // 新規追加直後は出発時刻・到着時刻とも未設定（実データに開催日0:00を
+    // 入れない。ピッカーの初期日付だけ開催日にする）。
+    expect(find.text('未設定'), findsNWidgets(2));
 
-    // 交通手段を選び、出発地・到着地を入力する。
+    // 交通手段を選び、出発地・到着地を入力する。時刻は選ばない。
     await tester.tap(find.text('新幹線'));
     await tester.pumpAndSettle();
     final textFields = find.byType(TextField);
@@ -89,6 +93,9 @@ void main() {
         .singleWhere((t) => t.direction == TransportDirection.inbound);
     expect(outbound.fromPlace, '東京');
     expect(outbound.toPlace, '大阪');
+    // 時刻を選ばずに保存したので往路も departAt/arriveAt は null のまま。
+    expect(outbound.departAt, isNull);
+    expect(outbound.arriveAt, isNull);
     expect(inbound.method, TransportMethod.shinkansen);
     expect(inbound.fromPlace, '大阪');
     expect(inbound.toPlace, '東京');

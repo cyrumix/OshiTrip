@@ -380,6 +380,10 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
   DateTime? _departAt;
   DateTime? _arriveAt;
 
+  /// 日付/時刻ピッカーを開いた時の初期日付（イベント日）。ユーザーが未選択の
+  /// 間は departAt/arriveAt を null のまま保つため、実データの初期値には使わない。
+  late final DateTime _pickerDefaultDate;
+
   @override
   void initState() {
     super.initState();
@@ -392,13 +396,13 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
     _reservation = TextEditingController(text: t?.reservationNumber ?? '');
     _url = TextEditingController(text: t?.url ?? '');
     _memo = TextEditingController(text: t?.memo ?? '');
-    final defaultDate = DateTime(
+    _pickerDefaultDate = DateTime(
       widget.eventDate.year,
       widget.eventDate.month,
       widget.eventDate.day,
     );
-    _departAt = t?.departAt?.toLocal() ?? defaultDate;
-    _arriveAt = t?.arriveAt?.toLocal() ?? defaultDate;
+    _departAt = t?.departAt?.toLocal();
+    _arriveAt = t?.arriveAt?.toLocal();
   }
 
   @override
@@ -415,7 +419,7 @@ class _TransportEditorState extends ConsumerState<_TransportEditor> {
   Future<DateTime?> _pickDateTime(DateTime? current) async {
     final date = await showDatePicker(
       context: context,
-      initialDate: current ?? ref.read(clockProvider).now(),
+      initialDate: current ?? _pickerDefaultDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
