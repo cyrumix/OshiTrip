@@ -110,29 +110,12 @@ class MemoTemplateManageScreen extends ConsumerWidget {
     WidgetRef ref,
     MemoTemplate template,
   ) async {
-    final controller = TextEditingController(text: template.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('テンプレート名を変更'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'テンプレート名'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
+    final name = await showTextPromptDialog(
+      context,
+      title: 'テンプレート名を変更',
+      labelText: 'テンプレート名',
+      initialText: template.name,
     );
-    controller.dispose();
     if (name == null || name.isEmpty) return;
     await ref
         .read(memoTemplateRepositoryProvider)

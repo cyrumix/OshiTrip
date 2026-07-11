@@ -156,31 +156,13 @@ class _CustomSwatch extends ConsumerWidget {
       excludeSemantics: true,
       child: InkWell(
         onTap: () async {
-          final controller = TextEditingController(text: currentHex ?? '#');
-          final hex = await showDialog<String>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('カスタムカラー'),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'カラーコード（#RRGGBB）',
-                  hintText: '#7B5CFF',
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('キャンセル'),
-                ),
-                FilledButton(
-                  onPressed: () =>
-                      Navigator.pop(context, controller.text.trim()),
-                  child: const Text('決定'),
-                ),
-              ],
-            ),
+          final hex = await showTextPromptDialog(
+            context,
+            title: 'カスタムカラー',
+            labelText: 'カラーコード（#RRGGBB）',
+            hintText: '#7B5CFF',
+            initialText: currentHex ?? '#',
+            confirmLabel: '決定',
           );
           if (hex != null && hex.isNotEmpty) await onSubmit(hex);
         },

@@ -508,31 +508,14 @@ class _MemoEditorSheetState extends ConsumerState<_MemoEditorSheet> {
   }
 
   Future<void> _saveAsTemplate() async {
-    final controller = TextEditingController(
-      text: _title.text.trim().isNotEmpty ? _title.text.trim() : _kind.label,
+    final defaultName =
+        _title.text.trim().isNotEmpty ? _title.text.trim() : _kind.label;
+    final name = await showTextPromptDialog(
+      context,
+      title: 'テンプレートとして保存',
+      labelText: 'テンプレート名',
+      initialText: defaultName,
     );
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('テンプレートとして保存'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'テンプレート名'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
     if (name == null || name.isEmpty || !mounted) return;
     final now = ref.read(clockProvider).now().toUtc();
     final memo = _buildMemo(now);

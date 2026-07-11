@@ -255,4 +255,27 @@ void main() {
     final rows = await db.select(db.genbaMemos).get();
     expect(rows.where((r) => r.id == 'conflict-1'), isEmpty);
   });
+
+  testWidgets('自由メモを「テンプレートとして保存」しても退場アニメーション中に例外が出ない', (tester) async {
+    final container = await pumpHost(tester);
+    await openEditor(tester, 'free');
+
+    await tester.enterText(find.byKey(const Key('memo_title')), '集合場所メモ');
+    await tester.tap(find.byTooltip('テンプレートとして保存'));
+    await pumpSettle(tester);
+    expect(find.text('テンプレートとして保存'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).last, '集合テンプレ');
+    await tester.tap(find.text('保存'));
+    await pumpSettle(tester);
+
+    // ダイアログの退場アニメーションが終わった後も
+    // 破棄済み TextEditingController の使用による例外は起きない。
+    expect(tester.takeException(), isNull);
+    expect(find.text('テンプレートに保存しました'), findsOneWidget);
+
+    final templates =
+        await container.read(memoTemplateRepositoryProvider).watchAll().first;
+    expect(templates.map((t) => t.name), contains('集合テンプレ'));
+  });
 }

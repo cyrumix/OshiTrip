@@ -23,3 +23,4 @@ export 'segment_tabs.dart';
 export 'settings_row.dart';
 export 'status_icon_item.dart';
 export 'sync_badge.dart';
+export 'text_prompt_dialog.dart';
