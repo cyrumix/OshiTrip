@@ -231,12 +231,11 @@ class _SavedEstimateView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // 所要・距離を中心に表示する。運賃・通貨は通常UIには出さない（修正4）。
     final parts = <String>[
       if (leg.durationMinutes != null) '${leg.durationMinutes}分',
       if (leg.distanceMeters != null)
         '${(leg.distanceMeters! / 1000).toStringAsFixed(1)}km',
-      if (leg.fareAmountMinor != null && leg.fareCurrency != null)
-        '${leg.fareCurrency} ${leg.fareAmountMinor}',
     ];
     if (parts.isEmpty) {
       return Text('保存済みの概算経路はまだありません。', style: theme.textTheme.bodySmall);
@@ -294,9 +293,9 @@ class _LiveResultView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
+            // 所要・距離を中心に表示する。運賃は通常UIには出さない（修正4）。
             '最新: ${result.durationMinutes}分 / '
-            '${(result.distanceMeters / 1000).toStringAsFixed(1)}km'
-            '${result.fareText != null ? ' / ${result.fareText}' : ''}',
+            '${(result.distanceMeters / 1000).toStringAsFixed(1)}km',
             style: theme.textTheme.bodyMedium
                 ?.copyWith(fontWeight: FontWeight.bold),
           ),

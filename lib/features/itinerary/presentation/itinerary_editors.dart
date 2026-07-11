@@ -12,10 +12,13 @@ import '../../../core/images/image_store.dart';
 import '../../../core/providers.dart';
 import '../../../core/time/date_only.dart';
 import '../application/itinerary_actions_controller.dart';
+import '../application/itinerary_providers.dart';
+import '../application/places_search_controller.dart';
 import '../domain/itinerary_entry.dart';
 import '../domain/itinerary_spot.dart';
 import '../domain/itinerary_spot_link.dart';
 import '../domain/itinerary_validation.dart';
+import '../domain/places_gateway.dart';
 import 'itinerary_sheet_scaffold.dart';
 import 'itinerary_spot_image.dart';
 
@@ -44,7 +47,8 @@ class SpotEditTarget {
 }
 
 /// スポット（施設・訪問）編集シートを開く。新規では spot と訪問項目(entry)を
-/// 同時に作る。Google検索導線はまだ出さない（「自分で入力」のみ, §4.1）。
+/// 同時に作る。施設名欄は「Google候補＋手入力」の一体型で、Places 有効時は候補が
+/// 出て、選んでも選ばず手入力しても登録できる（§4.1）。
 Future<void> showItinerarySpotEditor(
   BuildContext context,
   WidgetRef ref, {
@@ -104,6 +108,19 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
   final List<String> _sessionImports = [];
   String? _sessionOwnerId;
 
+  /// Google Places で選択した施設の Place ID（永続保存してよい唯一の Google 由来
+  /// 値, D-178/D-179）。手入力で施設名を変えたら対応が外れるので破棄する。
+  String? _googlePlaceId;
+
+  /// 施設名検索（Google Places Autocomplete）。未設定・無効時は
+  /// [UnavailablePlacesGateway] が刺さり、候補は出ず自然に手入力として動く。
+  PlacesSearchController? _placesSearch;
+  bool _placesAvailable = false;
+
+  /// 候補選択で name/address を差し替えている最中は onChanged の副作用
+  /// （placeId 破棄・再検索）を抑止する。
+  bool _applyingSelection = false;
+
   @override
   void initState() {
     super.initState();
@@ -113,6 +130,12 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
     _address = TextEditingController(text: s?.address ?? '');
     _memo = TextEditingController(text: s?.memo ?? '');
     _category = s?.category ?? ItinerarySpotCategory.sightseeing;
+    _googlePlaceId = s?.googlePlaceId;
+    _placesAvailable = ref.read(envProvider).googlePlacesAvailable;
+    _placesSearch = PlacesSearchController(
+      gateway: ref.read(placesGatewayProvider),
+      generateToken: () => _uuid.v4(),
+    )..addListener(_onPlacesChanged);
     // 編集時は保存済みの日付・時刻をそのまま使う。新規時は初期値
     // （現在操作中の予定日／直前予定の終了時刻）を使い、端末の本日は使わない。
     final isNew = widget.existing == null;
@@ -143,10 +166,55 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
       }
       _sessionImports.clear();
     }
+    _placesSearch?.removeListener(_onPlacesChanged);
+    _placesSearch?.dispose();
     _name.dispose();
     _address.dispose();
     _memo.dispose();
     super.dispose();
+  }
+
+  void _onPlacesChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// 施設名の手入力（ユーザーによる編集）。名前が変わると、以前選択した Google
+  /// 候補との対応が失われるため Place ID・帰属を破棄する。Places 有効時は候補検索
+  /// を走らせる（3文字以上・debounce つき）。無効時は何もせず手入力として動く。
+  void _onNameChanged(String value) {
+    if (_applyingSelection) return;
+    if (_googlePlaceId != null) {
+      setState(() => _googlePlaceId = null);
+    }
+    if (_placesAvailable) _placesSearch?.onQueryChanged(value);
+  }
+
+  /// 候補を選び、Place Details で施設名・住所を入力欄へ反映する（ユーザーが確認・
+  /// 保存する「明示変換」。永続する Google 由来値は Place ID のみ, D-178/D-179）。
+  Future<void> _selectSuggestion(PlaceSuggestion s) async {
+    final controller = _placesSearch;
+    if (controller == null) return;
+    final result = await controller.select(s);
+    if (!mounted) return;
+    result.when(
+      ok: (details) {
+        _applyingSelection = true;
+        setState(() {
+          final name = details.displayName?.trim();
+          _name.text = (name != null && name.isNotEmpty) ? name : s.primaryText;
+          final addr = details.formattedAddress?.trim();
+          if (addr != null && addr.isNotEmpty) _address.text = addr;
+          _googlePlaceId = details.placeId;
+        });
+        _applyingSelection = false;
+        // 候補リストを閉じる（セッション終了・次入力で新セッション）。
+        controller.abandon();
+      },
+      err: (f) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(f.message)));
+      },
+    );
   }
 
   Future<void> _pickImage() async {
@@ -211,6 +279,9 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
       id: spotId,
       planId: widget.planId,
       ownerId: widget.ownerId,
+      // 永続保存してよい唯一の Google 由来値（照合キー・地図/経路導線に使う,
+      // D-178/D-179）。手入力のみのスポットでは null。編集時も保持する。
+      googlePlaceId: _googlePlaceId,
       name: _name.text.trim(),
       category: _category,
       address: _address.text.trim().isEmpty ? null : _address.text.trim(),
@@ -329,6 +400,104 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
     }
   }
 
+  /// 施設名の下に出す Google 候補（Places 有効時のみ）。候補なし・利用不可・失敗の
+  /// ときは手入力できる旨だけ示し、画面を候補で埋め尽くさない。
+  List<Widget> _buildPlaceSuggestions() {
+    if (!_placesAvailable) return const [];
+    final controller = _placesSearch;
+    if (controller == null) return const [];
+    final state = controller.state;
+    final theme = Theme.of(context);
+    switch (state.status) {
+      case PlacesSearchStatus.idle:
+      case PlacesSearchStatus.tooShort:
+      case PlacesSearchStatus.unavailable:
+        return const [];
+      case PlacesSearchStatus.loading:
+        return const [
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 8),
+                Text('候補を検索中…'),
+              ],
+            ),
+          ),
+        ];
+      case PlacesSearchStatus.empty:
+      case PlacesSearchStatus.error:
+        return [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              state.status == PlacesSearchStatus.empty
+                  ? '候補が見つかりません。そのまま手入力できます。'
+                  : '検索に失敗しました。そのまま手入力できます。',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ];
+      case PlacesSearchStatus.results:
+        return [
+          const SizedBox(height: 4),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final s in state.suggestions)
+                  ListTile(
+                    key: Key('place_suggestion_${s.placeId}'),
+                    dense: true,
+                    leading: const Icon(Icons.place_outlined),
+                    title: Text(s.primaryText),
+                    subtitle:
+                        s.secondaryText == null ? null : Text(s.secondaryText!),
+                    trailing: state.isSelecting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : null,
+                    onTap:
+                        state.isSelecting ? null : () => _selectSuggestion(s),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 4),
+            child: Text('候補: Google', style: theme.textTheme.labelSmall),
+          ),
+        ];
+    }
+  }
+
+  Widget _buildPlaceAttribution() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 14, color: theme.colorScheme.outline),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              'Google の候補から選択しました（保存されるのは施設名・住所・Place ID）',
+              style: theme.textTheme.labelSmall,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
@@ -337,20 +506,21 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
       onSave: _save,
       onDelete: isEdit ? _delete : null,
       children: [
-        // 手動入力を主要導線として明示（Google検索はまだ出さない）。
-        Text(
-          '自分で入力',
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 8),
+        // 施設名は「Google候補＋手入力」の一体型。入力すると（Places有効時のみ）
+        // 候補が出る。候補を選んでも、選ばず手入力しても登録できる。
         TextField(
           controller: _name,
-          decoration: const InputDecoration(labelText: '施設名 *'),
+          decoration: InputDecoration(
+            labelText: '施設名 *',
+            helperText: _placesAvailable
+                ? '入力するとGoogleの候補が出ます。候補を選ぶか、そのまま手入力できます'
+                : 'そのまま手入力できます',
+          ),
           autofocus: !isEdit,
+          onChanged: _onNameChanged,
         ),
+        ..._buildPlaceSuggestions(),
+        if (_googlePlaceId != null) _buildPlaceAttribution(),
         ItineraryEnumChips<ItinerarySpotCategory>(
           label: 'カテゴリ',
           values: ItinerarySpotCategory.values,

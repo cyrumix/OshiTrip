@@ -163,7 +163,8 @@ void main() {
 
     expect(find.byKey(const Key('route_live_result')), findsOneWidget);
     expect(find.textContaining('15分'), findsOneWidget);
-    expect(find.textContaining('¥180'), findsOneWidget);
+    // 運賃は通常UIに出さない（所要・距離を中心に表示する, 修正4）。
+    expect(find.textContaining('¥180'), findsNothing);
     expect(find.textContaining('新宿駅'), findsOneWidget);
     expect(find.text('Google Maps'), findsOneWidget); // 帰属表示
     expect(find.text('最新ルートを更新'), findsOneWidget);

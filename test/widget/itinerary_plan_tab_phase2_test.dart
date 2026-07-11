@@ -148,7 +148,7 @@ void main() {
     await unmountApp(tester);
   });
 
-  testWidgets('移動区間は手段・時刻・所要・距離・運賃を表示する', (tester) async {
+  testWidgets('移動区間は手段・時刻・所要・距離を表示し、運賃は出さない', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -214,7 +214,8 @@ void main() {
     expect(find.text('X地点 → Y地点'), findsOneWidget);
     expect(find.textContaining('約30分'), findsOneWidget);
     expect(find.textContaining('1.0km'), findsOneWidget);
-    expect(find.textContaining('500 JPY'), findsOneWidget);
+    // 運賃・通貨は通常UIに出さない（DB項目は保持するが表示しない, 修正4）。
+    expect(find.textContaining('500 JPY'), findsNothing);
     expect(find.textContaining('発 →'), findsOneWidget);
 
     await unmountApp(tester);

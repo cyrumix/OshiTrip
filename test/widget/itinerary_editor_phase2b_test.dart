@@ -65,7 +65,8 @@ void main() {
     await openPlanTab(tester);
 
     await tapAddMenu(tester, 'スポットを追加（自分で入力）');
-    expect(find.text('自分で入力'), findsOneWidget);
+    // 施設名欄（Google候補＋手入力の一体型）が出る。
+    expect(find.widgetWithText(TextField, '施設名 *'), findsOneWidget);
 
     // 緯度・経度の入力欄・説明は表示されない（点2）。
     expect(find.widgetWithText(TextField, '緯度'), findsNothing);
@@ -185,10 +186,18 @@ void main() {
     await tapAddMenu(tester, '移動区間を追加');
     expect(find.text('移動区間を追加'), findsOneWidget);
 
-    // 時刻だけ入力（日付は前後予定から自動決定）。
-    expect(find.textContaining('日付は出発元・到着先の予定日から自動'), findsOneWidget);
+    // 時刻だけ入力（日付は前後予定から自動決定。説明文はUIから外した）。
+    expect(find.textContaining('日付は出発元・到着先の予定日から自動'), findsNothing);
     expect(find.widgetWithText(InputDecorator, '出発時刻'), findsOneWidget);
     expect(find.widgetWithText(InputDecorator, '到着時刻'), findsOneWidget);
+    // 通貨・運賃・経路概要・手動MapsURLの入力欄は通常UIに出さない（修正2/4）。
+    expect(find.widgetWithText(TextField, '通貨（例: JPY）'), findsNothing);
+    expect(find.widgetWithText(TextField, '運賃'), findsNothing);
+    expect(find.widgetWithText(TextField, '経路概要'), findsNothing);
+    expect(
+      find.widgetWithText(TextField, 'Google Mapsで開くURL（任意）'),
+      findsNothing,
+    );
     // シート内に日付選択の導線が無い（日付は自動決定。時刻の「選択」だけ）。
     expect(find.byType(DropdownButtonFormField<String>), findsNWidgets(2));
   });

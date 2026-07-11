@@ -65,11 +65,11 @@ void main() {
     expect(find.text('公演 開演'), findsOneWidget);
     expect(find.textContaining('計画テスト公演'), findsWidgets);
 
-    // スポットを追加（自分で入力）。
+    // スポットを追加（施設名は Google候補＋手入力の一体型フィールド）。
     await tapAddMenu(tester, 'スポットを追加（自分で入力）');
-    expect(find.text('自分で入力'), findsOneWidget);
-    // Google検索の見せかけ導線は無い。
-    expect(find.textContaining('Googleで探す'), findsNothing);
+    expect(find.widgetWithText(TextField, '施設名 *'), findsOneWidget);
+    // Google未設定（デモ環境）では候補は出ず、手入力として動く。
+    expect(find.textContaining('そのまま手入力できます'), findsWidgets);
 
     await tester.enterText(find.byType(TextField).first, '東京タワー');
     await tester.tap(find.text('保存する'));

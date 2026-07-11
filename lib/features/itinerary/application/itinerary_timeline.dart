@@ -154,6 +154,35 @@ class ItineraryTimelineEntry {
       Object.hash(entry, spot, transport, lodging, referenceStatus);
 }
 
+/// タイムライン項目のユーザー向け日本語表示名（単一の生成元）。
+///
+/// 計画タブの一覧・移動区間の出発/到着ラベル・移動区間編集の端点候補など、
+/// 「その予定を人が読んで分かる名前」が要るすべての箇所でこの関数を使う。
+/// 内部の種別コード（`spot`/`transport`/`lodging`/`note` などの enum 名）や
+/// ID を決してそのまま画面へ出さない。参照先が削除済みのときは日本語で
+/// 「削除済みの…」と示す。
+String itineraryTimelineEntryLabel(ItineraryTimelineEntry item) {
+  switch (item.entry.kind) {
+    case ItineraryEntryKind.spot:
+      final name = item.spot?.name.trim();
+      if (name != null && name.isNotEmpty) return name;
+      return '削除済みのスポット';
+    case ItineraryEntryKind.transport:
+      final t = item.transport;
+      if (t == null) return '削除済みの交通';
+      final head = '${t.direction.label} ${t.methodDisplay}'.trim();
+      return head.isEmpty ? '交通' : head;
+    case ItineraryEntryKind.lodging:
+      final l = item.lodging;
+      if (l == null) return '削除済みの宿泊';
+      final name = l.name?.trim();
+      return (name != null && name.isNotEmpty) ? name : '宿泊先';
+    case ItineraryEntryKind.note:
+      final title = item.entry.titleOverride?.trim();
+      return (title != null && title.isNotEmpty) ? title : 'メモ';
+  }
+}
+
 /// 日別セクション（§5.2）。
 class ItineraryTimelineDay {
   const ItineraryTimelineDay({

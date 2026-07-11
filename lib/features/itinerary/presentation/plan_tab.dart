@@ -124,22 +124,6 @@ class _EventSchedulePreview extends StatelessWidget {
 String _weekday(DateTime d) =>
     const ['月', '火', '水', '木', '金', '土', '日'][d.weekday - 1];
 
-/// タイムライン項目の短い表示名（leg の端点ラベル等に使う）。
-String _timelineEntryLabel(ItineraryTimelineEntry item) {
-  switch (item.entry.kind) {
-    case ItineraryEntryKind.spot:
-      return item.spot?.name ?? '（スポット）';
-    case ItineraryEntryKind.transport:
-      final t = item.transport;
-      if (t == null) return '交通（削除済み）';
-      return '${t.direction.label} ${t.methodDisplay}'.trim();
-    case ItineraryEntryKind.lodging:
-      return item.lodging?.name ?? '宿泊先';
-    case ItineraryEntryKind.note:
-      return item.entry.titleOverride ?? 'メモ';
-  }
-}
-
 class _PlanTimeline extends ConsumerWidget {
   const _PlanTimeline({
     required this.genbaAggregate,
@@ -190,7 +174,7 @@ class _PlanTimeline extends ConsumerWidget {
     final placements = placeItineraryLegs(
       orderedEntries: orderedEntries,
       legs: aggregate.legs,
-      labelOf: _timelineEntryLabel,
+      labelOf: itineraryTimelineEntryLabel,
     );
     final adjacentByAfterId = <String, List<ItineraryLegPlacement>>{};
     for (final p in placements.where((p) => p.adjacent)) {
@@ -446,9 +430,9 @@ class _AnchorRow extends StatelessWidget {
   }
 }
 
-/// 移動区間の表示（手段・時刻・所要・距離・運賃・経路概要）。編集/削除・
-/// Google Maps を開く（ドメイン確認あり）を備える。端点が離れている場合は
-/// 出発/到着のラベルを添えて落とさず表示する（点3）。
+/// 移動区間の表示（手段・時刻・所要・距離）。編集/削除・Google Maps を開く
+/// （ドメイン確認あり）を備える。運賃・通貨・経路概要は通常UIに出さない。
+/// 端点が離れている場合は出発/到着のラベルを添えて落とさず表示する（点3）。
 class _LegRow extends ConsumerWidget {
   const _LegRow({
     required this.placement,
@@ -464,11 +448,11 @@ class _LegRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final leg = placement.leg;
     final theme = Theme.of(context);
+    // 運賃・通貨・経路概要は通常UIには出さない（所要・距離・経路導線を中心に
+    // 表示する）。DB項目は残すが、ここでは表示しない。
     final details = <String>[
       if (leg.durationMinutes != null) '約${leg.durationMinutes}分',
       if (leg.distanceMeters != null) _formatDistance(leg.distanceMeters!),
-      if (leg.fareAmountMinor != null && leg.fareCurrency != null)
-        '${leg.fareAmountMinor} ${leg.fareCurrency}',
     ];
     final times = _formatLegTimes(leg.departureAt, leg.arrivalAt);
 
@@ -500,11 +484,6 @@ class _LegRow extends ConsumerWidget {
                     if (details.isNotEmpty)
                       Text(
                         details.join('・'),
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    if (leg.routeSummary != null)
-                      Text(
-                        leg.routeSummary!,
                         style: theme.textTheme.bodyMedium,
                       ),
                   ],
@@ -562,7 +541,7 @@ class _LegRow extends ConsumerWidget {
     final options = buildLegEntryOptions(
       aggregate: aggregate,
       genbaAggregate: genbaAggregate,
-      labelOf: _optionLabel,
+      labelOf: itineraryTimelineEntryLabel,
     );
     showItineraryLegEditor(
       context,
@@ -589,14 +568,6 @@ class _LegRow extends ConsumerWidget {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(failure.message)));
     }
-  }
-
-  String _optionLabel(ItineraryEntry e) {
-    if (e.kind == ItineraryEntryKind.spot) {
-      final spot = aggregate.spots.firstWhereOrNull((s) => s.id == e.spotId);
-      if (spot != null) return spot.name;
-    }
-    return e.titleOverride ?? e.kind.name;
   }
 
   static String _formatDistance(int meters) =>
@@ -786,22 +757,7 @@ class _EntryCard extends ConsumerWidget {
         ItineraryEntryKind.note => 'メモ',
       };
 
-  String _title() {
-    switch (item.entry.kind) {
-      case ItineraryEntryKind.spot:
-        return item.spot?.name ?? '（スポット）';
-      case ItineraryEntryKind.transport:
-        final t = item.transport;
-        if (t == null) return '交通（削除済み）';
-        return '${t.direction.label} ${t.methodDisplay}'.trim();
-      case ItineraryEntryKind.lodging:
-        final l = item.lodging;
-        if (l == null) return '宿泊（削除済み）';
-        return l.name ?? '宿泊先';
-      case ItineraryEntryKind.note:
-        return item.entry.titleOverride ?? 'メモ';
-    }
-  }
+  String _title() => itineraryTimelineEntryLabel(item);
 
   String? _subtitle() {
     switch (item.entry.kind) {
@@ -1048,7 +1004,7 @@ Future<void> openSpotEditorWithDefaults(
 List<ItineraryEntryOption> buildLegEntryOptions({
   required ItineraryPlanAggregate aggregate,
   required GenbaAggregate genbaAggregate,
-  required String Function(ItineraryEntry) labelOf,
+  required String Function(ItineraryTimelineEntry) labelOf,
 }) {
   final timeline = buildItineraryTimeline(
     aggregate: aggregate,
@@ -1069,7 +1025,7 @@ List<ItineraryEntryOption> buildLegEntryOptions({
               : null;
           return ItineraryEntryOption(
             id: it.entry.id,
-            label: labelOf(it.entry),
+            label: labelOf(it),
             date: it.effectiveLocalDate,
             spotId: spot?.id,
             googlePlaceId: spot?.googlePlaceId,
@@ -1197,7 +1153,7 @@ class _AddMenu extends ConsumerWidget {
                 : buildLegEntryOptions(
                     aggregate: planAgg,
                     genbaAggregate: genbaAggregate,
-                    labelOf: _entryLabel,
+                    labelOf: itineraryTimelineEntryLabel,
                   );
             // メモは端点にできないため、実予定が2つ以上必要。
             if (options.length < 2) {
@@ -1220,14 +1176,5 @@ class _AddMenu extends ConsumerWidget {
         }
       },
     );
-  }
-
-  String _entryLabel(ItineraryEntry e) {
-    final plan0 = plan;
-    if (plan0 != null && e.kind == ItineraryEntryKind.spot) {
-      final spot = plan0.spots.firstWhereOrNull((s) => s.id == e.spotId);
-      if (spot != null) return spot.name;
-    }
-    return e.titleOverride ?? e.kind.name;
   }
 }
