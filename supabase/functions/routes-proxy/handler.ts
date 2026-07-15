@@ -129,9 +129,17 @@ export function transformComputeRoutes(data: unknown): unknown {
 
   const legs = (route.legs ?? []) as Array<Record<string, unknown>>;
   const transitSteps: Array<Record<string, unknown>> = [];
+  let walkSeconds = 0;
   for (const leg of legs) {
     const steps = (leg.steps ?? []) as Array<Record<string, unknown>>;
     for (const step of steps) {
+      // 徒歩ステップの所要を合計する（「徒歩 合計N分」の表示に使う, item 4）。
+      if (step.travelMode === "WALK") {
+        const raw = typeof step.staticDuration === "string"
+          ? step.staticDuration
+          : "0s";
+        walkSeconds += parseInt(raw.replace(/s$/, ""), 10) || 0;
+      }
       const details = step.transitDetails as Record<string, unknown> | undefined;
       if (!details) continue;
       const line = (details.transitLine ?? {}) as Record<string, unknown>;
@@ -140,6 +148,14 @@ export function transformComputeRoutes(data: unknown): unknown {
       const departureStop =
         (stopDetails.departureStop ?? {}) as { name?: string };
       const arrivalStop = (stopDetails.arrivalStop ?? {}) as { name?: string };
+      const localized =
+        (details.localizedValues ?? {}) as Record<string, unknown>;
+      const depLocal = (localized.departureTime ?? {}) as {
+        time?: { text?: string };
+      };
+      const arrLocal = (localized.arrivalTime ?? {}) as {
+        time?: { text?: string };
+      };
       transitSteps.push({
         lineName: typeof line.name === "string" ? line.name : "",
         lineNameShort: typeof line.nameShort === "string"
@@ -155,6 +171,12 @@ export function transformComputeRoutes(data: unknown): unknown {
         arrivalStopName: typeof arrivalStop.name === "string"
           ? arrivalStop.name
           : null,
+        departureTime: typeof depLocal.time?.text === "string"
+          ? depLocal.time.text
+          : null,
+        arrivalTime: typeof arrLocal.time?.text === "string"
+          ? arrLocal.time.text
+          : null,
       });
     }
   }
@@ -162,6 +184,7 @@ export function transformComputeRoutes(data: unknown): unknown {
   return {
     durationMinutes,
     distanceMeters,
+    walkMinutes: Math.round(walkSeconds / 60),
     fareText,
     transitSteps,
   };

@@ -73,14 +73,19 @@ void main() {
   });
 
   group('googleMapsDirectionsUrl（追加Routes取得なし, §6.2）', () {
-    test('Place ID優先で経路URLを生成する', () {
+    test('Place ID は origin/destination の text＋*_place_id で生成する（Google公式形式）',
+        () {
       const origin = RouteEndpoint(placeId: 'ChIJ_origin');
       const destination = RouteEndpoint(placeId: 'ChIJ_dest');
       final uri = googleMapsDirectionsUrl(origin, destination)!;
       expect(uri.host, 'www.google.com');
       expect(uri.path, '/maps/dir/');
-      expect(uri.queryParameters['origin'], 'place_id:ChIJ_origin');
-      expect(uri.queryParameters['destination'], 'place_id:ChIJ_dest');
+      // 旧 `place_id:` 接頭辞は dir api=1 形式では解釈されないため、text へ
+      // Place ID を入れつつ *_place_id を併記する（item 5）。
+      expect(uri.queryParameters['origin'], 'ChIJ_origin');
+      expect(uri.queryParameters['origin_place_id'], 'ChIJ_origin');
+      expect(uri.queryParameters['destination'], 'ChIJ_dest');
+      expect(uri.queryParameters['destination_place_id'], 'ChIJ_dest');
     });
 
     test('Place IDが無ければ緯度経度で生成する', () {

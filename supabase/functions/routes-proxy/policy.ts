@@ -22,12 +22,16 @@ export const ROUTES_ALLOWED_FIELDS = [
   "routes.duration",
   "routes.distanceMeters",
   "routes.localizedValues.transitFare",
+  "routes.legs.steps.travelMode",
+  "routes.legs.steps.staticDuration",
   "routes.legs.steps.transitDetails.transitLine.name",
   "routes.legs.steps.transitDetails.transitLine.nameShort",
   "routes.legs.steps.transitDetails.transitLine.vehicle.type",
   "routes.legs.steps.transitDetails.headsign",
   "routes.legs.steps.transitDetails.stopDetails.departureStop.name",
   "routes.legs.steps.transitDetails.stopDetails.arrivalStop.name",
+  "routes.legs.steps.transitDetails.localizedValues.departureTime.time.text",
+  "routes.legs.steps.transitDetails.localizedValues.arrivalTime.time.text",
 ] as const;
 
 /// アプリが対応する移動手段（taxi/flight/other は手動入力のまま、Routesを
@@ -74,10 +78,29 @@ export function mapGoogleStatus(status: number): RoutesErrorKind {
   return "upstream_error";
 }
 
-export function isKillSwitchOn(value: string | undefined): boolean {
+/// 環境変数の真偽フラグ判定（"1"/"true"/"on" を真とみなす。未設定は偽）。
+export function isFlagOn(value: string | undefined): boolean {
   if (!value) return false;
   const v = value.trim().toLowerCase();
   return v === "1" || v === "true" || v === "on";
+}
+
+export function isKillSwitchOn(value: string | undefined): boolean {
+  return isFlagOn(value);
+}
+
+/// プレミアム制限の判定（現仕様: 既定で全認証ユーザー可）。
+///
+/// `ROUTES_REQUIRE_PREMIUM=true`（[requirePremium]）の環境でのみ entitlement を
+/// 要求し、非エンタイトルなら "not_entitled" を返す。未設定/false のときは常に
+/// 許可（null）し、entitlement RPC を呼ぶ必要すらない。将来のプレミアム化に備え
+/// RPC・テーブルは残す（D-232）。
+export function premiumGateError(
+  requirePremium: boolean,
+  entitled: boolean,
+): "not_entitled" | null {
+  if (!requirePremium) return null;
+  return entitled ? null : "not_entitled";
 }
 
 /// Google Routes transit の対応範囲（過去7日〜未来100日, 確認済み）。

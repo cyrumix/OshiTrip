@@ -62,4 +62,63 @@ void main() {
       expect(r.listed, isEmpty);
     });
   });
+
+  group('spotGoogleMapsUrl 手入力スポットでも地図URLを生成（item 6）', () {
+    test('Place ID＋名称は名称＋query_place_id で開く', () {
+      final url = spotGoogleMapsUrl(
+        makeItinerarySpot(name: '東京タワー', googlePlaceId: 'ChIJ_x'),
+      );
+      expect(url.queryParameters['query'], '東京タワー');
+      expect(url.queryParameters['query_place_id'], 'ChIJ_x');
+    });
+
+    test('Place IDも座標も無い手入力スポットは施設名検索URL', () {
+      final url = spotGoogleMapsUrl(makeItinerarySpot(name: '幕張メッセ'));
+      expect(url.host, 'www.google.com');
+      expect(url.path, '/maps/search/');
+      expect(url.queryParameters['query'], '幕張メッセ');
+    });
+  });
+
+  group('googleMapsRouteUrl 経路URL生成（item 5）', () {
+    test('施設名から dir URL を生成（手入力スポットのフォールバック）', () {
+      final url = googleMapsRouteUrl(
+        origin: const MapRouteEndpoint(name: '東京駅'),
+        destination: const MapRouteEndpoint(name: '新大阪駅'),
+        travelMode: 'transit',
+      );
+      expect(url, isNotNull);
+      expect(url!.path, '/maps/dir/');
+      expect(url.queryParameters['origin'], '東京駅');
+      expect(url.queryParameters['destination'], '新大阪駅');
+      expect(url.queryParameters['travelmode'], 'transit');
+    });
+
+    test('Place ID があれば origin/destination の text＋*_place_id で生成', () {
+      final url = googleMapsRouteUrl(
+        origin: const MapRouteEndpoint(name: '東京駅', placeId: 'ChIJ_o'),
+        destination: const MapRouteEndpoint(name: '新大阪駅', placeId: 'ChIJ_d'),
+      );
+      expect(url!.queryParameters['origin'], '東京駅');
+      expect(url.queryParameters['origin_place_id'], 'ChIJ_o');
+      expect(url.queryParameters['destination_place_id'], 'ChIJ_d');
+    });
+
+    test('名称も住所も座標も無ければ生成不可（null）', () {
+      final url = googleMapsRouteUrl(
+        origin: const MapRouteEndpoint(),
+        destination: const MapRouteEndpoint(name: '新大阪駅'),
+      );
+      expect(url, isNull);
+    });
+
+    test('名称が無くても住所→座標の順でフォールバックする', () {
+      final byAddress = googleMapsRouteUrl(
+        origin: const MapRouteEndpoint(address: '東京都千代田区'),
+        destination: const MapRouteEndpoint(latitude: 34.7, longitude: 135.5),
+      );
+      expect(byAddress!.queryParameters['origin'], '東京都千代田区');
+      expect(byAddress.queryParameters['destination'], '34.7,135.5');
+    });
+  });
 }

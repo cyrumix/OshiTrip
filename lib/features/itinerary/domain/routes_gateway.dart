@@ -86,6 +86,7 @@ class RouteLiveResult {
   const RouteLiveResult({
     required this.durationMinutes,
     required this.distanceMeters,
+    this.walkMinutes = 0,
     this.fareText,
     this.transitSteps = const [],
     required this.requestedAt,
@@ -93,6 +94,9 @@ class RouteLiveResult {
 
   final int durationMinutes;
   final int distanceMeters;
+
+  /// 徒歩ステップの合計所要（分）。「徒歩 合計N分」の表示に使う（item 4）。
+  final int walkMinutes;
 
   /// 運賃の表示テキスト（取得できた場合のみ非null。§6.2「金額は取得・保存が
   /// 許される場合のみ」— ここでは表示専用で永続保存しない）。
@@ -104,7 +108,7 @@ class RouteLiveResult {
   final DateTime requestedAt;
 }
 
-/// 公共交通の1ステップ（路線名・行き先・乗降停留所）。
+/// 公共交通の1ステップ（路線名・行き先・乗降停留所・発着時刻）。
 class RouteLiveTransitStep {
   const RouteLiveTransitStep({
     required this.lineName,
@@ -113,6 +117,8 @@ class RouteLiveTransitStep {
     this.headsign,
     this.departureStopName,
     this.arrivalStopName,
+    this.departureTime,
+    this.arrivalTime,
   });
 
   final String lineName;
@@ -121,6 +127,10 @@ class RouteLiveTransitStep {
   final String? headsign;
   final String? departureStopName;
   final String? arrivalStopName;
+
+  /// ローカライズ済みの発車・到着時刻テキスト（「10:30」等。item 4）。
+  final String? departureTime;
+  final String? arrivalTime;
 }
 
 /// Google 未設定・無効・利用不可時のゲートウェイ。常に [UnavailableFailure]。
@@ -141,16 +151,23 @@ class UnavailableRoutesGateway implements RoutesGateway {
 /// どちらかの地点に位置情報が無ければ生成できない（null）。
 Uri? googleMapsDirectionsUrl(RouteEndpoint origin, RouteEndpoint destination) {
   if (!origin.hasLocation || !destination.hasLocation) return null;
-  String param(RouteEndpoint e) {
-    if (e.placeId != null && e.placeId!.isNotEmpty) {
-      return 'place_id:${e.placeId}';
+  // origin/destination は text（座標優先、無ければ Place ID）で渡し、Place ID は
+  // *_place_id で併記する（Google 公式の dir api=1 形式。`place_id:` 接頭辞は
+  // この形式では正しく解釈されない, item 5）。
+  String text(RouteEndpoint e) {
+    if (e.latitude != null && e.longitude != null) {
+      return '${e.latitude},${e.longitude}';
     }
-    return '${e.latitude},${e.longitude}';
+    return e.placeId ?? '';
   }
 
   return Uri.https('www.google.com', '/maps/dir/', {
     'api': '1',
-    'origin': param(origin),
-    'destination': param(destination),
+    'origin': text(origin),
+    if (origin.placeId != null && origin.placeId!.isNotEmpty)
+      'origin_place_id': origin.placeId!,
+    'destination': text(destination),
+    if (destination.placeId != null && destination.placeId!.isNotEmpty)
+      'destination_place_id': destination.placeId!,
   });
 }

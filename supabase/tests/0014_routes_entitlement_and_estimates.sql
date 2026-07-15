@@ -74,23 +74,26 @@ select results_eq(
 select throws_ok(
   $$insert into public.user_entitlements (owner_id, premium_routes_live)
       values ('11111111-1111-1111-1111-111111111111', true)$$,
-  '42501',
+  '42501', null,
   'authenticated cannot insert into user_entitlements (self-grant impossible)'
 );
 
--- 7) 自己更新（UPDATE）もできない
-select throws_ok(
-  $$update public.user_entitlements set premium_routes_live = false
-      where owner_id = '11111111-1111-1111-1111-111111111111'$$,
-  '42501',
-  'authenticated cannot update user_entitlements (self-modification impossible)'
+-- 7) 自己更新（UPDATE）もできない。UPDATE ポリシーが無いため RLS が対象行を
+--    0 件に絞り、実際には1行も更新されない（＝改変不可）。
+select results_eq(
+  $$with u as (
+      update public.user_entitlements set premium_routes_live = false
+        where owner_id = '11111111-1111-1111-1111-111111111111' returning 1)
+    select count(*)::int from u$$,
+  $$values (0)$$,
+  'authenticated cannot update user_entitlements (RLS blocks: 0 rows)'
 );
 
 -- 8) entitlement検証RPCは一般ユーザーから実行できない（service_role専用）
 select throws_ok(
   $$select public.has_premium_routes_entitlement(
       '11111111-1111-1111-1111-111111111111')$$,
-  '42501',
+  '42501', null,
   'authenticated cannot execute has_premium_routes_entitlement'
 );
 
@@ -134,7 +137,7 @@ select results_eq(
 select throws_ok(
   $$select public.check_and_increment_routes_rate_limit(
       '11111111-1111-1111-1111-111111111111', 1, 60)$$,
-  '42501',
+  '42501', null,
   'authenticated cannot execute check_and_increment_routes_rate_limit'
 );
 
@@ -172,7 +175,7 @@ select throws_ok(
       '11111111-1111-1111-1111-111111111111',
       'walking', 'user_provided', 'pending'
     )$$,
-  'P0001',
+  'P0001', null,
   'authenticated cannot insert directly as pending'
 );
 
@@ -187,13 +190,15 @@ select lives_ok(
 select throws_ok(
   $$update public.shared_route_estimates set moderation_status = 'approved'
       where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
-  'P0001',
+  'P0001', null,
   'authenticated cannot self-approve their own submission'
 );
 
 reset role;
 
--- service role相当で承認（rights_basisを付与）。
+-- service role 相当で承認（rights_basis を付与）。承認ガードは auth.uid() が
+-- null のときだけ遷移を許すため、JWT の sub を外す（role=service_role, D-248）。
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 update public.shared_route_estimates
   set moderation_status = 'approved', rights_basis = 'ユーザー入力の実測値'
   where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -205,20 +210,25 @@ select set_config(
   true
 );
 
--- 17) 承認済みは投稿者本人でも更新できない
-select throws_ok(
-  $$update public.shared_route_estimates set route_summary = '書き換え'
-      where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
-  '42501',
-  'creator cannot update an approved shared_route_estimate'
+-- 17) 承認済みは投稿者本人でも更新できない（UPDATE ポリシーが承認済み行を
+--     除外するため対象0件＝改変されない）。
+select results_eq(
+  $$with u as (
+      update public.shared_route_estimates set route_summary = '書き換え'
+        where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' returning 1)
+    select count(*)::int from u$$,
+  $$values (0)$$,
+  'creator cannot update an approved shared_route_estimate (RLS blocks: 0 rows)'
 );
 
--- 18) 承認済みは投稿者本人でも削除できない
-select throws_ok(
-  $$delete from public.shared_route_estimates
-      where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
-  '42501',
-  'creator cannot delete an approved shared_route_estimate'
+-- 18) 承認済みは投稿者本人でも削除できない（同様に対象0件）。
+select results_eq(
+  $$with d as (
+      delete from public.shared_route_estimates
+        where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' returning 1)
+    select count(*)::int from d$$,
+  $$values (0)$$,
+  'creator cannot delete an approved shared_route_estimate (RLS blocks: 0 rows)'
 );
 
 reset role;
@@ -257,7 +267,7 @@ select throws_ok(
       '11111111-1111-1111-1111-111111111111',
       'walking', 'google', 'draft'
     )$$,
-  '23514',
+  '23514', null,
   'data_origin=google is rejected by the CHECK constraint'
 );
 

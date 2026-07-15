@@ -60,11 +60,34 @@ Future<void> openExternalUrlWithConfirm(
     ),
   );
   if (confirmed != true || !context.mounted) return;
-  final ok = await canLaunchUrl(uri) &&
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  final ok = await launchExternalUrl(uri);
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('リンクを開けませんでした')),
+      const SnackBar(
+        content: Text('リンクを開けませんでした（対応するアプリ・ブラウザが見つかりません）'),
+      ),
     );
   }
+}
+
+/// 外部URLを開く。対応アプリ（Google Maps等）を優先し、無ければブラウザで開く。
+///
+/// `canLaunchUrl` は対象アプリ未インストール時に false を返し、ブラウザで開ける
+/// ケースまで弾いてしまう（「リンクを開けませんでした」の主因）。ここでは
+/// external → platformDefault → inAppBrowser の順に実際の起動を試し、いずれかが
+/// 成功すれば true（item 5/6 の起動不具合対策）。
+Future<bool> launchExternalUrl(Uri uri) async {
+  const modes = [
+    LaunchMode.externalApplication,
+    LaunchMode.platformDefault,
+    LaunchMode.inAppBrowserView,
+  ];
+  for (final mode in modes) {
+    try {
+      if (await launchUrl(uri, mode: mode)) return true;
+    } catch (_) {
+      // 次のモードを試す。
+    }
+  }
+  return false;
 }

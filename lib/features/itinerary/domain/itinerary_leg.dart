@@ -102,3 +102,15 @@ abstract class ItineraryLeg with _$ItineraryLeg {
   factory ItineraryLeg.fromJson(Map<String, dynamic> json) =>
       _$ItineraryLegFromJson(json);
 }
+
+/// 金額（円。JPYは補助単位=円なので [fareAmountMinor] をそのまま円で扱う）を
+/// 「1,200円」のように3桁区切りで表示する（item 4。通貨は日本円前提）。
+String formatJpyYen(int yen) {
+  final s = yen.abs().toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return '${yen < 0 ? '-' : ''}$buf円';
+}

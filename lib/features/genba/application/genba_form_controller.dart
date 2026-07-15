@@ -21,6 +21,8 @@ class GenbaFormState {
     this.oshiGroupId,
     this.oshiMemberIds = const [],
     this.venue = '',
+    this.venueAddress = '',
+    this.venueGooglePlaceId,
     this.doorTimeMinutes,
     this.startTimeMinutes,
     this.endTimeMinutes,
@@ -38,6 +40,10 @@ class GenbaFormState {
   final String? oshiGroupId;
   final List<String> oshiMemberIds;
   final String venue;
+
+  /// 会場の住所・Google Place ID（会場のGoogle連携。候補選択で反映・保存する）。
+  final String venueAddress;
+  final String? venueGooglePlaceId;
   final int? doorTimeMinutes;
   final int? startTimeMinutes;
   final int? endTimeMinutes;
@@ -66,6 +72,9 @@ class GenbaFormState {
     bool clearOshiGroupId = false,
     List<String>? oshiMemberIds,
     String? venue,
+    String? venueAddress,
+    String? venueGooglePlaceId,
+    bool clearVenueGooglePlaceId = false,
     int? doorTimeMinutes,
     bool clearDoorTime = false,
     int? startTimeMinutes,
@@ -88,6 +97,10 @@ class GenbaFormState {
       oshiGroupId: clearOshiGroupId ? null : (oshiGroupId ?? this.oshiGroupId),
       oshiMemberIds: oshiMemberIds ?? this.oshiMemberIds,
       venue: venue ?? this.venue,
+      venueAddress: venueAddress ?? this.venueAddress,
+      venueGooglePlaceId: clearVenueGooglePlaceId
+          ? null
+          : (venueGooglePlaceId ?? this.venueGooglePlaceId),
       doorTimeMinutes:
           clearDoorTime ? null : (doorTimeMinutes ?? this.doorTimeMinutes),
       startTimeMinutes:
@@ -113,6 +126,8 @@ class GenbaFormState {
         'oshi_group_id': oshiGroupId,
         'oshi_member_ids': oshiMemberIds,
         'venue': venue,
+        'venue_address': venueAddress,
+        'venue_google_place_id': venueGooglePlaceId,
         'door_time_minutes': doorTimeMinutes,
         'start_time_minutes': startTimeMinutes,
         'end_time_minutes': endTimeMinutes,
@@ -138,6 +153,8 @@ class GenbaFormState {
       oshiMemberIds:
           ((json['oshi_member_ids'] as List<dynamic>?) ?? const []).cast(),
       venue: (json['venue'] as String?) ?? '',
+      venueAddress: (json['venue_address'] as String?) ?? '',
+      venueGooglePlaceId: json['venue_google_place_id'] as String?,
       doorTimeMinutes: json['door_time_minutes'] as int?,
       startTimeMinutes: json['start_time_minutes'] as int?,
       endTimeMinutes: json['end_time_minutes'] as int?,
@@ -158,6 +175,8 @@ class GenbaFormState {
         oshiGroupId: g.oshiGroupId,
         oshiMemberIds: g.oshiMemberIds,
         venue: g.venue ?? '',
+        venueAddress: g.venueAddress ?? '',
+        venueGooglePlaceId: g.venueGooglePlaceId,
         doorTimeMinutes: g.doorTimeMinutes,
         startTimeMinutes: g.startTimeMinutes,
         endTimeMinutes: g.endTimeMinutes,
@@ -385,6 +404,9 @@ class GenbaFormController
       oshiGroupId: oshiValidation.groupId,
       oshiMemberIds: oshiValidation.memberIds,
       venue: form.venue.trim().isEmpty ? null : form.venue.trim(),
+      venueAddress:
+          form.venueAddress.trim().isEmpty ? null : form.venueAddress.trim(),
+      venueGooglePlaceId: form.venueGooglePlaceId,
       doorTimeMinutes: form.doorTimeMinutes,
       startTimeMinutes: form.startTimeMinutes,
       endTimeMinutes: form.endTimeMinutes,

@@ -60,6 +60,28 @@ enum ItinerarySpotCategory {
   other,
 }
 
+extension ItinerarySpotCategoryWire on ItinerarySpotCategory {
+  /// DB/JSON に保存する snake_case 値（`@JsonValue` と一致させる単一の情報源）。
+  /// 共有現場のカテゴリ選択UIなど、enum を直接使えない箇所での参照に使う。
+  String get wireValue => switch (this) {
+        ItinerarySpotCategory.venue => 'venue',
+        ItinerarySpotCategory.sightseeing => 'sightseeing',
+        ItinerarySpotCategory.restaurant => 'restaurant',
+        ItinerarySpotCategory.cafe => 'cafe',
+        ItinerarySpotCategory.lodging => 'lodging',
+        ItinerarySpotCategory.station => 'station',
+        ItinerarySpotCategory.airport => 'airport',
+        ItinerarySpotCategory.shopping => 'shopping',
+        ItinerarySpotCategory.shrineTemple => 'shrine_temple',
+        ItinerarySpotCategory.sacredPlace => 'sacred_place',
+        ItinerarySpotCategory.museum => 'museum',
+        ItinerarySpotCategory.park => 'park',
+        ItinerarySpotCategory.photoSpot => 'photo_spot',
+        ItinerarySpotCategory.convenience => 'convenience',
+        ItinerarySpotCategory.other => 'other',
+      };
+}
+
 extension ItinerarySpotCategoryLabel on ItinerarySpotCategory {
   String get label => switch (this) {
         ItinerarySpotCategory.venue => 'ライブ・イベント会場',

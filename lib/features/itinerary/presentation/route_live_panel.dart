@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/error/result.dart';
 import '../../../core/providers.dart';
+import '../application/itinerary_actions_controller.dart';
 import '../application/routes_providers.dart';
 import '../domain/itinerary_leg.dart';
+import '../domain/itinerary_map_links.dart';
 import '../domain/itinerary_value_origin.dart';
 import '../domain/representative_time_bucket.dart';
 import '../domain/route_request_fingerprint.dart';
@@ -12,16 +14,19 @@ import '../domain/routes_gateway.dart';
 import 'external_link.dart';
 import 'itinerary_import_and_leg.dart' show ItineraryEntryOption;
 
-/// 移動区間の経路詳細パネル（旅程Phase 4, itinerary-plan-spec §6.3/§8.3）。
+/// 移動区間カードの経路パネル（itinerary-plan-spec §6.3/§8.3）。
 ///
-/// 登録スポット↔スポットの区間だけを対象にする（端点のどちらかが
-/// transport/lodging/note、または座標・Place IDが無いスポットなら何も
-/// 表示しない）。保存済み概算は常時閲覧可（非プレミアム含む）。Google Routes
-/// への問い合わせは「経路詳細を開く」「最新ルートを更新」の**明示タップ**
-/// からのみ発生し、この Widget を build するだけでは一切呼ばれない。
+/// 役割を分けた3つの導線を提供する:
+/// - **経路を確認**: アプリ内で Google Routes から経路を取得・表示する（計画時刻＝
+///   区間の出発予定時刻ベース）。徒歩合計・公共交通の路線/乗換/発着時刻を表示。
+/// - **最新の経路**: 押した時点の現在時刻を出発時刻として再取得する（当日・移動
+///   直前用）。
+/// - **Google Mapsで開く**: 外部の地図アプリ/ブラウザを開く補助導線。
 ///
-/// Google のライブ結果は画面状態にのみ保持し、手動入力欄への自動コピーは
-/// 行わない（D-215: Places同様、ユーザーが確認のうえ目視で入力し直す）。
+/// Google のライブ結果は原則として画面状態の一時データ（D-180/D-181/D-215:
+/// Routes コンテンツを恒久キャッシュへ昇格させない）。「この経路を保存」では、
+/// ユーザーが確認のうえ **所要・距離だけ**を自分の概算（`userProvided`）として
+/// 保存する（乗換ステップ等の Google コンテンツは保存しない, ToS準拠）。
 class RouteLivePanel extends ConsumerStatefulWidget {
   const RouteLivePanel({
     super.key,
@@ -29,6 +34,7 @@ class RouteLivePanel extends ConsumerStatefulWidget {
     required this.destination,
     required this.travelMode,
     required this.existingLeg,
+    this.planId,
   });
 
   final ItineraryEntryOption? origin;
@@ -36,19 +42,22 @@ class RouteLivePanel extends ConsumerStatefulWidget {
   final ItineraryTravelMode travelMode;
   final ItineraryLeg? existingLeg;
 
+  /// 非nullなら「この経路を保存」を出せる（計画のleg更新に使う）。編集シート等で
+  /// 保存導線が不要なときは null。
+  final String? planId;
+
   @override
   ConsumerState<RouteLivePanel> createState() => _RouteLivePanelState();
 }
 
 class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
-  bool _expanded = false;
   Future<Result<RouteLiveResult>>? _liveFuture;
-
-  /// 公共交通の代表時刻が Google Routes の対応範囲外（過去7日〜未来100日）の
-  /// ときの案内文言。設定されている間は Google Routes を呼ばない（修正5）。
+  bool _fetchedWithNow = false;
   String? _rangeNotice;
+  bool _saving = false;
 
-  RouteEndpoint? _endpointOf(ItineraryEntryOption? o) {
+  /// Google Routes を呼べる端点か（Place ID または座標が必要）。
+  RouteEndpoint? _routeEndpointOf(ItineraryEntryOption? o) {
     if (o == null || o.spotId == null) return null;
     final endpoint = RouteEndpoint(
       placeId: o.googlePlaceId,
@@ -58,37 +67,53 @@ class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
     return endpoint.hasLocation ? endpoint : null;
   }
 
+  MapRouteEndpoint? _mapEndpointOf(ItineraryEntryOption? o) {
+    if (o == null) return null;
+    return MapRouteEndpoint(
+      name: o.label,
+      address: o.address,
+      latitude: o.latitude,
+      longitude: o.longitude,
+      placeId: o.googlePlaceId,
+    );
+  }
+
+  static String? _googleTravelMode(ItineraryTravelMode m) => switch (m) {
+        ItineraryTravelMode.walking => 'walking',
+        ItineraryTravelMode.transit => 'transit',
+        ItineraryTravelMode.driving || ItineraryTravelMode.taxi => 'driving',
+        ItineraryTravelMode.bicycling => 'bicycling',
+        ItineraryTravelMode.flight || ItineraryTravelMode.other => null,
+      };
+
   @override
   void didUpdateWidget(covariant RouteLivePanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 端点・手段が変わったら、古い組み合わせの展開状態・取得結果を
-    // 新しい組み合わせへ持ち越さない。
     if (oldWidget.origin?.id != widget.origin?.id ||
         oldWidget.destination?.id != widget.destination?.id ||
         oldWidget.travelMode != widget.travelMode) {
-      _expanded = false;
       _liveFuture = null;
       _rangeNotice = null;
     }
   }
 
-  RepresentativeRequestTime _representativeTime() {
+  void _fetch(
+    RouteEndpoint origin,
+    RouteEndpoint destination,
+    bool isPremium, {
+    required bool useNow,
+  }) {
     final now = ref.read(clockProvider).now().toUtc();
-    final effectiveDeparture = widget.existingLeg?.departureAt ?? now;
-    return resolveRepresentativeRequestTime(effectiveDeparture, now);
-  }
-
-  void _fetch(RouteEndpoint origin, RouteEndpoint destination, bool isPremium) {
-    final bucket = _representativeTime();
-    // 公共交通は対応範囲（過去7日〜未来100日）外だと Google Routes が取得
-    // できないため、**呼ぶ前に**案内を出して API を呼ばない（修正5）。保存済み
-    // 概算・手動入力はそのまま使える。
+    // 「経路を確認」は区間の出発予定時刻ベース、「最新の経路」は現在時刻ベース。
+    final effectiveDeparture =
+        useNow ? now : (widget.existingLeg?.departureAt ?? now);
+    final bucket = resolveRepresentativeRequestTime(effectiveDeparture, now);
     if (widget.travelMode == ItineraryTravelMode.transit &&
         bucket.isOutOfSupportedRange) {
       setState(() {
-        _rangeNotice = '公共交通の最新経路は、出発日時が現在から過去7日〜未来100日の'
+        _rangeNotice = '公共交通の経路は、出発日時が現在から過去7日〜未来100日の'
             '範囲内のときだけ取得できます。日程を近づけるか、保存済みの概算経路・'
-            '手動入力をご利用ください。';
+            '手動入力・Google Mapsをご利用ください。';
         _liveFuture = null;
       });
       return;
@@ -107,6 +132,7 @@ class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
     );
     setState(() {
       _rangeNotice = null;
+      _fetchedWithNow = useNow;
       _liveFuture = ref.read(routeRecalculationControllerProvider).recalculate(
             request: request,
             isPremium: isPremium,
@@ -115,110 +141,164 @@ class _RouteLivePanelState extends ConsumerState<RouteLivePanel> {
     });
   }
 
+  /// ユーザーが確認して「所要・距離だけ」を自分の概算として保存する（明示変換,
+  /// D-180/D-181・ToS準拠。乗換ステップ等の Google コンテンツは保存しない）。
+  Future<void> _saveEstimate(RouteLiveResult result) async {
+    final leg = widget.existingLeg;
+    final planId = widget.planId;
+    if (leg == null || planId == null || _saving) return;
+    final o = _mapEndpointOf(widget.origin);
+    final d = _mapEndpointOf(widget.destination);
+    final mapsUrl = (o != null && d != null)
+        ? googleMapsRouteUrl(
+            origin: o,
+            destination: d,
+            travelMode: _googleTravelMode(widget.travelMode),
+          )?.toString()
+        : null;
+    setState(() => _saving = true);
+    final now = ref.read(clockProvider).now().toUtc();
+    final updated = leg.copyWith(
+      durationMinutes: result.durationMinutes,
+      distanceMeters: result.distanceMeters,
+      googleMapsUrl: mapsUrl ?? leg.googleMapsUrl,
+      lastVerifiedAt: now,
+      updatedAt: now,
+    );
+    final failure = await ref
+        .read(itineraryActionsControllerProvider(planId).notifier)
+        .upsertLeg(updated);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(failure == null ? '所要・距離を保存しました' : failure.message),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final origin = _endpointOf(widget.origin);
-    final destination = _endpointOf(widget.destination);
-    if (origin == null || destination == null) {
-      return const SizedBox.shrink(); // スポット↔スポットのみ対象（§6冒頭）
-    }
     final theme = Theme.of(context);
-    final isPremium = ref.watch(routesIsPremiumProvider).valueOrNull ?? false;
     final leg = widget.existingLeg;
+    final mapOrigin = _mapEndpointOf(widget.origin);
+    final mapDest = _mapEndpointOf(widget.destination);
+    final mapsUrl = (mapOrigin != null && mapDest != null)
+        ? googleMapsRouteUrl(
+            origin: mapOrigin,
+            destination: mapDest,
+            travelMode: _googleTravelMode(widget.travelMode),
+          )
+        : null;
+    final routeOrigin = _routeEndpointOf(widget.origin);
+    final routeDest = _routeEndpointOf(widget.destination);
+    final canFetch = routeOrigin != null &&
+        routeDest != null &&
+        _googleTravelMode(widget.travelMode) != null;
+    final isPremium = ref.watch(routesIsPremiumProvider).valueOrNull ?? false;
+
+    // 端点情報が全く無い（名前も座標もPlace IDも無い）ときは何も出さない。
+    if (mapsUrl == null && !canFetch) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Divider(),
-        InkWell(
-          key: const Key('route_detail_toggle'),
-          onTap: () {
-            final wasExpanded = _expanded;
-            setState(() => _expanded = !_expanded);
-            // 非プレミアムは保存済み概算＋案内表示のみで、取得試行自体を行わない
-            // （呼んでも拒否されるだけの空振りを避ける）。
-            if (!wasExpanded && _liveFuture == null && isPremium) {
-              _fetch(origin, destination, isPremium);
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: [
-                Icon(_expanded ? Icons.expand_less : Icons.expand_more),
-                const SizedBox(width: 8),
-                Text('経路詳細', style: theme.textTheme.titleSmall),
-              ],
-            ),
-          ),
-        ),
+        const Divider(height: 16),
         if (leg != null) _SavedEstimateView(leg: leg),
-        if (_expanded) ...[
-          const SizedBox(height: 8),
-          if (_rangeNotice != null)
-            Padding(
-              key: const Key('route_range_notice'),
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                _rangeNotice!,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.error),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            if (canFetch)
+              TextButton.icon(
+                key: const Key('route_check_button'),
+                onPressed: () => _fetch(
+                  routeOrigin,
+                  routeDest,
+                  isPremium,
+                  useNow: false,
+                ),
+                icon: const Icon(Icons.directions_outlined, size: 18),
+                label: const Text('経路を確認'),
               ),
-            ),
-          if (!isPremium)
-            Text(
-              '最新ルートの取得はプレミアム限定です。保存済みの概算経路は引き続き閲覧できます。',
+            if (canFetch)
+              TextButton.icon(
+                key: const Key('route_latest_button'),
+                onPressed: () => _fetch(
+                  routeOrigin,
+                  routeDest,
+                  isPremium,
+                  useNow: true,
+                ),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('最新の経路'),
+              ),
+            if (mapsUrl != null)
+              TextButton.icon(
+                key: const Key('route_maps_button'),
+                onPressed: () => openExternalUrlWithConfirm(
+                  context,
+                  url: mapsUrl.toString(),
+                  label: 'Google Mapsで経路を開く',
+                ),
+                icon: const Icon(Icons.map_outlined, size: 18),
+                label: const Text('Google Mapsで開く'),
+              ),
+          ],
+        ),
+        if (_rangeNotice != null)
+          Padding(
+            key: const Key('route_range_notice'),
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              _rangeNotice!,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.error),
-            )
-          else
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                key: const Key('route_refresh_button'),
-                onPressed: () => _fetch(origin, destination, isPremium),
-                icon: const Icon(Icons.refresh),
-                label: const Text('最新ルートを更新'),
-              ),
             ),
-          if (_liveFuture != null)
-            FutureBuilder<Result<RouteLiveResult>>(
-              future: _liveFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Center(
-                      child: SizedBox(
-                        key: Key('route_live_loading'),
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  );
-                }
-                final result = snapshot.data;
-                if (result == null) return const SizedBox.shrink();
-                return result.when(
-                  ok: (live) => _LiveResultView(
-                    result: live,
-                    origin: origin,
-                    destination: destination,
-                  ),
-                  err: (failure) => Padding(
-                    key: const Key('route_live_error'),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      failure.message,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.error),
+          ),
+        if (_liveFuture != null)
+          FutureBuilder<Result<RouteLiveResult>>(
+            future: _liveFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: SizedBox(
+                      key: Key('route_live_loading'),
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
                 );
-              },
-            ),
-        ],
+              }
+              final result = snapshot.data;
+              if (result == null) return const SizedBox.shrink();
+              return result.when(
+                ok: (live) {
+                  return _LiveResultView(
+                    result: live,
+                    fetchedWithNow: _fetchedWithNow,
+                    canSave:
+                        widget.planId != null && widget.existingLeg != null,
+                    saving: _saving,
+                    onSave: () => _saveEstimate(live),
+                  );
+                },
+                err: (failure) => Padding(
+                  key: const Key('route_live_error'),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    failure.message,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.error),
+                  ),
+                ),
+              );
+            },
+          ),
       ],
     );
   }
@@ -231,33 +311,30 @@ class _SavedEstimateView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // 所要・距離を中心に表示する。運賃・通貨は通常UIには出さない（修正4）。
     final parts = <String>[
       if (leg.durationMinutes != null) '${leg.durationMinutes}分',
       if (leg.distanceMeters != null)
         '${(leg.distanceMeters! / 1000).toStringAsFixed(1)}km',
+      if (leg.fareAmountMinor != null) formatJpyYen(leg.fareAmountMinor!),
     ];
     if (parts.isEmpty) {
       return Text('保存済みの概算経路はまだありません。', style: theme.textTheme.bodySmall);
     }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '保存済み概算: ${parts.join(' / ')}',
-            key: const Key('route_saved_estimate'),
-            style: theme.textTheme.bodyMedium,
-          ),
-          Text(
-            '出典: ${leg.valueOrigin.label}'
-            '${leg.lastVerifiedAt != null ? ' ・確認 ${_formatDate(leg.lastVerifiedAt!)}' : ''}',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.outline),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '保存済み概算: ${parts.join(' / ')}',
+          key: const Key('route_saved_estimate'),
+          style: theme.textTheme.bodyMedium,
+        ),
+        Text(
+          '出典: ${leg.valueOrigin.label}'
+          '${leg.lastVerifiedAt != null ? ' ・確認 ${_formatDate(leg.lastVerifiedAt!)}' : ''}',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.outline),
+        ),
+      ],
     );
   }
 
@@ -267,23 +344,29 @@ class _SavedEstimateView extends StatelessWidget {
   }
 }
 
+/// アプリ内で取得した経路の結果表示（所要・距離・徒歩合計・公共交通の乗換
+/// タイムライン。発着時刻付き）。運賃は通常UIに出さない（item 4）。
 class _LiveResultView extends StatelessWidget {
   const _LiveResultView({
     required this.result,
-    required this.origin,
-    required this.destination,
+    required this.fetchedWithNow,
+    required this.canSave,
+    required this.saving,
+    required this.onSave,
   });
 
   final RouteLiveResult result;
-  final RouteEndpoint origin;
-  final RouteEndpoint destination;
+  final bool fetchedWithNow;
+  final bool canSave;
+  final bool saving;
+  final VoidCallback onSave;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final mapsUrl = googleMapsDirectionsUrl(origin, destination);
     return Container(
       key: const Key('route_live_result'),
+      margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
@@ -293,29 +376,41 @@ class _LiveResultView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            // 所要・距離を中心に表示する。運賃は通常UIには出さない（修正4）。
-            '最新: ${result.durationMinutes}分 / '
-            '${(result.distanceMeters / 1000).toStringAsFixed(1)}km',
+            '${fetchedWithNow ? '最新経路' : '経路'}: '
+            '合計${result.durationMinutes}分 / '
+            '${(result.distanceMeters / 1000).toStringAsFixed(1)}km'
+            '${result.walkMinutes > 0 ? ' ・徒歩 合計${result.walkMinutes}分' : ''}',
             style: theme.textTheme.bodyMedium
                 ?.copyWith(fontWeight: FontWeight.bold),
           ),
           for (final step in result.transitSteps)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${step.lineNameShort ?? step.lineName}'
-                '${step.headsign != null ? '（${step.headsign}方面）' : ''}'
-                '${step.departureStopName != null && step.arrivalStopName != null ? '：${step.departureStopName} → ${step.arrivalStopName}' : ''}',
-                style: theme.textTheme.bodySmall,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.directions_transit,
+                    size: 14,
+                    color: theme.colorScheme.outline,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _stepLabel(step),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
               ),
             ),
           const SizedBox(height: 4),
           Text(
-            '取得: ${_formatDateTime(result.requestedAt)}（概算・最新ではない可能性があります）',
+            '取得: ${_formatDateTime(result.requestedAt)}'
+            '（概算。最新ではない可能性があります）',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.outline),
           ),
-          const SizedBox(height: 4),
           Row(
             children: [
               Icon(
@@ -326,20 +421,32 @@ class _LiveResultView extends StatelessWidget {
               const SizedBox(width: 4),
               Text('Google Maps', style: theme.textTheme.labelSmall),
               const Spacer(),
-              if (mapsUrl != null)
+              if (canSave)
                 TextButton(
-                  onPressed: () => openExternalUrlWithConfirm(
-                    context,
-                    url: mapsUrl.toString(),
-                    label: 'Google Mapsで経路を開く',
-                  ),
-                  child: const Text('Google Mapsで開く'),
+                  key: const Key('route_save_button'),
+                  onPressed: saving ? null : onSave,
+                  child: Text(saving ? '保存中…' : 'この経路を保存'),
                 ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  /// 「10:30 発 東京 → 10:45 着 新宿（山手線・新宿方面）」のような1行。
+  static String _stepLabel(RouteLiveTransitStep step) {
+    final line = step.lineNameShort ?? step.lineName;
+    final head = step.headsign != null ? '・${step.headsign}方面' : '';
+    final dep = step.departureTime;
+    final arr = step.arrivalTime;
+    final from = step.departureStopName;
+    final to = step.arrivalStopName;
+    final timePart = (dep != null || arr != null)
+        ? '${dep ?? '—'} 発 → ${arr ?? '—'} 着 '
+        : '';
+    final stopPart = (from != null && to != null) ? '$from → $to ' : '';
+    return '$timePart$stopPart（$line$head）';
   }
 
   String _formatDateTime(DateTime d) {

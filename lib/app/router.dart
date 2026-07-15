@@ -21,11 +21,58 @@ import '../features/settings/presentation/data_management_screen.dart';
 import '../features/settings/presentation/oshi_color_settings_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/settings/presentation/theme_settings_screen.dart';
+import '../features/social/presentation/friends_screen.dart';
+import '../features/social/presentation/genba_members_screen.dart';
+import '../features/social/presentation/invite_join_screen.dart';
+import '../features/social/presentation/invite_paste_screen.dart';
+import '../features/social/presentation/profile_edit_screen.dart';
+import '../features/social/presentation/shared_genba_detail_screen.dart';
+
+/// 認証・チュートリアル・招待Deep Link を踏まえた遷移先を返す純粋関数（§4.1/§7.8.5）。
+///
+/// - ローディング中は /splash。
+/// - チュートリアル未完了は /onboarding。
+/// - 未認証は /login。ただし招待Deep Link（`/invite/...`）は認証後に復帰できるよう
+///   `/login?from=<invite>` へ退避する。
+/// - 認証済みで auth/splash/onboarding にいる場合は、`from` に退避した招待があれば
+///   そこへ、無ければ / へ。`from` は `/invite/` 内部パスに限定し外部遷移を防ぐ。
+@visibleForTesting
+String? resolveAuthRedirect({
+  required String location,
+  required Uri uri,
+  required bool loading,
+  required bool tutorialDone,
+  required bool signedIn,
+}) {
+  if (loading) {
+    return location == '/splash' ? null : '/splash';
+  }
+  final isAuthRoute = location == '/login' ||
+      location == '/signup' ||
+      location == '/password-reset';
+
+  if (!tutorialDone) {
+    return location == '/onboarding' ? null : '/onboarding';
+  }
+  if (!signedIn) {
+    if (isAuthRoute) return null;
+    if (location.startsWith('/invite/')) {
+      return '/login?from=${Uri.encodeComponent(location)}';
+    }
+    return '/login';
+  }
+  if (isAuthRoute || location == '/onboarding' || location == '/splash') {
+    final from = uri.queryParameters['from'];
+    if (from != null && from.startsWith('/invite/')) return from;
+    return '/';
+  }
+  return null;
+}
 
 /// ルーティング（go_router / StatefulShellRoute, ADR-0004）。
 ///
 /// redirect で「チュートリアル未完了 → オンボーディング」
-/// 「未認証 → ログイン」を制御する（§4.1 / §14）。
+/// 「未認証 → ログイン」を制御する（§4.1 / §14）。招待Deep Link は認証後に復帰する。
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ValueNotifier(0);
   ref
@@ -36,29 +83,13 @@ final routerProvider = Provider<GoRouter>((ref) {
   String? redirect(BuildContext context, GoRouterState state) {
     final authAsync = ref.read(currentUserProvider);
     final tutorialAsync = ref.read(tutorialDoneProvider);
-    final location = state.matchedLocation;
-
-    final loading = authAsync.isLoading || tutorialAsync.isLoading;
-    if (loading) {
-      return location == '/splash' ? null : '/splash';
-    }
-
-    final tutorialDone = tutorialAsync.valueOrNull ?? false;
-    final signedIn = authAsync.valueOrNull != null;
-    final isAuthRoute = location == '/login' ||
-        location == '/signup' ||
-        location == '/password-reset';
-
-    if (!tutorialDone) {
-      return location == '/onboarding' ? null : '/onboarding';
-    }
-    if (!signedIn) {
-      return isAuthRoute ? null : '/login';
-    }
-    if (isAuthRoute || location == '/onboarding' || location == '/splash') {
-      return '/';
-    }
-    return null;
+    return resolveAuthRedirect(
+      location: state.matchedLocation,
+      uri: state.uri,
+      loading: authAsync.isLoading || tutorialAsync.isLoading,
+      tutorialDone: tutorialAsync.valueOrNull ?? false,
+      signedIn: authAsync.valueOrNull != null,
+    );
   }
 
   final router = GoRouter(
@@ -85,6 +116,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/password-reset',
         builder: (context, state) => const PasswordResetScreen(),
+      ),
+      // 招待URL参加（Deep Link 最終形 https://oshitrip.app/invite/{token}）。
+      GoRoute(
+        path: '/invite/:token',
+        builder: (context, state) => InviteJoinScreen(
+          token: state.pathParameters['token']!,
+        ),
+      ),
+      // 共有された現場の詳細（閲覧用・サーバー権威）。
+      GoRoute(
+        path: '/shared-genba/:id',
+        builder: (context, state) => SharedGenbaDetailScreen(
+          genbaId: state.pathParameters['id']!,
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
@@ -118,6 +163,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                         path: 'edit',
                         builder: (context, state) => GenbaFormScreen(
                           genbaId: state.pathParameters['id'],
+                        ),
+                      ),
+                      GoRoute(
+                        path: 'members',
+                        builder: (context, state) => GenbaMembersScreen(
+                          genbaId: state.pathParameters['id']!,
                         ),
                       ),
                     ],
@@ -182,6 +233,18 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'account',
                     builder: (context, state) => const AccountSettingsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'profile',
+                    builder: (context, state) => const ProfileEditScreen(),
+                  ),
+                  GoRoute(
+                    path: 'friends',
+                    builder: (context, state) => const FriendsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'join',
+                    builder: (context, state) => const InvitePasteScreen(),
                   ),
                   GoRoute(
                     path: 'data',

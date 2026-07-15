@@ -71,7 +71,7 @@ select results_eq(
 -- 6) 増分 RPC は実行できない（execute 権を revoke 済み）
 select throws_ok(
   $$select public.increment_api_usage('development', 'places', 'autocomplete')$$,
-  '42501',
+  '42501', null,
   'authenticated cannot execute increment_api_usage'
 );
 

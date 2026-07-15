@@ -4,9 +4,10 @@
 // Web Service 用 Google API キーはこのサーバー側だけに置き、アプリへ埋め込まない。
 // このプロキシは以下を強制する:
 //   - Supabase 認証（platform verify_jwt + コード内 getUser 二重確認）
-//   - **プレミアムentitlement検証**（has_premium_routes_entitlement RPC）:
-//     非プレミアムは Google を呼ばず not_entitled を返す（クライアントの
-//     premium主張を信用しない, requirements.md §7.9）
+//   - **プレミアムentitlement検証は既定で無効**（現仕様: 全認証ユーザーが経路取得可）。
+//     ROUTES_REQUIRE_PREMIUM=true の環境でのみ has_premium_routes_entitlement RPC で
+//     検証し、非エンタイトルは not_entitled を返す。未設定/false なら RPC を呼ばず
+//     許可する。将来のプレミアム化に備え RPC・テーブルは残す（D-232）
 //   - ユーザー別レート制限（routes_rate_limit / RPC）
 //   - 対応手段の限定（walking/transit/driving/bicycling のみ。taxi/flight/other
 //     はこの関数に到達させない、クライアント側でも呼ばない設計だがサーバーでも
@@ -28,8 +29,10 @@ import {
   buildFieldMask,
   fieldMaskError,
   hasValidLocation,
+  isFlagOn,
   isKillSwitchOn,
   isWithinTransitTimeRange,
+  premiumGateError,
   ROUTES_ALLOWED_FIELDS,
   ROUTES_TRAVEL_MODE,
 } from "./policy.ts";
@@ -79,14 +82,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const admin = createClient(supabaseUrl, serviceKey);
 
-  // 3) entitlement（非プレミアムは Google を呼ばない。クライアントの主張は
-  //    信用せずサーバーのRPCで検証する）。
-  const { data: entitled, error: entError } = await admin.rpc(
-    "has_premium_routes_entitlement",
-    { p_owner: user.id },
-  );
-  if (entError) return errorResponse("unavailable", 503);
-  if (entitled !== true) return errorResponse("not_entitled", 403);
+  // 3) entitlement（現仕様: 既定で全認証ユーザー可）。
+  //    ROUTES_REQUIRE_PREMIUM=true の環境でのみ has_premium_routes_entitlement を
+  //    サーバーで検証する（クライアントの主張は信用しない）。未設定/false なら
+  //    RPC を呼ばず認証済みユーザーを許可する。将来のプレミアム化に備え RPC・
+  //    テーブルは残す（D-232）。
+  const requirePremium = isFlagOn(env("ROUTES_REQUIRE_PREMIUM"));
+  let entitled = false;
+  if (requirePremium) {
+    const { data, error: entError } = await admin.rpc(
+      "has_premium_routes_entitlement",
+      { p_owner: user.id },
+    );
+    if (entError) return errorResponse("unavailable", 503);
+    entitled = data === true;
+  }
+  const gate = premiumGateError(requirePremium, entitled);
+  if (gate) return errorResponse(gate, 403);
 
   // 4) レート制限（内容は保存しない・件数のみ）。
   const rateLimit = parseInt(env("ROUTES_RATE_LIMIT", "30"), 10);
@@ -104,6 +116,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     destination?: RouteEndpointPayload;
     travelMode?: string;
     representativeDepartureUtc?: string;
+    languageCode?: string;
+    regionCode?: string;
+    units?: string;
   };
   try {
     payload = await req.json();
@@ -150,11 +165,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return { location: { latLng: { latitude: e.latitude, longitude: e.longitude } } };
   }
 
+  // 経路案内・地名は日本語優先、国内利用・メートル法（item 2/8）。クライアントの
+  // 指定を優先しつつ、安全側の既定（ja/JP/METRIC）へフォールバックする。
+  const units = payload.units === "IMPERIAL" ? "IMPERIAL" : "METRIC";
   const body: Record<string, unknown> = {
     origin: waypoint(payload.origin!),
     destination: waypoint(payload.destination!),
     travelMode: googleMode,
-    languageCode: "ja",
+    languageCode: payload.languageCode ?? "ja",
+    regionCode: payload.regionCode ?? "JP",
+    units,
     // routingPreference は意図的に送らない（TRAFFIC_AWARE系を避けEssentials
     // SKUを維持する, policy.ts）。
   };

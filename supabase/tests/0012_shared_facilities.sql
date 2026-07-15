@@ -87,7 +87,7 @@ select throws_ok(
   $$insert into public.shared_facilities (id, created_by, name, data_origin)
     values ('f0000000-0000-0000-0000-0000000000f9',
             '11111111-1111-1111-1111-111111111111', 'X', 'google')$$,
-  '23514',
+  '23514', null,
   'invalid data_origin (e.g. google) is rejected'
 );
 
@@ -177,10 +177,11 @@ select lives_ok(
   'service_role can approve with rights_basis'
 );
 
--- 9) rights_basis 無しの承認は拒否される
+-- 9) rights_basis 無しの承認は拒否される（承認ガードの raise = P0001）。
 select throws_ok(
   $$update public.shared_facilities set moderation_status = 'approved'
     where id = 'f0000000-0000-0000-0000-000000000002'$$,
+  'P0001', null,
   'approve without rights_basis is rejected'
 );
 

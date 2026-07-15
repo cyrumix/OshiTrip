@@ -48,6 +48,9 @@ void main() {
       final bias = t.lastBody!['locationBias'] as Map<String, dynamic>;
       final circle = bias['circle'] as Map<String, dynamic>;
       expect((circle['center'] as Map)['latitude'], 35.6);
+      // 施設名・住所は日本語優先・国内（item 2/9）。
+      expect(t.lastBody!['languageCode'], 'ja');
+      expect(t.lastBody!['regionCode'], 'JP');
     });
 
     test('応答を候補リストへ変換する（placeId空は除外・欠落耐性）', () async {
@@ -109,6 +112,9 @@ void main() {
       expect(t.lastBody!['action'], 'details');
       expect(t.lastBody!['placeId'], 'ChIJ_1');
       expect(t.lastBody!['sessionToken'], 'session-token-1');
+      // 施設名・住所は日本語優先・国内（item 2/9）。
+      expect(t.lastBody!['languageCode'], 'ja');
+      expect(t.lastBody!['regionCode'], 'JP');
     });
 
     test('応答を名称・住所・帰属へ変換する', () async {

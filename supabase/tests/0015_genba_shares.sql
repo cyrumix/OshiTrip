@@ -99,7 +99,7 @@ select throws_ok(
       '33333333-3333-3333-3333-333333333333',
       'viewer'
     )$$,
-  '42501',
+  '42501', null,
   'grantee cannot insert a share (owner spoof blocked by RLS WITH CHECK)'
 );
 
@@ -147,7 +147,8 @@ select set_config(
   true
 );
 
--- 9) owner_id 偽装（owner_id を他人にした insert）は RLS WITH CHECK で拒否
+-- 9) owner_id 偽装（owner_id を他人にした insert）は拒否される。
+--    子owner トリガー（BEFORE INSERT）が RLS WITH CHECK より先に発火し P0001。
 select throws_ok(
   $$insert into public.genba_shares
       (id, owner_id, genba_id, grantee_id, role)
@@ -158,8 +159,8 @@ select throws_ok(
       '33333333-3333-3333-3333-333333333333',
       'viewer'
     )$$,
-  '42501',
-  'owner_id spoofing is rejected by RLS WITH CHECK'
+  'P0001', null,
+  'owner_id spoofing is rejected (child-owner trigger fires before RLS)'
 );
 
 -- 10) 自己共有（grantee = owner）は CHECK 制約で拒否
@@ -173,7 +174,7 @@ select throws_ok(
       '11111111-1111-1111-1111-111111111111',
       'viewer'
     )$$,
-  '23514',
+  '23514', null,
   'self-share (grantee = owner) is rejected by CHECK'
 );
 
@@ -188,7 +189,7 @@ select throws_ok(
       '33333333-3333-3333-3333-333333333333',
       'owner'
     )$$,
-  '23514',
+  '23514', null,
   'role=owner is rejected by CHECK (share rows are editor/viewer only)'
 );
 

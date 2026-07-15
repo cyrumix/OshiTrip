@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Deep Link: 招待URL https://oshitrip.app/invite/{token}（Phase 5, D-237）。
+	     https://oshitrip.app/.well-known/apple-app-site-association を配置し、
+	     Xcode の Signing & Capabilities で Associated Domains を有効化して
+	     この entitlements を CODE_SIGN_ENTITLEMENTS に紐付ける（deeplink/ 参照）。 -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:oshitrip.app</string>
+	</array>
+</dict>
+</plist>

@@ -50,7 +50,8 @@ class GenbaDetailScreen extends ConsumerWidget {
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 SliverAppBar(
                   pinned: true,
-                  expandedHeight: 292,
+                  // ヒーロー＋準備サマリ帯（item 1）を収める高さ。
+                  expandedHeight: 384,
                   // グローバルテーマは AppBarTheme.backgroundColor を
                   // transparent にしている（AppScaffold の背景グラデーションを
                   // 透過させるため）。だがこの画面は pinned な SliverAppBar が
@@ -61,6 +62,11 @@ class GenbaDetailScreen extends ConsumerWidget {
                   // （モックアップ準拠。二重表示にしない）。
                   title: const Text('現場詳細'),
                   actions: [
+                    IconButton(
+                      tooltip: 'メンバー・共有',
+                      icon: const Icon(Icons.group_outlined),
+                      onPressed: () => context.push('/genba/$genbaId/members'),
+                    ),
                     IconButton(
                       tooltip: '現場を編集',
                       icon: const Icon(Icons.edit_outlined),
@@ -88,7 +94,16 @@ class GenbaDetailScreen extends ConsumerWidget {
                             AppSpace.lg,
                             AppSpace.md,
                           ),
-                          child: _GenbaHeroHeader(genba: genba, now: now),
+                          // ヒーローカードの下・タブの上に準備サマリを置く
+                          // （item 1）。
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _GenbaHeroHeader(genba: genba, now: now),
+                              const SizedBox(height: AppSpace.sm),
+                              GenbaPrepSummaryBar(aggregate: a),
+                            ],
+                          ),
                         ),
                       ),
                     ),

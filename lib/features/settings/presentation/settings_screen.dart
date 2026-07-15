@@ -44,6 +44,26 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push('/settings/account'),
           ),
           const Divider(),
+          const _SectionLabel('つながり'),
+          SettingsRow(
+            icon: Icons.badge_outlined,
+            title: 'プロフィール',
+            subtitle: '共有メンバーやフレンドに表示される名前・ひとこと',
+            onTap: () => context.push('/settings/profile'),
+          ),
+          SettingsRow(
+            icon: Icons.group_outlined,
+            title: 'フレンド',
+            subtitle: '申請の承認・フレンドの管理',
+            onTap: () => context.push('/settings/friends'),
+          ),
+          SettingsRow(
+            icon: Icons.link_outlined,
+            title: '招待リンクで参加',
+            subtitle: '受け取った招待URLから現場に参加',
+            onTap: () => context.push('/settings/join'),
+          ),
+          const Divider(),
           const _SectionLabel('表示'),
           SettingsRow(
             icon: Icons.brightness_6_outlined,

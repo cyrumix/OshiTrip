@@ -45,6 +45,8 @@ _$GenbaImpl _$$GenbaImplFromJson(Map<String, dynamic> json) => _$GenbaImpl(
               .toList() ??
           const <String>[],
       venue: json['venue'] as String?,
+      venueAddress: json['venue_address'] as String?,
+      venueGooglePlaceId: json['venue_google_place_id'] as String?,
       doorTimeMinutes: (json['door_time_minutes'] as num?)?.toInt(),
       startTimeMinutes: (json['start_time_minutes'] as num?)?.toInt(),
       endTimeMinutes: (json['end_time_minutes'] as num?)?.toInt(),
@@ -87,6 +89,8 @@ Map<String, dynamic> _$$GenbaImplToJson(_$GenbaImpl instance) =>
       'oshi_group_id': instance.oshiGroupId,
       'oshi_member_ids': instance.oshiMemberIds,
       'venue': instance.venue,
+      'venue_address': instance.venueAddress,
+      'venue_google_place_id': instance.venueGooglePlaceId,
       'door_time_minutes': instance.doorTimeMinutes,
       'start_time_minutes': instance.startTimeMinutes,
       'end_time_minutes': instance.endTimeMinutes,

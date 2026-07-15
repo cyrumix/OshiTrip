@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme/app_tokens.dart';
 import '../../../genba/domain/genba.dart';
 import '../../../genba/domain/genba_preparation.dart';
 import '../../../genba/domain/genba_schedule.dart';
@@ -72,20 +73,22 @@ class GenbaCard extends StatelessWidget {
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (aggregate.incompleteTodoCount > 0)
-                    Chip(
-                      avatar: const Icon(Icons.check_box_outlined, size: 16),
-                      label: Text('Todo残り${aggregate.incompleteTodoCount}'),
-                      visualDensity: VisualDensity.compact,
+                  for (final tile in [
+                    TodoPrepChip(
+                      total: aggregate.todos
+                          .where((t) => t.type == TodoItemType.todo)
+                          .length,
+                      remaining: aggregate.incompleteTodoCount,
                     ),
-                  BelongingPrepChip(state: prep.belonging),
-                  PrepChip(label: 'チケット', state: prep.ticket),
-                  PrepChip(label: '交通', state: prep.transport),
-                  PrepChip(label: '宿泊', state: prep.lodging),
+                    BelongingPrepChip(state: prep.belonging),
+                    PrepChip(label: 'チケット', state: prep.ticket),
+                    PrepChip(label: '交通', state: prep.transport),
+                    PrepChip(label: '宿泊', state: prep.lodging),
+                  ])
+                    Expanded(child: tile),
                 ],
               ),
               if (nextAction != null) ...[
@@ -140,15 +143,15 @@ class GenbaStatusChip extends StatelessWidget {
       container: true,
       excludeSemantics: true,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: fg),
+            Icon(icon, size: 13, color: fg),
             const SizedBox(width: 4),
             Text(
               status.label,
@@ -164,6 +167,123 @@ class GenbaStatusChip extends StatelessWidget {
   }
 }
 
+/// 準備タイルの見た目段階。状態は必ず文字でも伝え、色は補助にする（§15.4）。
+enum _PrepTier {
+  /// 未登録（気づいてほしい）: ローズ系の状態文字＋淡ピンクのアイコン。
+  attention,
+
+  /// 準備中・未対応・残りあり: 無彩。
+  progress,
+
+  /// 準備OK・完了: 紫のアイコン＋紫文字。
+  done,
+
+  /// 不要: 最も控えめな無彩。
+  muted,
+}
+
+/// 半券（チケット下部）に**等幅**で並べる準備タイル。
+/// アイコン（上）→ ラベル → 状態 の縦積みで、モックの「均等な準備欄」を再現する。
+/// [EventListCard] 側で各タイルを Expanded 化するため、自身は幅を主張しない。
+class _PrepTile extends StatelessWidget {
+  const _PrepTile({
+    required this.icon,
+    required this.label,
+    required this.state,
+    required this.tier,
+  });
+
+  final IconData icon;
+  final String label;
+  final String state;
+  final _PrepTier tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tokens = AppTokens.of(context);
+    final (Color iconColor, Color stateColor) = switch (tier) {
+      _PrepTier.done => (scheme.primary, scheme.primary),
+      _PrepTier.progress => (scheme.onSurfaceVariant, scheme.onSurfaceVariant),
+      // 未登録: アイコンは淡ピンク（装飾）。状態文字は彩度を落として AA を確保。
+      _PrepTier.attention => (
+          tokens.favorite,
+          Color.lerp(tokens.favorite, scheme.onSurface, .30)!,
+        ),
+      _PrepTier.muted => (tokens.textSecondary, tokens.textSecondary),
+    };
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(
+      fontSize: 10.5,
+      height: 1.1,
+      color: tokens.textSecondary,
+    );
+    final stateStyle = theme.textTheme.labelSmall?.copyWith(
+      fontSize: 10.5,
+      height: 1.1,
+      fontWeight: FontWeight.w700,
+      color: stateColor,
+    );
+    return Semantics(
+      label: '$label: $state',
+      container: true,
+      excludeSemantics: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: iconColor),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: labelStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 1),
+          Text(
+            state,
+            style: stateStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Todoの準備状態チップ（未登録/残りN/完了）。持ち物とは別集計（§集計）。
+class TodoPrepChip extends StatelessWidget {
+  const TodoPrepChip({
+    super.key,
+    required this.total,
+    required this.remaining,
+  });
+
+  /// 種別=Todo の総数。
+  final int total;
+
+  /// 未完了の件数。
+  final int remaining;
+
+  @override
+  Widget build(BuildContext context) {
+    final (String state, _PrepTier tier) = total == 0
+        ? ('未登録', _PrepTier.attention)
+        : remaining > 0
+            ? ('残り$remaining', _PrepTier.progress)
+            : ('完了', _PrepTier.done);
+    return _PrepTile(
+      icon: Icons.check_box_outlined,
+      label: 'Todo',
+      state: state,
+      tier: tier,
+    );
+  }
+}
+
 /// 準備状態チップ（不要/未登録/準備中/準備OK をアイコン+文字で表現）。
 class PrepChip extends StatelessWidget {
   const PrepChip({super.key, required this.label, required this.state});
@@ -173,19 +293,24 @@ class PrepChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = switch (state) {
-      CategoryPrepState.ready => Icons.check_circle_outline,
-      CategoryPrepState.inProgress => Icons.hourglass_bottom,
-      CategoryPrepState.notRegistered => Icons.radio_button_unchecked,
-      CategoryPrepState.notRequired => Icons.remove_circle_outline,
+    // カテゴリが一目で分かるアイコン（チケット/交通/宿泊）。
+    final icon = switch (label) {
+      'チケット' => Icons.confirmation_number_outlined,
+      '交通' => Icons.train_outlined,
+      '宿泊' => Icons.hotel_outlined,
+      _ => Icons.event_note_outlined,
     };
-    return Semantics(
-      label: '$label: ${state.label}',
-      child: Chip(
-        avatar: Icon(icon, size: 16),
-        label: Text('$label ${state.label}'),
-        visualDensity: VisualDensity.compact,
-      ),
+    final tier = switch (state) {
+      CategoryPrepState.ready => _PrepTier.done,
+      CategoryPrepState.inProgress => _PrepTier.progress,
+      CategoryPrepState.notRegistered => _PrepTier.attention,
+      CategoryPrepState.notRequired => _PrepTier.muted,
+    };
+    return _PrepTile(
+      icon: icon,
+      label: label,
+      state: state.label,
+      tier: tier,
     );
   }
 }
@@ -199,18 +324,16 @@ class BelongingPrepChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = switch (state) {
-      BelongingPrepState.ready => Icons.check_circle_outline,
-      BelongingPrepState.pending => Icons.hourglass_bottom,
-      BelongingPrepState.notRegistered => Icons.radio_button_unchecked,
+    final tier = switch (state) {
+      BelongingPrepState.ready => _PrepTier.done,
+      BelongingPrepState.pending => _PrepTier.progress,
+      BelongingPrepState.notRegistered => _PrepTier.attention,
     };
-    return Semantics(
-      label: '持ち物: ${state.label}',
-      child: Chip(
-        avatar: Icon(icon, size: 16),
-        label: Text('持ち物 ${state.label}'),
-        visualDensity: VisualDensity.compact,
-      ),
+    return _PrepTile(
+      icon: Icons.backpack_outlined,
+      label: '持ち物',
+      state: state.label,
+      tier: tier,
     );
   }
 }

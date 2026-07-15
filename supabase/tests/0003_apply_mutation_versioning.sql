@@ -11,12 +11,14 @@ values
   ('11111111-1111-1111-1111-111111111111', 'user1@example.com'),
   ('22222222-2222-2222-2222-222222222222', 'user2@example.com');
 
-set local role authenticated;
-
+-- 認証切替ヘルパは authenticated ロールに CREATE 権限が無いため、
+-- role を切り替える前（＝スーパーユーザー時）に作成する（D-248）。
 create or replace function _as(uid text) returns void language sql as $$
   select set_config('request.jwt.claims',
     json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
+
+set local role authenticated;
 
 select _as('11111111-1111-1111-1111-111111111111');
 
@@ -149,7 +151,7 @@ select throws_ok(
         'owner_id', '11111111-1111-1111-1111-111111111111',
         'artist_name', 'x', 'title', 'y', 'event_date', '2026-08-01'),
       2)$$,
-  '22023', 'payload id mismatch is rejected'
+  '22023', null, 'payload id mismatch is rejected'
 );
 
 -- 未許可 table / op は拒否
@@ -157,13 +159,13 @@ select throws_ok(
   $$select public.apply_mutation('dddddddd-0000-0000-0000-000000000006',
       'auth.users', 'aaaaaaaa-0000-0000-0000-000000000001', 'upsert',
       '{}'::jsonb, null)$$,
-  '22023', 'invalid table is rejected'
+  '22023', null, 'invalid table is rejected'
 );
 select throws_ok(
   $$select public.apply_mutation('dddddddd-0000-0000-0000-000000000007',
       'genbas', 'aaaaaaaa-0000-0000-0000-000000000001', 'frobnicate',
       '{}'::jsonb, null)$$,
-  '22023', 'invalid op is rejected'
+  '22023', null, 'invalid op is rejected'
 );
 
 -- ---------------------------------------------------------------------------

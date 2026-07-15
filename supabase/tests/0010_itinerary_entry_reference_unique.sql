@@ -20,12 +20,14 @@ select plan(16);
 insert into auth.users (id, email)
 values ('11111111-1111-1111-1111-111111111111', 'user1@example.com');
 
-set local role authenticated;
-
+-- 認証切替ヘルパは authenticated ロールに CREATE 権限が無いため、
+-- role を切り替える前（＝スーパーユーザー時）に作成する（D-248）。
 create or replace function _as(uid text) returns void language sql as $$
   select set_config('request.jwt.claims',
     json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
+
+set local role authenticated;
 
 select _as('11111111-1111-1111-1111-111111111111');
 
@@ -53,6 +55,23 @@ values ('e1000000-0000-0000-0000-000000000001',
         'b1000000-0000-0000-0000-000000000001',
         '11111111-1111-1111-1111-111111111111', 'スポットB', 'other');
 
+-- 旅程項目が参照する交通・宿泊を用意する（entry の参照先が同一現場・同一owner に
+-- 実在することを enforce トリガーが要求するため, D-248）。
+insert into public.transports (id, genba_id, owner_id)
+values ('d0000000-0000-0000-0000-000000000001',
+        'a1111111-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111'),
+       ('d0000000-0000-0000-0000-000000000002',
+        'a1111111-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111'),
+       ('d0000000-0000-0000-0000-000000000009',
+        'a1111111-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111');
+insert into public.lodgings (id, genba_id, owner_id)
+values ('d1000000-0000-0000-0000-000000000001',
+        'a1111111-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111');
+
 -- ---------------------------------------------------------------------------
 -- 交通: 計画1に tr-1 を1件追加できる。同一計画への tr-1 二重追加は拒否。
 -- ---------------------------------------------------------------------------
@@ -70,7 +89,7 @@ select throws_ok(
             'b1000000-0000-0000-0000-000000000001',
             '11111111-1111-1111-1111-111111111111', 'transport',
             'd0000000-0000-0000-0000-000000000001')$$,
-  '23505',
+  '23505', null,
   'duplicate (plan, transport) direct INSERT is rejected'
 );
 select is(
@@ -104,7 +123,7 @@ select throws_ok(
   $$update public.itinerary_entries
       set transport_id = 'd0000000-0000-0000-0000-000000000001'
     where id = 'c5000000-0000-0000-0000-000000000004'$$,
-  '23505',
+  '23505', null,
   'UPDATE that collides on (plan, transport) is rejected'
 );
 
@@ -122,7 +141,7 @@ select throws_ok(
         'kind', 'transport',
         'transport_id', 'd0000000-0000-0000-0000-000000000001'),
       null)$$,
-  '23505',
+  '23505', null,
   'apply_mutation upsert that duplicates (plan, transport) is rejected'
 );
 select is(
@@ -166,7 +185,7 @@ select throws_ok(
             'b1000000-0000-0000-0000-000000000001',
             '11111111-1111-1111-1111-111111111111', 'lodging',
             'd1000000-0000-0000-0000-000000000001')$$,
-  '23505',
+  '23505', null,
   'duplicate (plan, lodging) direct INSERT is rejected'
 );
 
@@ -203,6 +222,10 @@ select lives_ok(
 -- 期待: 決定的に1件（sort_order 最小）だけ残り、負け側を端点とする leg は
 --       cascade で消え、索引を問題なく再作成できる。
 -- ---------------------------------------------------------------------------
+-- 索引の drop/create は所有者（スーパーユーザー）権限が要るため role を戻す。
+-- 以降の dedup 検証は superuser で実行する（RLS を跨いだ全行の整理・索引再作成）。
+reset role;
+
 drop index if exists idx_itinerary_entries_plan_transport;
 drop index if exists idx_itinerary_entries_plan_lodging;
 

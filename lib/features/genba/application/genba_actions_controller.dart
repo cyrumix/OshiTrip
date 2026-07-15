@@ -131,6 +131,32 @@ class GenbaActionsController
         ),
       );
 
+  /// 「実際の終演時間」を記録し、現場の終演時間を上書きする（item 10）。
+  ///
+  /// 最初の終演時間は予想値（`endTimeMinutes`）。余韻・思い出入力で実際の終演
+  /// 時刻を入れたら、状態導出に使う `manualEndedAt` に加え、表示に使う
+  /// `endTimeMinutes`（開催日0:00からの分・日跨ぎは1440超）も更新して、概要・
+  /// 当日・計画など終演時間を参照する箇所すべてに反映させる。[endedAt] は現地の
+  /// 壁時計 DateTime（呼び出し側でイベント日の時刻から合成）。
+  Future<Failure?> setActualEndTime(Genba genba, DateTime endedAt) => _run(
+        endedKey,
+        () {
+          final eventDay = DateTime(
+            genba.eventDate.year,
+            genba.eventDate.month,
+            genba.eventDate.day,
+          );
+          final minutes = endedAt.difference(eventDay).inMinutes;
+          return _mutate(
+            genba.id,
+            (c) => c.copyWith(
+              manualEndedAt: endedAt.toUtc(),
+              endTimeMinutes: minutes,
+            ),
+          );
+        },
+      );
+
   // ---- 交通・宿泊の要否 -------------------------------------------------------
 
   Future<Failure?> setTransportRequirement(

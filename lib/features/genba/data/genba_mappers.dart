@@ -21,6 +21,8 @@ Genba genbaFromRow(GenbaRow row) => Genba(
       oshiMemberIds:
           (jsonDecode(row.oshiMemberIds) as List<dynamic>).cast<String>(),
       venue: row.venue,
+      venueAddress: row.venueAddress,
+      venueGooglePlaceId: row.venueGooglePlaceId,
       doorTimeMinutes: row.doorTimeMinutes,
       startTimeMinutes: row.startTimeMinutes,
       endTimeMinutes: row.endTimeMinutes,
@@ -56,6 +58,8 @@ GenbasCompanion genbaToCompanion(Genba g, {bool preserveLocalImage = false}) =>
       oshiGroupId: Value(g.oshiGroupId),
       oshiMemberIds: Value(jsonEncode(g.oshiMemberIds)),
       venue: Value(g.venue),
+      venueAddress: Value(g.venueAddress),
+      venueGooglePlaceId: Value(g.venueGooglePlaceId),
       doorTimeMinutes: Value(g.doorTimeMinutes),
       startTimeMinutes: Value(g.startTimeMinutes),
       endTimeMinutes: Value(g.endTimeMinutes),

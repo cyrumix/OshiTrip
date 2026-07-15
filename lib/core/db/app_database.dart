@@ -151,6 +151,11 @@ class Genbas extends Table {
   TextColumn get oshiGroupId => text().nullable()();
   TextColumn get oshiMemberIds => text().withDefault(const Constant('[]'))();
   TextColumn get venue => text().nullable()();
+
+  /// 会場の住所・Google Place ID（会場のGoogle連携, schema v18）。座標は
+  /// Places の Field Mask 対象外のため保存しない。
+  TextColumn get venueAddress => text().nullable()();
+  TextColumn get venueGooglePlaceId => text().nullable()();
   IntColumn get doorTimeMinutes => integer().nullable()();
   IntColumn get startTimeMinutes => integer().nullable()();
   IntColumn get endTimeMinutes => integer().nullable()();
@@ -887,8 +892,11 @@ class AppDatabase extends _$AppDatabase {
   /// v17: Phase 5 前提基盤（現場共有データ基盤）。genba_shares（owner が現場を
   /// editor/viewer へ共有する行・項目単位grant）を新規追加。新規テーブルの追加
   /// のみで既存データには一切触れない。
+  ///
+  /// v18: 会場のGoogle連携。genbas へ venue_address / venue_google_place_id の
+  /// nullable 列を追加（既存データは null のまま）。
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1079,6 +1087,17 @@ class AppDatabase extends _$AppDatabase {
             // Phase 5 前提基盤: 現場共有データ基盤（新規テーブルの追加のみ、
             // 既存データには一切触れない）。
             await m.createTable(genbaShares);
+          }
+          if (from < 18) {
+            // 会場のGoogle連携（住所・Place ID）。既存データを保持したまま
+            // nullable 列を追加する（既存行は null）。列が既にある場合は
+            // 二重追加しない（テストの部分スキーマにも安全, _hasColumn ガード）。
+            if (!await _hasColumn(m, 'genbas', 'venue_address')) {
+              await m.addColumn(genbas, genbas.venueAddress);
+            }
+            if (!await _hasColumn(m, 'genbas', 'venue_google_place_id')) {
+              await m.addColumn(genbas, genbas.venueGooglePlaceId);
+            }
           }
           await _createOwnerIndices(m);
           await _createCoverUniqueIndex(m);

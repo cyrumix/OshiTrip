@@ -6,6 +6,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/providers.dart';
 import '../../../core/time/date_only.dart';
+import '../../itinerary/application/itinerary_providers.dart';
+import '../../itinerary/application/places_search_controller.dart';
+import '../../itinerary/domain/places_gateway.dart';
 import '../../oshi/application/oshi_providers.dart';
 import '../../oshi/domain/oshi.dart';
 import '../application/genba_form_controller.dart';
@@ -29,7 +32,6 @@ class GenbaFormScreen extends ConsumerStatefulWidget {
 class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
   TextEditingController? _artist;
   TextEditingController? _title;
-  TextEditingController? _venue;
   TextEditingController? _typeOther;
   bool _restoredShown = false;
   bool _submitting = false;
@@ -38,7 +40,6 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
   void dispose() {
     _artist?.dispose();
     _title?.dispose();
-    _venue?.dispose();
     _typeOther?.dispose();
     super.dispose();
   }
@@ -47,7 +48,6 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
     if (_artist != null) return;
     _artist = TextEditingController(text: form.artistName);
     _title = TextEditingController(text: form.title);
-    _venue = TextEditingController(text: form.venue);
     _typeOther = TextEditingController(text: form.performanceTypeOther);
   }
 
@@ -169,11 +169,26 @@ class _GenbaFormScreenState extends ConsumerState<GenbaFormScreen> {
                 initiallyExpanded: isEdit,
                 childrenPadding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
-                  TextField(
-                    controller: _venue,
-                    decoration: const InputDecoration(labelText: '会場'),
-                    onChanged: (v) =>
-                        controller.mutate((s) => s.copyWith(venue: v)),
+                  // 会場は「Google検索＋手入力」の一体型フィールド（item 7）。
+                  // 候補選択で施設名・住所・Place ID を保存、無効時は手入力として動く。
+                  _VenuePlacesField(
+                    key: ValueKey('venue_field_${widget.genbaId ?? 'new'}'),
+                    initialName: form.venue,
+                    initialAddress: form.venueAddress,
+                    onNameChanged: (v) => controller.mutate(
+                      (s) => s.copyWith(
+                        venue: v,
+                        clearVenueGooglePlaceId: true,
+                        venueAddress: '',
+                      ),
+                    ),
+                    onSelected: (name, address, placeId) => controller.mutate(
+                      (s) => s.copyWith(
+                        venue: name,
+                        venueAddress: address,
+                        venueGooglePlaceId: placeId,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _TimeField(
@@ -629,5 +644,223 @@ class _TimeField extends StatelessWidget {
         onChanged(total);
       },
     );
+  }
+}
+
+/// 会場の「Google検索＋手入力」一体型フィールド（item 7）。スポット編集と同じ
+/// パターン。1つの入力欄で、入力すると（Places有効時のみ）候補が出て、選んでも
+/// 選ばず手入力しても登録できる。候補選択で施設名・住所・Place ID を親へ渡し、
+/// 手入力で名前を変えると Place ID の対応は外れる。住所は選択時のみ取得し、欄を
+/// 分けずに読み取り表示する（画面を複雑にしない）。
+class _VenuePlacesField extends ConsumerStatefulWidget {
+  const _VenuePlacesField({
+    super.key,
+    required this.initialName,
+    required this.initialAddress,
+    required this.onNameChanged,
+    required this.onSelected,
+  });
+
+  final String initialName;
+  final String initialAddress;
+  final void Function(String name) onNameChanged;
+  final void Function(String name, String address, String placeId) onSelected;
+
+  @override
+  ConsumerState<_VenuePlacesField> createState() => _VenuePlacesFieldState();
+}
+
+class _VenuePlacesFieldState extends ConsumerState<_VenuePlacesField> {
+  static const _uuid = Uuid();
+  late final TextEditingController _name;
+  String _address = '';
+  PlacesSearchController? _places;
+  bool _placesAvailable = false;
+  bool _applyingSelection = false;
+  String? _googlePlaceId;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.initialName);
+    _address = widget.initialAddress;
+    _placesAvailable = ref.read(envProvider).googlePlacesAvailable;
+    _places = PlacesSearchController(
+      gateway: ref.read(placesGatewayProvider),
+      generateToken: () => _uuid.v4(),
+    )..addListener(_onPlacesChanged);
+  }
+
+  @override
+  void dispose() {
+    _places?.removeListener(_onPlacesChanged);
+    _places?.dispose();
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _onPlacesChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onNameChanged(String v) {
+    if (_applyingSelection) return;
+    if (_googlePlaceId != null || _address.isNotEmpty) {
+      setState(() {
+        _googlePlaceId = null;
+        _address = '';
+      });
+    }
+    widget.onNameChanged(v);
+    if (_placesAvailable) _places?.onQueryChanged(v);
+  }
+
+  Future<void> _select(PlaceSuggestion s) async {
+    final controller = _places;
+    if (controller == null) return;
+    final result = await controller.select(s);
+    if (!mounted) return;
+    result.when(
+      ok: (details) {
+        _applyingSelection = true;
+        final name = details.displayName?.trim();
+        final addr = details.formattedAddress?.trim() ?? '';
+        setState(() {
+          _name.text = (name != null && name.isNotEmpty) ? name : s.primaryText;
+          _address = addr;
+          _googlePlaceId = details.placeId;
+        });
+        _applyingSelection = false;
+        widget.onSelected(_name.text, addr, details.placeId);
+        controller.abandon();
+      },
+      err: (f) => ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(f.message))),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _name,
+          decoration: InputDecoration(
+            labelText: '会場',
+            helperText: _placesAvailable
+                ? '入力するとGoogleの候補が出ます。候補を選ぶか、そのまま手入力できます'
+                : 'そのまま手入力できます',
+          ),
+          onChanged: _onNameChanged,
+        ),
+        ..._buildSuggestions(),
+        if (_googlePlaceId != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Google の候補から選択しました（保存されるのは会場名・住所・Place ID）',
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (_address.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '住所: ${_address.trim()}',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _buildSuggestions() {
+    if (!_placesAvailable) return const [];
+    final controller = _places;
+    if (controller == null) return const [];
+    final state = controller.state;
+    final theme = Theme.of(context);
+    switch (state.status) {
+      case PlacesSearchStatus.idle:
+      case PlacesSearchStatus.tooShort:
+      case PlacesSearchStatus.unavailable:
+        return const [];
+      case PlacesSearchStatus.loading:
+        return const [
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 8),
+                Text('候補を検索中…'),
+              ],
+            ),
+          ),
+        ];
+      case PlacesSearchStatus.empty:
+      case PlacesSearchStatus.error:
+        return [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              state.status == PlacesSearchStatus.empty
+                  ? '候補が見つかりません。そのまま手入力できます。'
+                  : '検索に失敗しました。そのまま手入力できます。',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ];
+      case PlacesSearchStatus.results:
+        return [
+          const SizedBox(height: 4),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final s in state.suggestions)
+                  ListTile(
+                    key: Key('venue_suggestion_${s.placeId}'),
+                    dense: true,
+                    leading: const Icon(Icons.stadium_outlined),
+                    title: Text(s.primaryText),
+                    subtitle:
+                        s.secondaryText == null ? null : Text(s.secondaryText!),
+                    trailing: state.isSelecting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : null,
+                    onTap: state.isSelecting ? null : () => _select(s),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 4),
+            child: Text('候補: Google', style: theme.textTheme.labelSmall),
+          ),
+        ];
+    }
   }
 }

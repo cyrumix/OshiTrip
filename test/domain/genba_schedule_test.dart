@@ -163,7 +163,8 @@ void main() {
       expect(isUpcoming(genba, DateTime(2026, 7, 11, 0, 1)), isFalse);
     });
 
-    test('現場一覧と思い出は常に排他的（どちらにも出ない・両方に出るがない）', () {
+    test('終演済み当日を除き、現場一覧と思い出は排他的（どちらにも出ない・両方に出るがない）', () {
+      // 終演していない現場・中止現場は排他的（当日は現場のみ、翌日以降は思い出のみ）。
       final canceled = makeGenba(eventDate: eventDate, isCanceled: true);
       final scheduled = makeGenba(eventDate: eventDate);
       for (final now in [
@@ -180,6 +181,27 @@ void main() {
           );
         }
       }
+    });
+
+    test('終演済み（余韻中）にした瞬間から思い出にも表示し、当日中は現場一覧にも残す（item 1）', () {
+      // 予定21:00終演の現場を、20:15に「終演した」（＝手動終演）。
+      final genba = makeGenba(
+        eventDate: eventDate,
+        startTimeMinutes: 18 * 60,
+        endTimeMinutes: 21 * 60,
+        manualEndedAt: DateTime(2026, 7, 10, 20, 15).toUtc(),
+      );
+      // 終演直後（当日中）: 現場一覧にも思い出にも両方表示される。
+      final duringEventDay = DateTime(2026, 7, 10, 20, 30);
+      expect(deriveGenbaStatus(genba, duringEventDay), GenbaStatus.afterglow);
+      expect(isMemory(genba, duringEventDay), isTrue, reason: '終演済みは即思い出');
+      expect(isUpcoming(genba, duringEventDay), isTrue, reason: '当日は現場にも残す');
+
+      // 翌日以降: 思い出のみ（現場一覧からは外れる）。
+      final nextDay = DateTime(2026, 7, 11, 0, 1);
+      expect(deriveGenbaStatus(genba, nextDay), GenbaStatus.memory);
+      expect(isMemory(genba, nextDay), isTrue);
+      expect(isUpcoming(genba, nextDay), isFalse);
     });
 
     test('「終演した」操作で予定より早く余韻中になる', () {

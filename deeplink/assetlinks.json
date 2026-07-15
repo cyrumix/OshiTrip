@@ -1,0 +1,18 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.oshitrip.mobile",
+      "sha256_cert_fingerprints": ["REPLACE_RELEASE_SHA256_FINGERPRINT"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.oshitrip.mobile.dev",
+      "sha256_cert_fingerprints": ["REPLACE_DEV_SHA256_FINGERPRINT"]
+    }
+  }
+]

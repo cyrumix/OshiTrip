@@ -296,7 +296,7 @@ select throws_ok(
     values ('0b000000-0000-0000-0000-000000000099',
             '11111111-1111-1111-1111-111111111111',
             'transports', 'c1000000-0000-0000-0000-000000000001', 'upsert')$$,
-  '42501',
+  '42501', null,
   'other user cannot insert outbox with foreign owner_id (RLS with check)'
 );
 select results_eq(

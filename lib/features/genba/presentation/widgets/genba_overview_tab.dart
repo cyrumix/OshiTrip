@@ -39,10 +39,7 @@ class GenbaOverviewTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final genba = aggregate.genba;
     final status = deriveGenbaStatus(genba, now);
-    final prep = GenbaPreparation.of(aggregate);
-    final nextAction = deriveNextAction(aggregate, now);
     final theme = Theme.of(context);
-    final tokens = AppTokens.of(context);
 
     return ListView(
       key: PageStorageKey('genba_tab_overview_${genba.id}'),
@@ -129,75 +126,68 @@ class GenbaOverviewTab extends ConsumerWidget {
         const SizedBox(height: AppSpace.md),
         _AttendanceCard(genba: genba),
         const SizedBox(height: AppSpace.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '準備サマリ',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: AppSpace.md),
-              // Wrap ではなく常に等分割の Row にし、件数が3〜4件で
-              // 変動しても最終行が左詰めにならないようにする。
-              PrepStatusRow(
-                tiles: [
-                  if (aggregate.incompleteTodoCount > 0)
-                    PrepStatusTile(
-                      icon: Icons.check_box_outlined,
-                      label: 'Todo',
-                      value: '残り${aggregate.incompleteTodoCount}',
-                      attention: true,
-                      onTap: () =>
-                          DefaultTabController.of(context).animateTo(1),
-                    ),
-                  // 持ち物はTodoとは別集計（対応状況）で常に表示する
-                  // （§持ち物の準備ステータス）。
-                  PrepStatusTile(
-                    icon: Icons.backpack_outlined,
-                    label: '持ち物',
-                    value: prep.belonging.label,
-                    attention: prep.belonging.needsAttention,
-                    onTap: () => DefaultTabController.of(context).animateTo(1),
-                  ),
-                  PrepStatusTile(
-                    icon: Icons.confirmation_number_outlined,
-                    label: 'チケット',
-                    value: prep.ticket.label,
-                    attention: prep.ticket.needsAttention,
-                    onTap: () => DefaultTabController.of(context).animateTo(2),
-                  ),
-                  PrepStatusTile(
-                    icon: Icons.train_outlined,
-                    label: '交通',
-                    value: prep.transport.label,
-                    attention: prep.transport.needsAttention,
-                    onTap: () => DefaultTabController.of(context).animateTo(3),
-                  ),
-                  PrepStatusTile(
-                    icon: Icons.hotel_outlined,
-                    label: '宿泊',
-                    value: prep.lodging.label,
-                    attention: prep.lodging == CategoryPrepState.notRegistered,
-                    onTap: () => DefaultTabController.of(context).animateTo(4),
-                  ),
-                ],
-              ),
-              if (nextAction != null) ...[
-                const SizedBox(height: AppSpace.sm),
-                Text(
-                  '次にやる: ${nextAction.label}',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: tokens.textSecondary),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpace.md),
         _HeroImageManageCard(genba: genba),
       ],
+    );
+  }
+}
+
+/// 準備サマリ（Todo・持ち物・チケット・交通・宿泊の状態）の帯（item 1）。
+/// ヒーローカードとタブの間に常時表示する。各タイルをタップすると対応タブへ移動
+/// する（`DefaultTabController` 配下で使う前提）。
+class GenbaPrepSummaryBar extends StatelessWidget {
+  const GenbaPrepSummaryBar({super.key, required this.aggregate});
+
+  final GenbaAggregate aggregate;
+
+  @override
+  Widget build(BuildContext context) {
+    final prep = GenbaPreparation.of(aggregate);
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.sm,
+      ),
+      child: PrepStatusRow(
+        tiles: [
+          if (aggregate.incompleteTodoCount > 0)
+            PrepStatusTile(
+              icon: Icons.check_box_outlined,
+              label: 'Todo',
+              value: '残り${aggregate.incompleteTodoCount}',
+              attention: true,
+              onTap: () => DefaultTabController.of(context).animateTo(1),
+            ),
+          PrepStatusTile(
+            icon: Icons.backpack_outlined,
+            label: '持ち物',
+            value: prep.belonging.label,
+            attention: prep.belonging.needsAttention,
+            onTap: () => DefaultTabController.of(context).animateTo(1),
+          ),
+          PrepStatusTile(
+            icon: Icons.confirmation_number_outlined,
+            label: 'チケット',
+            value: prep.ticket.label,
+            attention: prep.ticket.needsAttention,
+            onTap: () => DefaultTabController.of(context).animateTo(2),
+          ),
+          PrepStatusTile(
+            icon: Icons.train_outlined,
+            label: '交通',
+            value: prep.transport.label,
+            attention: prep.transport.needsAttention,
+            onTap: () => DefaultTabController.of(context).animateTo(3),
+          ),
+          PrepStatusTile(
+            icon: Icons.hotel_outlined,
+            label: '宿泊',
+            value: prep.lodging.label,
+            attention: prep.lodging == CategoryPrepState.notRegistered,
+            onTap: () => DefaultTabController.of(context).animateTo(4),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -17,12 +17,18 @@ const List<String> kRoutesAllowedFields = [
   'routes.duration',
   'routes.distanceMeters',
   'routes.localizedValues.transitFare',
+  // 各ステップの移動手段・徒歩所要（徒歩何分の表示に使う, item 4/8）。
+  'routes.legs.steps.travelMode',
+  'routes.legs.steps.staticDuration',
   'routes.legs.steps.transitDetails.transitLine.name',
   'routes.legs.steps.transitDetails.transitLine.nameShort',
   'routes.legs.steps.transitDetails.transitLine.vehicle.type',
   'routes.legs.steps.transitDetails.headsign',
   'routes.legs.steps.transitDetails.stopDetails.departureStop.name',
   'routes.legs.steps.transitDetails.stopDetails.arrivalStop.name',
+  // 何時に出発・乗換・到着するか（ローカライズ済みの発着時刻テキスト, item 4/8）。
+  'routes.legs.steps.transitDetails.localizedValues.departureTime.time.text',
+  'routes.legs.steps.transitDetails.localizedValues.arrivalTime.time.text',
 ];
 
 /// 本番用の Routes Field Mask 文字列。

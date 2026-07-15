@@ -186,7 +186,10 @@ begin
         'on conflict (id) do nothing returning version',
         p_entity_table, v_cols
       ) into v_current using v_data;
-      if not found then
+      -- 動的 EXECUTE は FOUND を設定しないため、挿入されたか否かは
+      -- RETURNING version（新規は bump_version で必ず >=1）で判定する。
+      -- ON CONFLICT DO NOTHING で衝突した場合は v_current が null → conflict。
+      if v_current is null then
         return jsonb_build_object('status', 'conflict', 'version', null);
       end if;
     end if;

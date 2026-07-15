@@ -82,6 +82,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     placeId?: string;
     sessionToken?: string;
     locationBias?: unknown;
+    languageCode?: string;
+    regionCode?: string;
   };
   try {
     payload = await req.json();
@@ -129,6 +131,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         input,
         sessionToken,
+        // 施設名・住所は日本語優先（国内利用想定, item 2）。
+        languageCode: payload.languageCode ?? "ja",
+        regionCode: payload.regionCode ?? "JP",
         locationBias: payload.locationBias ?? undefined,
       }),
       transform: transformAutocomplete,
@@ -142,8 +147,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (fieldMaskError(mask.split(","), PLACE_DETAILS_ALLOWED_FIELDS)) {
       return errorResponse("invalid_request", 400);
     }
+    // 名称・住所は日本語優先（item 2）。
+    const languageCode = payload.languageCode ?? "ja";
+    const regionCode = payload.regionCode ?? "JP";
     const url = `${GOOGLE_BASE}/places/${encodeURIComponent(placeId)}` +
-      `?sessionToken=${encodeURIComponent(sessionToken)}`;
+      `?sessionToken=${encodeURIComponent(sessionToken)}` +
+      `&languageCode=${encodeURIComponent(languageCode)}` +
+      `&regionCode=${encodeURIComponent(regionCode)}`;
     return await callGoogle({
       environment,
       url,

@@ -75,9 +75,11 @@ void main() {
     // 計画を作るため1件追加（アンカー・会場は計画表示時に出る）。
     await addSpot(tester, '集合');
 
-    expect(find.text('会場 大阪城ホール'), findsOneWidget);
-    expect(find.text('公演 開場'), findsOneWidget);
-    expect(find.text('公演 開演'), findsOneWidget);
+    expect(find.textContaining('会場: 大阪城ホール'), findsOneWidget);
+    expect(find.textContaining('公演情報: 開場'), findsOneWidget);
+    expect(find.textContaining('公演情報: 開演'), findsOneWidget);
+    // 会場・公演情報は予定ではなく「目安」表示（item 9・予定カードと区別）。
+    expect(find.text('目安'), findsWidgets);
 
     await unmountApp(tester);
   });
@@ -148,7 +150,7 @@ void main() {
     await unmountApp(tester);
   });
 
-  testWidgets('移動区間は手段・時刻・所要・距離を表示し、運賃は出さない', (tester) async {
+  testWidgets('移動区間は手段・時刻・所要・距離・金額（円）を表示する', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -214,7 +216,8 @@ void main() {
     expect(find.text('X地点 → Y地点'), findsOneWidget);
     expect(find.textContaining('約30分'), findsOneWidget);
     expect(find.textContaining('1.0km'), findsOneWidget);
-    // 運賃・通貨は通常UIに出さない（DB項目は保持するが表示しない, 修正4）。
+    // 金額は日本円で「500円」と表示し、通貨欄（JPY表記）は出さない（item 4）。
+    expect(find.textContaining('500円'), findsOneWidget);
     expect(find.textContaining('500 JPY'), findsNothing);
     expect(find.textContaining('発 →'), findsOneWidget);
 
@@ -277,16 +280,16 @@ void main() {
       textScale: 2.0,
     );
     // オーバーフロー例外が出れば pumpAndSettle 中に失敗する。表示も確認。
-    expect(find.text('会場 大阪城ホール'), findsOneWidget);
-    expect(find.text('公演 開演'), findsOneWidget);
-    // Semantics: アンカーは時刻付きの読み上げラベルを持つ。
-    expect(find.bySemanticsLabel(RegExp('公演開演')), findsWidgets);
+    expect(find.textContaining('会場: 大阪城ホール'), findsOneWidget);
+    expect(find.textContaining('公演情報: 開演'), findsOneWidget);
+    // Semantics: アンカーは時刻付きの読み上げラベルを持つ（目安表示）。
+    expect(find.bySemanticsLabel(RegExp('公演情報.*開演')), findsWidgets);
     await unmountApp(tester);
   });
 
   testWidgets('横向き（wide-short）でもタイムラインが破綻なく表示される', (tester) async {
     await pumpPlanTabOnly(tester, size: const Size(1600, 480));
-    expect(find.text('会場 大阪城ホール'), findsOneWidget);
+    expect(find.textContaining('会場: 大阪城ホール'), findsOneWidget);
     await unmountApp(tester);
   });
 }

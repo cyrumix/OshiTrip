@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "REPLACE_TEAM_ID.app.oshitrip.mobile",
+        "paths": ["/invite/*"]
+      },
+      {
+        "appID": "REPLACE_TEAM_ID.app.oshitrip.mobile.dev",
+        "paths": ["/invite/*"]
+      }
+    ]
+  }
+}

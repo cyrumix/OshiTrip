@@ -62,7 +62,7 @@ void main() {
 
     // 計画をまだ作っていなくても、公演予定は最初から確認できる。
     expect(find.text('計画はまだありません'), findsNothing);
-    expect(find.text('公演 開演'), findsOneWidget);
+    expect(find.textContaining('公演情報: 開演'), findsOneWidget);
     expect(find.textContaining('計画テスト公演'), findsWidgets);
 
     // スポットを追加（施設名は Google候補＋手入力の一体型フィールド）。
@@ -80,6 +80,8 @@ void main() {
     expect(find.text('東京タワー'), findsOneWidget);
     expect(find.text('候補（日付未定）'), findsNothing);
     expect(find.textContaining('2026/8/1'), findsWidgets);
+    // スポットカードに「地図で開く」導線が出る（item 6・手入力スポットでも施設名で開ける）。
+    expect(find.text('地図で開く'), findsWidgets);
     // DBにも spot + 訪問項目が保存され、訪問日が開催日で入る。
     final plans = await container
         .read(itineraryRepositoryProvider)
@@ -146,8 +148,8 @@ void main() {
     await tester.pumpAndSettle();
     await openPlanTab(tester);
 
-    expect(find.text('公演 開場'), findsOneWidget);
-    expect(find.text('公演 開演'), findsOneWidget);
+    expect(find.textContaining('公演情報: 開場'), findsOneWidget);
+    expect(find.textContaining('公演情報: 開演'), findsOneWidget);
 
     await unmountApp(tester);
   });

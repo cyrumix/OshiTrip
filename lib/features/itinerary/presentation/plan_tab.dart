@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../app/design_system/design_system.dart';
 import '../../../core/error/failure.dart';
@@ -12,6 +13,7 @@ import '../application/itinerary_providers.dart';
 import '../application/itinerary_timeline.dart';
 import '../domain/itinerary_entry.dart';
 import '../domain/itinerary_leg.dart';
+import '../domain/itinerary_map_links.dart';
 import '../domain/itinerary_plan_aggregate.dart';
 import '../domain/itinerary_schedule.dart';
 import '../domain/itinerary_spot.dart';
@@ -20,6 +22,7 @@ import 'external_link.dart';
 import 'itinerary_editors.dart';
 import 'itinerary_import_and_leg.dart';
 import 'itinerary_spot_image.dart';
+import 'route_live_panel.dart';
 
 /// 現場詳細「計画」タブ（design-spec §7.3）。公演を固定アンカーにした日別
 /// タイムラインを主表示にする。Google連携はまだ出さず、手動入力を主要導線とする。
@@ -326,52 +329,83 @@ class _DaySection extends ConsumerWidget {
   }
 }
 
+/// 「目安」バッジ（公演情報・会場は予定ではなく参考表示であることを示す, item 9）。
+class _GuideBadge extends StatelessWidget {
+  const _GuideBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '目安',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// 会場の目安表示（予定カードではない補助表示, item 9）。予定として使うときは
+/// 「会場を追加」ボタンからスポット予定として追加する。予定カード（AppCard）より
+/// 小さく・薄く・枠線のみで表示し、予定と明確に区別する。
 class _VenueRow extends StatelessWidget {
   const _VenueRow({required this.venue});
   final ItineraryVenue venue;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
+    final theme = Theme.of(context);
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpace.sm),
-      padding: const EdgeInsets.all(AppSpace.md),
+      margin: const EdgeInsets.only(bottom: AppSpace.xs),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 6),
       decoration: BoxDecoration(
-        color: tokens.primarySoft,
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.stadium_outlined, size: 18),
+          Icon(
+            Icons.stadium_outlined,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: AppSpace.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '会場 ${venue.name}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                  semanticsLabel: '会場 ${venue.name}'
+                  '会場: ${venue.name}',
+                  style: theme.textTheme.bodyMedium,
+                  semanticsLabel: '会場（目安） ${venue.name}'
                       '${venue.address != null ? ' ${venue.address}' : ''}',
                 ),
                 if (venue.address != null)
                   Text(
                     venue.address!,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
               ],
             ),
           ),
+          const SizedBox(width: AppSpace.sm),
+          const _GuideBadge(),
         ],
       ),
     );
   }
 }
 
+/// 公演情報（開場/開演/終演）の目安表示（予定カードではない, item 9）。予定カード
+/// より小さく・薄く表示し、あくまで参考であることを「公演情報・目安」で示す。
 class _AnchorRow extends StatelessWidget {
   const _AnchorRow({required this.anchor, required this.genba});
   final ItineraryAnchor anchor;
@@ -379,51 +413,43 @@ class _AnchorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = AppTokens.of(context);
+    final theme = Theme.of(context);
     final time =
         '${(anchor.minuteOfDay ~/ 60).toString().padLeft(2, '0')}:${(anchor.minuteOfDay % 60).toString().padLeft(2, '0')}';
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpace.sm),
-      padding: const EdgeInsets.all(AppSpace.md),
+      margin: const EdgeInsets.only(bottom: AppSpace.xs),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 6),
       decoration: BoxDecoration(
-        color: tokens.primarySoft,
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.push_pin_outlined, size: 20),
+          Icon(
+            Icons.info_outline,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: AppSpace.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '公演 ${anchor.kind.label}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                  semanticsLabel: '公演${anchor.kind.label} $time',
+                  '公演情報: ${anchor.kind.label} $time',
+                  style: theme.textTheme.bodyMedium,
+                  semanticsLabel: '公演情報（目安）${anchor.kind.label} $time',
                 ),
-                const SizedBox(height: AppSpace.xs),
                 Text(
                   '${genba.artistName} / ${genba.title}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: tokens.textSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
           ),
-          Text(
-            time,
-            style: Theme.of(context)
-                .textTheme
-                .bodyLarge
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
+          const SizedBox(width: AppSpace.sm),
+          const _GuideBadge(),
         ],
       ),
     );
@@ -448,13 +474,25 @@ class _LegRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final leg = placement.leg;
     final theme = Theme.of(context);
-    // 運賃・通貨・経路概要は通常UIには出さない（所要・距離・経路導線を中心に
-    // 表示する）。DB項目は残すが、ここでは表示しない。
+    // 所要・距離・金額を表示する。金額は日本円前提で「1,200円」と表示し、通貨欄は
+    // 出さない（item 4）。経路概要は通常UIに出さない。
     final details = <String>[
       if (leg.durationMinutes != null) '約${leg.durationMinutes}分',
       if (leg.distanceMeters != null) _formatDistance(leg.distanceMeters!),
+      if (leg.fareAmountMinor != null) formatJpyYen(leg.fareAmountMinor!),
     ];
     final times = _formatLegTimes(leg.departureAt, leg.arrivalAt);
+    // 経路パネル（経路を確認/最新の経路/Google Mapsで開く＋乗換タイムライン）の
+    // ため、区間の端点を項目オプションへ解決する（item 4/6/7）。
+    final options = buildLegEntryOptions(
+      aggregate: aggregate,
+      genbaAggregate: genbaAggregate,
+      labelOf: itineraryTimelineEntryLabel,
+    );
+    final originOption =
+        options.firstWhereOrNull((o) => o.id == leg.originEntryId);
+    final destinationOption =
+        options.firstWhereOrNull((o) => o.id == leg.destinationEntryId);
 
     return AppCard(
       margin: const EdgeInsets.only(bottom: AppSpace.sm),
@@ -501,7 +539,17 @@ class _LegRow extends ConsumerWidget {
                     ?.copyWith(color: theme.colorScheme.error),
               ),
             ),
-          if (leg.googleMapsUrl != null)
+          if (originOption != null && destinationOption != null)
+            RouteLivePanel(
+              origin: originOption,
+              destination: destinationOption,
+              travelMode: leg.travelMode,
+              existingLeg: leg,
+              planId: aggregate.plan.id,
+            )
+          else if (leg.googleMapsUrl != null)
+            // 端点が解決できない（項目削除・別日など）ときは、保存済みの
+            // Google Maps URL だけをフォールバック表示する。
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -726,8 +774,40 @@ class _EntryCard extends ConsumerWidget {
                 ),
               ),
             ),
+          // スポットは Google Maps で開く導線を常に出す（Place ID→座標→施設名・住所
+          // の順でURLを生成。手入力スポットでも施設名があれば開ける, item 6）。
+          if (item.entry.kind == ItineraryEntryKind.spot && item.spot != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: Key('spot_open_map_${item.entry.id}'),
+                onPressed: () => _openSpotMap(context, item.spot!),
+                icon: const Icon(Icons.map_outlined, size: 16),
+                label: const Text('地図で開く'),
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  /// スポットを Google Maps（アプリ優先、無ければブラウザ）で開く（item 6）。
+  /// URLを作れない（情報不足）のか、起動に失敗したのかを区別して案内する。
+  Future<void> _openSpotMap(BuildContext context, ItinerarySpot spot) async {
+    final hasInfo = (spot.googlePlaceId?.trim().isNotEmpty ?? false) ||
+        (spot.latitude != null && spot.longitude != null) ||
+        spot.name.trim().isNotEmpty ||
+        (spot.address?.trim().isNotEmpty ?? false);
+    if (!hasInfo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('地図を開くための情報（施設名・住所・場所）がありません')),
+      );
+      return;
+    }
+    await openExternalUrlWithConfirm(
+      context,
+      url: spotGoogleMapsUrl(spot).toString(),
+      label: '${spot.name.trim().isEmpty ? 'この場所' : spot.name.trim()} を地図で開く',
     );
   }
 
@@ -1027,8 +1107,11 @@ List<ItineraryEntryOption> buildLegEntryOptions({
             id: it.entry.id,
             label: labelOf(it),
             date: it.effectiveLocalDate,
+            startAt: it.effectiveStartAt,
+            endAt: it.effectiveEndAt,
             spotId: spot?.id,
             googlePlaceId: spot?.googlePlaceId,
+            address: spot?.address,
             latitude: spot?.latitude,
             longitude: spot?.longitude,
           );
@@ -1062,6 +1145,97 @@ class _AddMenu extends ConsumerWidget {
     );
   }
 
+  /// 現場の会場を「ライブ・イベント会場」スポットとして計画へ追加する（item 8）。
+  /// 訪問日=開催日、開始=開場、終了=終演。会場未登録なら案内し、既に同じ会場
+  /// スポットがある場合は重複確認を出す。
+  Future<void> _addVenueAsSpot(
+    BuildContext context,
+    WidgetRef ref,
+    String planId,
+    String owner,
+  ) async {
+    final genba = genbaAggregate.genba;
+    final venueName = genba.venue?.trim();
+    if (venueName == null || venueName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('先に会場を登録してください（現場を編集して会場を入力）')),
+      );
+      return;
+    }
+    // 重複検出（同じ会場スポット: category=会場 かつ 同一Place ID もしくは同名）。
+    final placeId = genba.venueGooglePlaceId;
+    final duplicate = plan?.spots.firstWhereOrNull(
+      (s) =>
+          s.category == ItinerarySpotCategory.venue &&
+          ((placeId != null &&
+                  placeId.isNotEmpty &&
+                  s.googlePlaceId == placeId) ||
+              s.name.trim() == venueName),
+    );
+    if (duplicate != null) {
+      final again = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('会場は追加済みです'),
+          content: Text('「$venueName」はすでに計画に追加されています。もう一度追加しますか？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('追加しない'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('追加する'),
+            ),
+          ],
+        ),
+      );
+      if (again != true || !context.mounted) return;
+    }
+    final now = ref.read(clockProvider).now().toUtc();
+    final eventDay = DateTime(
+      genba.eventDate.year,
+      genba.eventDate.month,
+      genba.eventDate.day,
+    );
+    DateTime? at(int? minutes) =>
+        minutes == null ? null : eventDay.add(Duration(minutes: minutes));
+    const uuid = Uuid();
+    final spotId = uuid.v4();
+    final spot = ItinerarySpot(
+      id: spotId,
+      planId: planId,
+      ownerId: owner,
+      name: venueName,
+      category: ItinerarySpotCategory.venue,
+      address: genba.venueAddress,
+      googlePlaceId: genba.venueGooglePlaceId,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final entry = ItineraryEntry(
+      id: uuid.v4(),
+      planId: planId,
+      ownerId: owner,
+      kind: ItineraryEntryKind.spot,
+      spotId: spotId,
+      localDate: eventDay,
+      startAt: at(genba.doorTimeMinutes),
+      endAt: at(genba.endTimeMinutes),
+      createdAt: now,
+      updatedAt: now,
+    );
+    final failure = await ref
+        .read(itineraryActionsControllerProvider(planId).notifier)
+        .saveSpotBundle(spot: spot, entry: entry, links: const []);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(failure == null ? '会場を計画に追加しました' : failure.message),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final owner = genbaAggregate.genba.ownerId;
@@ -1079,6 +1253,12 @@ class _AddMenu extends ConsumerWidget {
                   leading: const Icon(Icons.place_outlined),
                   title: const Text('スポットを追加（自分で入力）'),
                   onTap: () => Navigator.of(context).pop('spot'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.stadium_outlined),
+                  title: const Text('会場を追加'),
+                  subtitle: const Text('現場の会場を予定スポットとして追加'),
+                  onTap: () => Navigator.of(context).pop('venue'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.sticky_note_2_outlined),
@@ -1121,6 +1301,8 @@ class _AddMenu extends ConsumerWidget {
               plan: plan,
               contextDate: null,
             );
+          case 'venue':
+            await _addVenueAsSpot(context, ref, planId, owner);
           case 'note':
             await showItineraryNoteEditor(
               context,

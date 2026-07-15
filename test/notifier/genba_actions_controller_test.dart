@@ -428,4 +428,41 @@ void main() {
       expect(aggregate.todos.single.isDone, isTrue);
     });
   });
+
+  group('setActualEndTime: 実際の終演時間で現場の終演時間を更新（item 10）', () {
+    test('manualEndedAt と endTimeMinutes を両方更新する', () async {
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'ge',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+          startTimeMinutes: 18 * 60,
+          endTimeMinutes: 21 * 60, // 予想終演 21:00
+        ),
+      );
+      final endedAt = DateTime(2026, 8, 1, 20, 42); // 実際は 20:42 終演
+      final failure = await controller('ge').setActualEndTime(genba, endedAt);
+      expect(failure, isNull);
+      final reloaded = await fakeRepo.watchById('ge').first;
+      // 状態導出に使う manualEndedAt と、表示に使う endTimeMinutes の両方が更新。
+      expect(reloaded!.genba.manualEndedAt, endedAt.toUtc());
+      expect(reloaded.genba.endTimeMinutes, 20 * 60 + 42); // 1242
+    });
+
+    test('深夜終演（翌日1:30）は endTimeMinutes が1440超になる', () async {
+      final genba = await seedGenba(
+        makeGenba(
+          id: 'gn',
+          ownerId: ownerId,
+          eventDate: DateTime(2026, 8, 1),
+          startTimeMinutes: 22 * 60,
+          endTimeMinutes: 23 * 60,
+        ),
+      );
+      final endedAt = DateTime(2026, 8, 2, 1, 30); // 翌日1:30終演
+      await controller('gn').setActualEndTime(genba, endedAt);
+      final reloaded = await fakeRepo.watchById('gn').first;
+      expect(reloaded!.genba.endTimeMinutes, 25 * 60 + 30); // 1530
+    });
+  });
 }

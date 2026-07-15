@@ -11,6 +11,7 @@ import {
   type GoogleCallOptions,
   transformComputeRoutes,
 } from "./handler.ts";
+import { isFlagOn, premiumGateError } from "./policy.ts";
 
 function baseOpts(overrides: Partial<GoogleCallOptions> = {}): GoogleCallOptions {
   return {
@@ -119,40 +120,54 @@ Deno.test("transformComputeRoutes: 徒歩/車 相当（transitStepsなし）", (
   assertEquals(out.transitSteps, []);
 });
 
-Deno.test("transformComputeRoutes: 公共交通（運賃・乗換ステップあり）", () => {
+Deno.test("transformComputeRoutes: 公共交通（運賃・徒歩合計・発着時刻付き乗換ステップ）", () => {
   const out = transformComputeRoutes({
     routes: [{
       duration: "1800s",
       distanceMeters: 5000,
       localizedValues: { transitFare: { text: "¥210" } },
       legs: [{
-        steps: [{
-          transitDetails: {
-            transitLine: {
-              name: "JR山手線",
-              nameShort: "山手線",
-              vehicle: { type: "HEAVY_RAIL" },
-            },
-            headsign: "渋谷方面",
-            stopDetails: {
-              departureStop: { name: "新宿駅" },
-              arrivalStop: { name: "渋谷駅" },
+        steps: [
+          // 徒歩ステップは walkMinutes に合算される（item 4/8）。
+          { travelMode: "WALK", staticDuration: "300s" },
+          {
+            travelMode: "TRANSIT",
+            transitDetails: {
+              transitLine: {
+                name: "JR山手線",
+                nameShort: "山手線",
+                vehicle: { type: "HEAVY_RAIL" },
+              },
+              headsign: "渋谷方面",
+              stopDetails: {
+                departureStop: { name: "新宿駅" },
+                arrivalStop: { name: "渋谷駅" },
+              },
+              localizedValues: {
+                departureTime: { time: { text: "10:30" } },
+                arrivalTime: { time: { text: "10:45" } },
+              },
             },
           },
-        }],
+          { travelMode: "WALK", staticDuration: "120s" },
+        ],
       }],
     }],
   }) as {
     durationMinutes: number;
+    walkMinutes: number;
     fareText: string | null;
     transitSteps: Array<Record<string, unknown>>;
   };
   assertEquals(out.durationMinutes, 30);
+  assertEquals(out.walkMinutes, 7); // (300+120)s → 7分
   assertEquals(out.fareText, "¥210");
-  assertEquals(out.transitSteps.length, 1);
+  assertEquals(out.transitSteps.length, 1); // 徒歩は乗換ステップに含めない
   assertEquals(out.transitSteps[0].lineName, "JR山手線");
   assertEquals(out.transitSteps[0].departureStopName, "新宿駅");
   assertEquals(out.transitSteps[0].arrivalStopName, "渋谷駅");
+  assertEquals(out.transitSteps[0].departureTime, "10:30");
+  assertEquals(out.transitSteps[0].arrivalTime, "10:45");
 });
 
 Deno.test("transformComputeRoutes: routesが空でもクラッシュしない", () => {
@@ -162,4 +177,29 @@ Deno.test("transformComputeRoutes: routesが空でもクラッシュしない", 
   };
   assertEquals(out.durationMinutes, 0);
   assertEquals(out.distanceMeters, 0);
+});
+
+// --- プレミアム制限フラグ（現仕様: 既定で全認証ユーザー可, D-232）---------------
+
+Deno.test("isFlagOn: 未設定/false系は偽、true系は真", () => {
+  assertEquals(isFlagOn(undefined), false);
+  assertEquals(isFlagOn(""), false);
+  assertEquals(isFlagOn("false"), false);
+  assertEquals(isFlagOn("0"), false);
+  assertEquals(isFlagOn("off"), false);
+  assertEquals(isFlagOn("true"), true);
+  assertEquals(isFlagOn("TRUE"), true);
+  assertEquals(isFlagOn("1"), true);
+  assertEquals(isFlagOn("on"), true);
+});
+
+Deno.test("premiumGateError: ROUTES_REQUIRE_PREMIUM=false/未設定なら常に許可（entitlement不問）", () => {
+  // requirePremium=false → entitled の値に関わらず null（Google 呼び出しへ進む）。
+  assertEquals(premiumGateError(false, false), null);
+  assertEquals(premiumGateError(false, true), null);
+});
+
+Deno.test("premiumGateError: ROUTES_REQUIRE_PREMIUM=true のときだけ非エンタイトルを拒否", () => {
+  assertEquals(premiumGateError(true, true), null); // エンタイトル → 許可
+  assertEquals(premiumGateError(true, false), "not_entitled"); // 非エンタイトル → 拒否
 });

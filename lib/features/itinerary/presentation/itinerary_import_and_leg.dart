@@ -10,8 +10,6 @@ import '../application/itinerary_actions_controller.dart';
 import '../domain/itinerary_entry.dart';
 import '../domain/itinerary_leg.dart';
 import '../domain/itinerary_schedule.dart';
-import '../domain/routes_gateway.dart';
-import 'external_link.dart';
 import 'itinerary_sheet_scaffold.dart';
 import 'route_live_panel.dart';
 
@@ -291,8 +289,11 @@ class ItineraryEntryOption {
     required this.id,
     required this.label,
     this.date,
+    this.startAt,
+    this.endAt,
     this.spotId,
     this.googlePlaceId,
+    this.address,
     this.latitude,
     this.longitude,
   });
@@ -300,11 +301,17 @@ class ItineraryEntryOption {
   final String label;
   final DateTime? date;
 
-  /// スポット訪問項目のときだけ非null（旅程Phase 4: Google Routesの経路取得は
-  /// スポット↔スポットのみを対象にするため、transport/lodging端点では
-  /// これらが null のままとなり自然に対象外になる）。
+  /// この項目の実効開始/終了時刻（移動区間の時刻初期値に使う, item 2）。
+  /// 到着時刻の初期値＝到着先の開始時刻、出発時刻の初期値＝出発元の終了時刻。
+  final DateTime? startAt;
+  final DateTime? endAt;
+
+  /// スポット訪問項目のときだけ非null（Google Routesの経路取得はスポット↔スポット
+  /// のみ対象。transport/lodging端点では null）。[address]/[latitude]/[longitude] は
+  /// 「経路を確認」URLのフォールバックに使う（item 5）。
   final String? spotId;
   final String? googlePlaceId;
+  final String? address;
   final double? latitude;
   final double? longitude;
 }
@@ -352,8 +359,8 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
   // 時刻部分を復元する（互換維持）。
   TimeOfDay? _departureTime;
   TimeOfDay? _arrivalTime;
-  late final TextEditingController _duration;
   late final TextEditingController _distance;
+  late final TextEditingController _fare;
 
   @override
   void initState() {
@@ -368,10 +375,10 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
     _arrivalTime = l?.arrivalAt == null
         ? null
         : TimeOfDay.fromDateTime(l!.arrivalAt!.toLocal());
-    _duration =
-        TextEditingController(text: l?.durationMinutes?.toString() ?? '');
     _distance =
         TextEditingController(text: l?.distanceMeters?.toString() ?? '');
+    // 金額は日本円前提。fareAmountMinor（JPYは補助単位=円）をそのまま円で扱う。
+    _fare = TextEditingController(text: l?.fareAmountMinor?.toString() ?? '');
   }
 
   /// 時刻だけを選ばせる（日付は前後予定から内部決定するため入力させない, 点3）。
@@ -380,12 +387,38 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
         initialTime: initial ?? const TimeOfDay(hour: 9, minute: 0),
       );
 
-  DateTime? _dateOf(String? entryId) {
+  ItineraryEntryOption? _optionOf(String? entryId) {
     if (entryId == null) return null;
-    for (final o in widget.options) {
-      if (o.id == entryId) return o.date;
+    return widget.options.firstWhereOrNull((o) => o.id == entryId);
+  }
+
+  DateTime? _dateOf(String? entryId) => _optionOf(entryId)?.date;
+
+  /// 出発時刻の初期値: 移動元の終了時刻 → 開始時刻（item 2）。
+  /// 到着時刻の初期値: 移動先の開始時刻 → 終了時刻（item 2）。
+  /// ユーザーが未入力（null）のときだけ補完し、入力済みは尊重する。
+  void _applyEndpointTimeDefaults() {
+    final origin = _optionOf(_origin);
+    if (_departureTime == null && origin != null) {
+      final src = origin.endAt ?? origin.startAt;
+      if (src != null) _departureTime = TimeOfDay.fromDateTime(src.toLocal());
     }
-    return null;
+    final dest = _optionOf(_destination);
+    if (_arrivalTime == null && dest != null) {
+      final src = dest.startAt ?? dest.endAt;
+      if (src != null) _arrivalTime = TimeOfDay.fromDateTime(src.toLocal());
+    }
+  }
+
+  /// 出発・到着時刻から所要（分）を求める（両方あるときだけ。日跨ぎ考慮）。item 3。
+  int? _computedDurationMinutes() {
+    final dep = _departureTime;
+    final arr = _arrivalTime;
+    if (dep == null || arr == null) return null;
+    final depMin = dep.hour * 60 + dep.minute;
+    var arrMin = arr.hour * 60 + arr.minute;
+    if (arrMin < depMin) arrMin += 24 * 60; // 日跨ぎ
+    return arrMin - depMin;
   }
 
   /// 保存時の departureAt/arrivalAt を決める（High是正）。
@@ -434,8 +467,8 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
 
   @override
   void dispose() {
-    _duration.dispose();
     _distance.dispose();
+    _fare.dispose();
     super.dispose();
   }
 
@@ -462,6 +495,14 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
       _snack(context, '到着は出発より後の時刻にしてください');
       return;
     }
+    // 所要は出発/到着時刻から自動計算する（手入力しない, item 3）。両方あるときは
+    // 計算値、片方でも欠ければ既存値を保持（黙って消さない）。
+    final autoDuration = (departureAt != null && arrivalAt != null)
+        ? arrivalAt.difference(departureAt).inMinutes
+        : widget.existing?.durationMinutes;
+    // 金額は日本円前提（JPY固定）。通貨欄はUIに出さない（item 4）。
+    final fareText = _fare.text.trim();
+    final fareAmount = fareText.isEmpty ? null : int.tryParse(fareText);
     final now = ref.read(clockProvider).now().toUtc();
     final leg = ItineraryLeg(
       id: widget.existing?.id ?? _uuid.v4(),
@@ -472,12 +513,11 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
       travelMode: _mode,
       departureAt: departureAt?.toUtc(),
       arrivalAt: arrivalAt?.toUtc(),
-      durationMinutes: int.tryParse(_duration.text.trim()),
+      durationMinutes: autoDuration,
       distanceMeters: int.tryParse(_distance.text.trim()),
-      // 運賃・通貨・経路概要・手動MapsURLは通常UIから外した。既存値は破棄せず
-      // そのまま保持する（DB項目は残す方針, 修正2/4）。
-      fareAmountMinor: widget.existing?.fareAmountMinor,
-      fareCurrency: widget.existing?.fareCurrency,
+      fareAmountMinor: fareAmount,
+      fareCurrency: fareAmount == null ? null : 'JPY',
+      // 経路概要・手動MapsURLは通常UIから外した。既存値は破棄せず保持する。
       routeSummary: widget.existing?.routeSummary,
       googleMapsUrl: widget.existing?.googleMapsUrl,
       createdAt: widget.existing?.createdAt ?? now,
@@ -513,6 +553,7 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
+    final duration = _computedDurationMinutes();
     return ItinerarySheetScaffold(
       title: isEdit ? '移動区間を編集' : '移動区間を追加',
       onSave: _save,
@@ -526,7 +567,10 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
             for (final o in widget.options)
               DropdownMenuItem(value: o.id, child: Text(o.label)),
           ],
-          onChanged: (v) => setState(() => _origin = v),
+          onChanged: (v) => setState(() {
+            _origin = v;
+            _applyEndpointTimeDefaults();
+          }),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
@@ -537,7 +581,10 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
             for (final o in widget.options)
               DropdownMenuItem(value: o.id, child: Text(o.label)),
           ],
-          onChanged: (v) => setState(() => _destination = v),
+          onChanged: (v) => setState(() {
+            _destination = v;
+            _applyEndpointTimeDefaults();
+          }),
         ),
         ItineraryEnumChips<ItineraryTravelMode>(
           label: '移動手段',
@@ -567,16 +614,20 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
           onClear: () => setState(() => _arrivalTime = null),
         ),
         const SizedBox(height: 12),
+        // 所要は自動計算の読み取り表示（手入力しない, item 3）。
+        ListTile(
+          key: const Key('leg_duration_display'),
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.schedule_outlined),
+          title: const Text('所要'),
+          trailing: Text(
+            duration != null ? '約$duration分' : '未設定',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
+        const SizedBox(height: 4),
         Row(
           children: [
-            Expanded(
-              child: TextField(
-                controller: _duration,
-                decoration: const InputDecoration(labelText: '所要（分）'),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: TextField(
                 controller: _distance,
@@ -584,68 +635,32 @@ class _LegEditorState extends ConsumerState<_LegEditor> {
                 keyboardType: TextInputType.number,
               ),
             ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                key: const Key('leg_fare_field'),
+                controller: _fare,
+                decoration: const InputDecoration(
+                  labelText: '金額（円）',
+                  prefixText: '¥ ',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
-        _LegRouteOpenButton(
-          origin: widget.options.firstWhereOrNull((o) => o.id == _origin),
-          destination:
-              widget.options.firstWhereOrNull((o) => o.id == _destination),
-        ),
+        // 経路確認（アプリ内取得）/最新の経路/Google Mapsで開く＋乗換タイムライン。
+        // 保存済みの区間を編集中は「この経路を保存」も出せる（planId を渡す）。
         RouteLivePanel(
           origin: widget.options.firstWhereOrNull((o) => o.id == _origin),
           destination:
               widget.options.firstWhereOrNull((o) => o.id == _destination),
           travelMode: _mode,
           existingLeg: widget.existing,
+          planId: widget.planId,
         ),
       ],
-    );
-  }
-}
-
-/// 出発地・到着地に Google Place ID または緯度経度がある場合だけ表示する、
-/// 常時利用可能な「Google Mapsで経路を開く」導線（修正4）。
-///
-/// Google Routes API（プレミアム・課金）に依存せず、ユーザーが押したときだけ
-/// Google Maps の経路URLを開く（外部遷移前にドメイン確認あり）。API が使えない
-/// 環境でも動くフォールバックとして機能する。端点に位置情報が無い（手入力
-/// スポットや transport/lodging 端点）ときは何も表示しない。
-class _LegRouteOpenButton extends StatelessWidget {
-  const _LegRouteOpenButton({required this.origin, required this.destination});
-
-  final ItineraryEntryOption? origin;
-  final ItineraryEntryOption? destination;
-
-  RouteEndpoint? _endpointOf(ItineraryEntryOption? o) {
-    if (o == null) return null;
-    final endpoint = RouteEndpoint(
-      placeId: o.googlePlaceId,
-      latitude: o.latitude,
-      longitude: o.longitude,
-    );
-    return endpoint.hasLocation ? endpoint : null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final o = _endpointOf(origin);
-    final d = _endpointOf(destination);
-    if (o == null || d == null) return const SizedBox.shrink();
-    final url = googleMapsDirectionsUrl(o, d);
-    if (url == null) return const SizedBox.shrink();
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TextButton.icon(
-        key: const Key('leg_open_route_button'),
-        onPressed: () => openExternalUrlWithConfirm(
-          context,
-          url: url.toString(),
-          label: 'Google Mapsで経路を開く',
-        ),
-        icon: const Icon(Icons.directions_outlined, size: 18),
-        label: const Text('経路を確認（Google Mapsで開く）'),
-      ),
     );
   }
 }

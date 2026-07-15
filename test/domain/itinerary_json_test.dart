@@ -43,6 +43,14 @@ void main() {
         isNot(ItinerarySpotCategory.sightseeing),
       );
     });
+    test('ItinerarySpotCategory.wireValue は @JsonValue と一致する（drift防止）', () {
+      // 共有現場のカテゴリ選択UIは wireValue を単一の情報源にするため、
+      // 実際の JSON シリアライズ結果と全カテゴリで一致していなければならない。
+      for (final v in ItinerarySpotCategory.values) {
+        final wire = makeItinerarySpot(category: v).toJson()['category'];
+        expect(v.wireValue, wire, reason: '$v の wireValue が JSON 値と不一致');
+      }
+    });
     test('ItinerarySpotLinkKind（7種）', () {
       for (final v in ItinerarySpotLinkKind.values) {
         final link = makeItinerarySpotLink(kind: v);

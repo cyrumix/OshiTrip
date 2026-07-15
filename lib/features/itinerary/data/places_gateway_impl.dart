@@ -116,6 +116,9 @@ class PlacesGatewayImpl implements PlacesGateway {
       'action': 'autocomplete',
       'input': input,
       'sessionToken': sessionToken.value,
+      // 施設名・住所は日本語優先で取得する（国内利用想定, item 2）。
+      'languageCode': 'ja',
+      'regionCode': 'JP',
       if (bias != null) 'locationBias': _biasJson(bias),
     };
     try {
@@ -138,6 +141,9 @@ class PlacesGatewayImpl implements PlacesGateway {
       'action': 'details',
       'placeId': placeId,
       'sessionToken': sessionToken.value,
+      // 名称・住所は日本語優先（item 2）。
+      'languageCode': 'ja',
+      'regionCode': 'JP',
     };
     try {
       final res = await _transport.invoke(body);

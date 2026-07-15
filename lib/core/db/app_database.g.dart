@@ -55,6 +55,18 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
   late final GeneratedColumn<String> venue = GeneratedColumn<String>(
       'venue', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _venueAddressMeta =
+      const VerificationMeta('venueAddress');
+  @override
+  late final GeneratedColumn<String> venueAddress = GeneratedColumn<String>(
+      'venue_address', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _venueGooglePlaceIdMeta =
+      const VerificationMeta('venueGooglePlaceId');
+  @override
+  late final GeneratedColumn<String> venueGooglePlaceId =
+      GeneratedColumn<String>('venue_google_place_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _doorTimeMinutesMeta =
       const VerificationMeta('doorTimeMinutes');
   @override
@@ -188,6 +200,8 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
         oshiGroupId,
         oshiMemberIds,
         venue,
+        venueAddress,
+        venueGooglePlaceId,
         doorTimeMinutes,
         startTimeMinutes,
         endTimeMinutes,
@@ -263,6 +277,18 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
     if (data.containsKey('venue')) {
       context.handle(
           _venueMeta, venue.isAcceptableOrUnknown(data['venue']!, _venueMeta));
+    }
+    if (data.containsKey('venue_address')) {
+      context.handle(
+          _venueAddressMeta,
+          venueAddress.isAcceptableOrUnknown(
+              data['venue_address']!, _venueAddressMeta));
+    }
+    if (data.containsKey('venue_google_place_id')) {
+      context.handle(
+          _venueGooglePlaceIdMeta,
+          venueGooglePlaceId.isAcceptableOrUnknown(
+              data['venue_google_place_id']!, _venueGooglePlaceIdMeta));
     }
     if (data.containsKey('door_time_minutes')) {
       context.handle(
@@ -397,6 +423,10 @@ class $GenbasTable extends Genbas with TableInfo<$GenbasTable, GenbaRow> {
           DriftSqlType.string, data['${effectivePrefix}oshi_member_ids'])!,
       venue: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}venue']),
+      venueAddress: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}venue_address']),
+      venueGooglePlaceId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}venue_google_place_id']),
       doorTimeMinutes: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}door_time_minutes']),
       startTimeMinutes: attachedDatabase.typeMapping
@@ -455,6 +485,11 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
   final String? oshiGroupId;
   final String oshiMemberIds;
   final String? venue;
+
+  /// 会場の住所・Google Place ID（会場のGoogle連携, schema v18）。座標は
+  /// Places の Field Mask 対象外のため保存しない。
+  final String? venueAddress;
+  final String? venueGooglePlaceId;
   final int? doorTimeMinutes;
   final int? startTimeMinutes;
   final int? endTimeMinutes;
@@ -493,6 +528,8 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       this.oshiGroupId,
       required this.oshiMemberIds,
       this.venue,
+      this.venueAddress,
+      this.venueGooglePlaceId,
       this.doorTimeMinutes,
       this.startTimeMinutes,
       this.endTimeMinutes,
@@ -525,6 +562,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
     map['oshi_member_ids'] = Variable<String>(oshiMemberIds);
     if (!nullToAbsent || venue != null) {
       map['venue'] = Variable<String>(venue);
+    }
+    if (!nullToAbsent || venueAddress != null) {
+      map['venue_address'] = Variable<String>(venueAddress);
+    }
+    if (!nullToAbsent || venueGooglePlaceId != null) {
+      map['venue_google_place_id'] = Variable<String>(venueGooglePlaceId);
     }
     if (!nullToAbsent || doorTimeMinutes != null) {
       map['door_time_minutes'] = Variable<int>(doorTimeMinutes);
@@ -582,6 +625,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       oshiMemberIds: Value(oshiMemberIds),
       venue:
           venue == null && nullToAbsent ? const Value.absent() : Value(venue),
+      venueAddress: venueAddress == null && nullToAbsent
+          ? const Value.absent()
+          : Value(venueAddress),
+      venueGooglePlaceId: venueGooglePlaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(venueGooglePlaceId),
       doorTimeMinutes: doorTimeMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(doorTimeMinutes),
@@ -637,6 +686,9 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       oshiGroupId: serializer.fromJson<String?>(json['oshiGroupId']),
       oshiMemberIds: serializer.fromJson<String>(json['oshiMemberIds']),
       venue: serializer.fromJson<String?>(json['venue']),
+      venueAddress: serializer.fromJson<String?>(json['venueAddress']),
+      venueGooglePlaceId:
+          serializer.fromJson<String?>(json['venueGooglePlaceId']),
       doorTimeMinutes: serializer.fromJson<int?>(json['doorTimeMinutes']),
       startTimeMinutes: serializer.fromJson<int?>(json['startTimeMinutes']),
       endTimeMinutes: serializer.fromJson<int?>(json['endTimeMinutes']),
@@ -675,6 +727,8 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
       'oshiGroupId': serializer.toJson<String?>(oshiGroupId),
       'oshiMemberIds': serializer.toJson<String>(oshiMemberIds),
       'venue': serializer.toJson<String?>(venue),
+      'venueAddress': serializer.toJson<String?>(venueAddress),
+      'venueGooglePlaceId': serializer.toJson<String?>(venueGooglePlaceId),
       'doorTimeMinutes': serializer.toJson<int?>(doorTimeMinutes),
       'startTimeMinutes': serializer.toJson<int?>(startTimeMinutes),
       'endTimeMinutes': serializer.toJson<int?>(endTimeMinutes),
@@ -705,6 +759,8 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           Value<String?> oshiGroupId = const Value.absent(),
           String? oshiMemberIds,
           Value<String?> venue = const Value.absent(),
+          Value<String?> venueAddress = const Value.absent(),
+          Value<String?> venueGooglePlaceId = const Value.absent(),
           Value<int?> doorTimeMinutes = const Value.absent(),
           Value<int?> startTimeMinutes = const Value.absent(),
           Value<int?> endTimeMinutes = const Value.absent(),
@@ -732,6 +788,11 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
         oshiGroupId: oshiGroupId.present ? oshiGroupId.value : this.oshiGroupId,
         oshiMemberIds: oshiMemberIds ?? this.oshiMemberIds,
         venue: venue.present ? venue.value : this.venue,
+        venueAddress:
+            venueAddress.present ? venueAddress.value : this.venueAddress,
+        venueGooglePlaceId: venueGooglePlaceId.present
+            ? venueGooglePlaceId.value
+            : this.venueGooglePlaceId,
         doorTimeMinutes: doorTimeMinutes.present
             ? doorTimeMinutes.value
             : this.doorTimeMinutes,
@@ -784,6 +845,12 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           ? data.oshiMemberIds.value
           : this.oshiMemberIds,
       venue: data.venue.present ? data.venue.value : this.venue,
+      venueAddress: data.venueAddress.present
+          ? data.venueAddress.value
+          : this.venueAddress,
+      venueGooglePlaceId: data.venueGooglePlaceId.present
+          ? data.venueGooglePlaceId.value
+          : this.venueGooglePlaceId,
       doorTimeMinutes: data.doorTimeMinutes.present
           ? data.doorTimeMinutes.value
           : this.doorTimeMinutes,
@@ -847,6 +914,8 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           ..write('oshiGroupId: $oshiGroupId, ')
           ..write('oshiMemberIds: $oshiMemberIds, ')
           ..write('venue: $venue, ')
+          ..write('venueAddress: $venueAddress, ')
+          ..write('venueGooglePlaceId: $venueGooglePlaceId, ')
           ..write('doorTimeMinutes: $doorTimeMinutes, ')
           ..write('startTimeMinutes: $startTimeMinutes, ')
           ..write('endTimeMinutes: $endTimeMinutes, ')
@@ -879,6 +948,8 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
         oshiGroupId,
         oshiMemberIds,
         venue,
+        venueAddress,
+        venueGooglePlaceId,
         doorTimeMinutes,
         startTimeMinutes,
         endTimeMinutes,
@@ -910,6 +981,8 @@ class GenbaRow extends DataClass implements Insertable<GenbaRow> {
           other.oshiGroupId == this.oshiGroupId &&
           other.oshiMemberIds == this.oshiMemberIds &&
           other.venue == this.venue &&
+          other.venueAddress == this.venueAddress &&
+          other.venueGooglePlaceId == this.venueGooglePlaceId &&
           other.doorTimeMinutes == this.doorTimeMinutes &&
           other.startTimeMinutes == this.startTimeMinutes &&
           other.endTimeMinutes == this.endTimeMinutes &&
@@ -939,6 +1012,8 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
   final Value<String?> oshiGroupId;
   final Value<String> oshiMemberIds;
   final Value<String?> venue;
+  final Value<String?> venueAddress;
+  final Value<String?> venueGooglePlaceId;
   final Value<int?> doorTimeMinutes;
   final Value<int?> startTimeMinutes;
   final Value<int?> endTimeMinutes;
@@ -967,6 +1042,8 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     this.oshiGroupId = const Value.absent(),
     this.oshiMemberIds = const Value.absent(),
     this.venue = const Value.absent(),
+    this.venueAddress = const Value.absent(),
+    this.venueGooglePlaceId = const Value.absent(),
     this.doorTimeMinutes = const Value.absent(),
     this.startTimeMinutes = const Value.absent(),
     this.endTimeMinutes = const Value.absent(),
@@ -996,6 +1073,8 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     this.oshiGroupId = const Value.absent(),
     this.oshiMemberIds = const Value.absent(),
     this.venue = const Value.absent(),
+    this.venueAddress = const Value.absent(),
+    this.venueGooglePlaceId = const Value.absent(),
     this.doorTimeMinutes = const Value.absent(),
     this.startTimeMinutes = const Value.absent(),
     this.endTimeMinutes = const Value.absent(),
@@ -1031,6 +1110,8 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     Expression<String>? oshiGroupId,
     Expression<String>? oshiMemberIds,
     Expression<String>? venue,
+    Expression<String>? venueAddress,
+    Expression<String>? venueGooglePlaceId,
     Expression<int>? doorTimeMinutes,
     Expression<int>? startTimeMinutes,
     Expression<int>? endTimeMinutes,
@@ -1060,6 +1141,9 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
       if (oshiGroupId != null) 'oshi_group_id': oshiGroupId,
       if (oshiMemberIds != null) 'oshi_member_ids': oshiMemberIds,
       if (venue != null) 'venue': venue,
+      if (venueAddress != null) 'venue_address': venueAddress,
+      if (venueGooglePlaceId != null)
+        'venue_google_place_id': venueGooglePlaceId,
       if (doorTimeMinutes != null) 'door_time_minutes': doorTimeMinutes,
       if (startTimeMinutes != null) 'start_time_minutes': startTimeMinutes,
       if (endTimeMinutes != null) 'end_time_minutes': endTimeMinutes,
@@ -1096,6 +1180,8 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
       Value<String?>? oshiGroupId,
       Value<String>? oshiMemberIds,
       Value<String?>? venue,
+      Value<String?>? venueAddress,
+      Value<String?>? venueGooglePlaceId,
       Value<int?>? doorTimeMinutes,
       Value<int?>? startTimeMinutes,
       Value<int?>? endTimeMinutes,
@@ -1124,6 +1210,8 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
       oshiGroupId: oshiGroupId ?? this.oshiGroupId,
       oshiMemberIds: oshiMemberIds ?? this.oshiMemberIds,
       venue: venue ?? this.venue,
+      venueAddress: venueAddress ?? this.venueAddress,
+      venueGooglePlaceId: venueGooglePlaceId ?? this.venueGooglePlaceId,
       doorTimeMinutes: doorTimeMinutes ?? this.doorTimeMinutes,
       startTimeMinutes: startTimeMinutes ?? this.startTimeMinutes,
       endTimeMinutes: endTimeMinutes ?? this.endTimeMinutes,
@@ -1173,6 +1261,12 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
     }
     if (venue.present) {
       map['venue'] = Variable<String>(venue.value);
+    }
+    if (venueAddress.present) {
+      map['venue_address'] = Variable<String>(venueAddress.value);
+    }
+    if (venueGooglePlaceId.present) {
+      map['venue_google_place_id'] = Variable<String>(venueGooglePlaceId.value);
     }
     if (doorTimeMinutes.present) {
       map['door_time_minutes'] = Variable<int>(doorTimeMinutes.value);
@@ -1249,6 +1343,8 @@ class GenbasCompanion extends UpdateCompanion<GenbaRow> {
           ..write('oshiGroupId: $oshiGroupId, ')
           ..write('oshiMemberIds: $oshiMemberIds, ')
           ..write('venue: $venue, ')
+          ..write('venueAddress: $venueAddress, ')
+          ..write('venueGooglePlaceId: $venueGooglePlaceId, ')
           ..write('doorTimeMinutes: $doorTimeMinutes, ')
           ..write('startTimeMinutes: $startTimeMinutes, ')
           ..write('endTimeMinutes: $endTimeMinutes, ')
@@ -17148,6 +17244,8 @@ typedef $$GenbasTableCreateCompanionBuilder = GenbasCompanion Function({
   Value<String?> oshiGroupId,
   Value<String> oshiMemberIds,
   Value<String?> venue,
+  Value<String?> venueAddress,
+  Value<String?> venueGooglePlaceId,
   Value<int?> doorTimeMinutes,
   Value<int?> startTimeMinutes,
   Value<int?> endTimeMinutes,
@@ -17177,6 +17275,8 @@ typedef $$GenbasTableUpdateCompanionBuilder = GenbasCompanion Function({
   Value<String?> oshiGroupId,
   Value<String> oshiMemberIds,
   Value<String?> venue,
+  Value<String?> venueAddress,
+  Value<String?> venueGooglePlaceId,
   Value<int?> doorTimeMinutes,
   Value<int?> startTimeMinutes,
   Value<int?> endTimeMinutes,
@@ -17230,6 +17330,13 @@ class $$GenbasTableFilterComposer
 
   ColumnFilters<String> get venue => $composableBuilder(
       column: $table.venue, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get venueAddress => $composableBuilder(
+      column: $table.venueAddress, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get venueGooglePlaceId => $composableBuilder(
+      column: $table.venueGooglePlaceId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get doorTimeMinutes => $composableBuilder(
       column: $table.doorTimeMinutes,
@@ -17331,6 +17438,14 @@ class $$GenbasTableOrderingComposer
 
   ColumnOrderings<String> get venue => $composableBuilder(
       column: $table.venue, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get venueAddress => $composableBuilder(
+      column: $table.venueAddress,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get venueGooglePlaceId => $composableBuilder(
+      column: $table.venueGooglePlaceId,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get doorTimeMinutes => $composableBuilder(
       column: $table.doorTimeMinutes,
@@ -17435,6 +17550,12 @@ class $$GenbasTableAnnotationComposer
   GeneratedColumn<String> get venue =>
       $composableBuilder(column: $table.venue, builder: (column) => column);
 
+  GeneratedColumn<String> get venueAddress => $composableBuilder(
+      column: $table.venueAddress, builder: (column) => column);
+
+  GeneratedColumn<String> get venueGooglePlaceId => $composableBuilder(
+      column: $table.venueGooglePlaceId, builder: (column) => column);
+
   GeneratedColumn<int> get doorTimeMinutes => $composableBuilder(
       column: $table.doorTimeMinutes, builder: (column) => column);
 
@@ -17521,6 +17642,8 @@ class $$GenbasTableTableManager extends RootTableManager<
             Value<String?> oshiGroupId = const Value.absent(),
             Value<String> oshiMemberIds = const Value.absent(),
             Value<String?> venue = const Value.absent(),
+            Value<String?> venueAddress = const Value.absent(),
+            Value<String?> venueGooglePlaceId = const Value.absent(),
             Value<int?> doorTimeMinutes = const Value.absent(),
             Value<int?> startTimeMinutes = const Value.absent(),
             Value<int?> endTimeMinutes = const Value.absent(),
@@ -17550,6 +17673,8 @@ class $$GenbasTableTableManager extends RootTableManager<
             oshiGroupId: oshiGroupId,
             oshiMemberIds: oshiMemberIds,
             venue: venue,
+            venueAddress: venueAddress,
+            venueGooglePlaceId: venueGooglePlaceId,
             doorTimeMinutes: doorTimeMinutes,
             startTimeMinutes: startTimeMinutes,
             endTimeMinutes: endTimeMinutes,
@@ -17579,6 +17704,8 @@ class $$GenbasTableTableManager extends RootTableManager<
             Value<String?> oshiGroupId = const Value.absent(),
             Value<String> oshiMemberIds = const Value.absent(),
             Value<String?> venue = const Value.absent(),
+            Value<String?> venueAddress = const Value.absent(),
+            Value<String?> venueGooglePlaceId = const Value.absent(),
             Value<int?> doorTimeMinutes = const Value.absent(),
             Value<int?> startTimeMinutes = const Value.absent(),
             Value<int?> endTimeMinutes = const Value.absent(),
@@ -17608,6 +17735,8 @@ class $$GenbasTableTableManager extends RootTableManager<
             oshiGroupId: oshiGroupId,
             oshiMemberIds: oshiMemberIds,
             venue: venue,
+            venueAddress: venueAddress,
+            venueGooglePlaceId: venueGooglePlaceId,
             doorTimeMinutes: doorTimeMinutes,
             startTimeMinutes: startTimeMinutes,
             endTimeMinutes: endTimeMinutes,

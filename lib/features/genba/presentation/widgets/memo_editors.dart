@@ -11,6 +11,10 @@ import '../../domain/memo_template_presets.dart';
 
 const _uuid = Uuid();
 
+/// メモ保存の差し替え（共有現場では apply_shared_mutation 経由で保存するため, D-244）。
+/// null のときは owner の通常保存（genbaRepository.upsertMemo）を使う。
+typedef MemoSubmit = Future<Result<void>> Function(GenbaMemo memo);
+
 /// メモ追加フロー（§7.7 改訂）: メモ種類を選ぶ → その種類のテンプレートを選ぶ
 /// （テンプレートなしも可）→ 種類別エディタで編集して保存する。
 Future<void> showAddMemoFlow(
@@ -18,6 +22,7 @@ Future<void> showAddMemoFlow(
   WidgetRef ref, {
   required String genbaId,
   required int initialSortOrder,
+  MemoSubmit? onSubmit,
 }) async {
   final kind = await _pickMemoKind(context);
   if (kind == null || !context.mounted) return;
@@ -37,7 +42,13 @@ Future<void> showAddMemoFlow(
     id: _uuid.v4(),
   );
   if (!context.mounted) return;
-  await _openMemoEditor(context, ref, memo: seed, isEdit: false);
+  await _openMemoEditor(
+    context,
+    ref,
+    memo: seed,
+    isEdit: false,
+    onSubmit: onSubmit,
+  );
 }
 
 /// 既存メモを種類別エディタで編集する。
@@ -46,14 +57,22 @@ Future<void> showMemoEditor(
   WidgetRef ref, {
   required String genbaId,
   required GenbaMemo existing,
+  MemoSubmit? onSubmit,
 }) =>
-    _openMemoEditor(context, ref, memo: existing, isEdit: true);
+    _openMemoEditor(
+      context,
+      ref,
+      memo: existing,
+      isEdit: true,
+      onSubmit: onSubmit,
+    );
 
 Future<void> _openMemoEditor(
   BuildContext context,
   WidgetRef ref, {
   required GenbaMemo memo,
   required bool isEdit,
+  MemoSubmit? onSubmit,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -62,7 +81,7 @@ Future<void> _openMemoEditor(
     builder: (context) => Padding(
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: _MemoEditorSheet(memo: memo, isEdit: isEdit),
+      child: _MemoEditorSheet(memo: memo, isEdit: isEdit, onSubmit: onSubmit),
     ),
   );
 }
@@ -280,10 +299,17 @@ class _OptionRow {
 }
 
 class _MemoEditorSheet extends ConsumerStatefulWidget {
-  const _MemoEditorSheet({required this.memo, required this.isEdit});
+  const _MemoEditorSheet({
+    required this.memo,
+    required this.isEdit,
+    this.onSubmit,
+  });
 
   final GenbaMemo memo;
   final bool isEdit;
+
+  /// 共有現場では保存を apply_shared_mutation へ差し替える（null=owner通常保存）。
+  final MemoSubmit? onSubmit;
 
   @override
   ConsumerState<_MemoEditorSheet> createState() => _MemoEditorSheetState();
@@ -457,7 +483,10 @@ class _MemoEditorSheetState extends ConsumerState<_MemoEditorSheet> {
     // 呼び出し前（シートがまだ有効な間）に State を捕まえておく。
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _saving = true);
-    final result = await ref.read(genbaRepositoryProvider).upsertMemo(memo);
+    // 共有現場では apply_shared_mutation 経由（onSubmit）。owner は通常保存。
+    final result = widget.onSubmit != null
+        ? await widget.onSubmit!(memo)
+        : await ref.read(genbaRepositoryProvider).upsertMemo(memo);
     if (!mounted) return;
     result.when(
       ok: (_) {
@@ -554,7 +583,9 @@ class _MemoEditorSheetState extends ConsumerState<_MemoEditorSheet> {
                   icon: const Icon(Icons.bookmark_add_outlined),
                   onPressed: _saving ? null : _saveAsTemplate,
                 ),
-                if (widget.isEdit)
+                // 共有現場（onSubmit あり）ではシート内削除を出さない（削除は
+                // 共有詳細のカード側で apply_shared_mutation 経由に一本化する）。
+                if (widget.isEdit && widget.onSubmit == null)
                   IconButton(
                     tooltip: '削除',
                     color: theme.colorScheme.error,

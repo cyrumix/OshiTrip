@@ -64,6 +64,10 @@ void main() {
       expect(body['travelMode'], 'transit');
       // 代表出発日時は UTC ISO8601。
       expect(body['representativeDepartureUtc'], '2026-07-09T03:00:00.000Z');
+      // Gateway層が日本語優先・国内・メートル法を必ず付与する（item 2/8/9）。
+      expect(body['languageCode'], 'ja');
+      expect(body['regionCode'], 'JP');
+      expect(body['units'], 'METRIC');
     });
 
     test('payload に Google API キーを一切含めない（キーはサーバー保持, ADR-0010 §3）', () async {
@@ -74,10 +78,18 @@ void main() {
         ),
       );
       await gateway(transport).computeRoute(_request());
-      // 送出キーは固定の4つのみ。api/key 系のフィールドは存在しない。
+      // 送出キーは固定集合のみ。api/key 系のフィールドは存在しない。
       expect(
         transport.lastBody!.keys.toSet(),
-        {'origin', 'destination', 'travelMode', 'representativeDepartureUtc'},
+        {
+          'origin',
+          'destination',
+          'travelMode',
+          'representativeDepartureUtc',
+          'languageCode',
+          'regionCode',
+          'units',
+        },
       );
       final flat = transport.lastBody!.keys.join(',').toLowerCase();
       expect(flat.contains('key'), isFalse);

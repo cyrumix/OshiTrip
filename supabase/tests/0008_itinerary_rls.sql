@@ -25,12 +25,14 @@ values
   ('11111111-1111-1111-1111-111111111111', 'user1@example.com'),
   ('22222222-2222-2222-2222-222222222222', 'user2@example.com');
 
-set local role authenticated;
-
+-- 認証切替ヘルパは authenticated ロールに CREATE 権限が無いため、
+-- role を切り替える前（＝スーパーユーザー時）に作成する（D-248）。
 create or replace function _as(uid text) returns void language sql as $$
   select set_config('request.jwt.claims',
     json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
+
+set local role authenticated;
 
 select _as('11111111-1111-1111-1111-111111111111');
 
@@ -95,7 +97,7 @@ select throws_ok(
       'dd000000-0000-0000-0000-000000000004',
       'auth.users', 'b1000000-0000-0000-0000-000000000001', 'upsert',
       '{}'::jsonb, null)$$,
-  '22023',
+  '22023', null,
   'invalid entity_table is still rejected'
 );
 
@@ -171,7 +173,7 @@ select throws_ok(
             'b1000000-0000-0000-0000-000000000002',
             '11111111-1111-1111-1111-111111111111', 'note',
             'b2000000-0000-0000-0000-000000000002')$$,
-  '23514',
+  '23514', null,
   'entry with reference not matching kind is rejected'
 );
 -- 出発=到着の leg → distinct endpoints check 違反。
@@ -183,7 +185,7 @@ select throws_ok(
             '11111111-1111-1111-1111-111111111111',
             'b5000000-0000-0000-0000-000000000001',
             'b5000000-0000-0000-0000-000000000001')$$,
-  '23514',
+  '23514', null,
   'leg with same origin and destination is rejected'
 );
 -- 運賃の金額だけ（通貨なし） → fare pair check 違反。
@@ -196,7 +198,7 @@ select throws_ok(
             '11111111-1111-1111-1111-111111111111',
             'b5000000-0000-0000-0000-000000000001',
             'b5000000-0000-0000-0000-000000000002', 1000)$$,
-  '23514',
+  '23514', null,
   'leg with fare amount but no currency is rejected'
 );
 -- data_origin が user_provided 以外なのに rights_basis 空 → rights check 違反。
@@ -207,7 +209,7 @@ select throws_ok(
             'b1000000-0000-0000-0000-000000000002',
             '11111111-1111-1111-1111-111111111111', '施設', 'other',
             'facility_provided')$$,
-  '23514',
+  '23514', null,
   'spot with non-user origin but empty rights_basis is rejected'
 );
 select throws_ok(
@@ -219,7 +221,7 @@ select throws_ok(
             '11111111-1111-1111-1111-111111111111',
             'b5000000-0000-0000-0000-000000000001',
             'b5000000-0000-0000-0000-000000000002', 'open_data')$$,
-  '23514',
+  '23514', null,
   'leg with non-user origin but empty rights_basis is rejected'
 );
 
@@ -260,7 +262,7 @@ select throws_ok(
             'b1000000-0000-0000-0000-000000000002',
             '11111111-1111-1111-1111-111111111111', 'spot',
             'b2000000-0000-0000-0000-0000000000aa')$$,
-  'P0001',
+  'P0001', null,
   'entry referencing a non-existent spot is rejected'
 );
 -- transport が別現場（genba2）のもの → 「この現場」でないため拒否（P0001）。
@@ -271,7 +273,7 @@ select throws_ok(
             'b1000000-0000-0000-0000-000000000002',
             '11111111-1111-1111-1111-111111111111', 'transport',
             'c1000000-0000-0000-0000-000000000002')$$,
-  'P0001',
+  'P0001', null,
   'entry referencing a transport of another genba is rejected'
 );
 -- leg の origin が別計画（plan2）の項目 → 同一計画でないため拒否（P0001）。
@@ -283,7 +285,7 @@ select throws_ok(
             '11111111-1111-1111-1111-111111111111',
             'b5000000-0000-0000-0000-000000000010',
             'b5000000-0000-0000-0000-000000000002')$$,
-  'P0001',
+  'P0001', null,
   'leg with an endpoint from another plan is rejected'
 );
 
@@ -301,7 +303,7 @@ select throws_ok(
     values ('b2000000-0000-0000-0000-0000000000ee',
             'b1000000-0000-0000-0000-000000000002',
             '22222222-2222-2222-2222-222222222222', '乗っ取り', 'other')$$,
-  'P0001',
+  'P0001', null,
   'child insert into other owner plan is rejected by owner trigger'
 );
 -- user2 は user1 の全5テーブルを読めない（RLS, SELECT分離）。

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:oshi_trip/core/error/failure.dart';
 import 'package:oshi_trip/core/error/result.dart';
 import 'package:oshi_trip/features/itinerary/application/route_recalculation_controller.dart';
 import 'package:oshi_trip/features/itinerary/domain/itinerary_leg.dart';
@@ -38,21 +37,30 @@ RouteLiveRequest _request({
     );
 
 void main() {
-  group('プレミアムゲート（クライアント側早期ガード）', () {
-    test('非プレミアムはゲートウェイを呼ばず型付き拒否を返す', () async {
+  group('経路取得（現仕様: 全ユーザー可・クライアント側プレミアム制限なし, D-232）', () {
+    test('非プレミアム（isPremium=false）でもゲートウェイを呼ぶ', () async {
       final gateway = _SpyGateway();
       final controller = RouteRecalculationController(gateway: gateway);
-      final result = await controller.recalculate(
+      final future = controller.recalculate(
         request: _request(),
-        isPremium: false,
+        isPremium: false, // 現仕様ではクライアント側で拒否しない
         fingerprint: 'fp-1',
       );
-      expect(gateway.callCount, 0);
-      expect(result.isOk, isFalse);
-      expect(result.failureOrNull, isA<PermissionFailure>());
+      expect(gateway.callCount, 1);
+      gateway.completeNext(
+        Ok(
+          RouteLiveResult(
+            durationMinutes: 10,
+            distanceMeters: 800,
+            requestedAt: DateTime.utc(2026, 7, 9),
+          ),
+        ),
+      );
+      final result = await future;
+      expect(result.isOk, isTrue);
     });
 
-    test('プレミアムはゲートウェイを呼ぶ', () async {
+    test('プレミアム（isPremium=true）でも同様にゲートウェイを呼ぶ', () async {
       final gateway = _SpyGateway();
       final controller = RouteRecalculationController(gateway: gateway);
       final future = controller.recalculate(

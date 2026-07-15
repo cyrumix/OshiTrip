@@ -249,6 +249,13 @@ mixin _$Genba {
   List<String> get oshiMemberIds => throw _privateConstructorUsedError;
   String? get venue => throw _privateConstructorUsedError;
 
+  /// 会場の住所・Google Place ID（Google検索＋手入力の一体型UIで取得。永続保存
+  /// してよい Google 由来値は Place ID を主とし、名称・住所はユーザーが確認・保存
+  /// した値として扱う, D-178/D-179）。座標は Places の Field Mask 対象外のため
+  /// 取得・保存しない（スポットと同方針）。
+  String? get venueAddress => throw _privateConstructorUsedError;
+  String? get venueGooglePlaceId => throw _privateConstructorUsedError;
+
   /// 開場/開演/終演予定。公演日 0:00 からの分数（深夜公演は 1440 超を許容）。
   int? get doorTimeMinutes => throw _privateConstructorUsedError;
   int? get startTimeMinutes => throw _privateConstructorUsedError;
@@ -321,6 +328,8 @@ abstract class $GenbaCopyWith<$Res> {
       String? oshiGroupId,
       List<String> oshiMemberIds,
       String? venue,
+      String? venueAddress,
+      String? venueGooglePlaceId,
       int? doorTimeMinutes,
       int? startTimeMinutes,
       int? endTimeMinutes,
@@ -364,6 +373,8 @@ class _$GenbaCopyWithImpl<$Res, $Val extends Genba>
     Object? oshiGroupId = freezed,
     Object? oshiMemberIds = null,
     Object? venue = freezed,
+    Object? venueAddress = freezed,
+    Object? venueGooglePlaceId = freezed,
     Object? doorTimeMinutes = freezed,
     Object? startTimeMinutes = freezed,
     Object? endTimeMinutes = freezed,
@@ -415,6 +426,14 @@ class _$GenbaCopyWithImpl<$Res, $Val extends Genba>
       venue: freezed == venue
           ? _value.venue
           : venue // ignore: cast_nullable_to_non_nullable
+              as String?,
+      venueAddress: freezed == venueAddress
+          ? _value.venueAddress
+          : venueAddress // ignore: cast_nullable_to_non_nullable
+              as String?,
+      venueGooglePlaceId: freezed == venueGooglePlaceId
+          ? _value.venueGooglePlaceId
+          : venueGooglePlaceId // ignore: cast_nullable_to_non_nullable
               as String?,
       doorTimeMinutes: freezed == doorTimeMinutes
           ? _value.doorTimeMinutes
@@ -508,6 +527,8 @@ abstract class _$$GenbaImplCopyWith<$Res> implements $GenbaCopyWith<$Res> {
       String? oshiGroupId,
       List<String> oshiMemberIds,
       String? venue,
+      String? venueAddress,
+      String? venueGooglePlaceId,
       int? doorTimeMinutes,
       int? startTimeMinutes,
       int? endTimeMinutes,
@@ -549,6 +570,8 @@ class __$$GenbaImplCopyWithImpl<$Res>
     Object? oshiGroupId = freezed,
     Object? oshiMemberIds = null,
     Object? venue = freezed,
+    Object? venueAddress = freezed,
+    Object? venueGooglePlaceId = freezed,
     Object? doorTimeMinutes = freezed,
     Object? startTimeMinutes = freezed,
     Object? endTimeMinutes = freezed,
@@ -600,6 +623,14 @@ class __$$GenbaImplCopyWithImpl<$Res>
       venue: freezed == venue
           ? _value.venue
           : venue // ignore: cast_nullable_to_non_nullable
+              as String?,
+      venueAddress: freezed == venueAddress
+          ? _value.venueAddress
+          : venueAddress // ignore: cast_nullable_to_non_nullable
+              as String?,
+      venueGooglePlaceId: freezed == venueGooglePlaceId
+          ? _value.venueGooglePlaceId
+          : venueGooglePlaceId // ignore: cast_nullable_to_non_nullable
               as String?,
       doorTimeMinutes: freezed == doorTimeMinutes
           ? _value.doorTimeMinutes
@@ -690,6 +721,8 @@ class _$GenbaImpl extends _Genba {
       this.oshiGroupId,
       final List<String> oshiMemberIds = const <String>[],
       this.venue,
+      this.venueAddress,
+      this.venueGooglePlaceId,
       this.doorTimeMinutes,
       this.startTimeMinutes,
       this.endTimeMinutes,
@@ -738,6 +771,15 @@ class _$GenbaImpl extends _Genba {
 
   @override
   final String? venue;
+
+  /// 会場の住所・Google Place ID（Google検索＋手入力の一体型UIで取得。永続保存
+  /// してよい Google 由来値は Place ID を主とし、名称・住所はユーザーが確認・保存
+  /// した値として扱う, D-178/D-179）。座標は Places の Field Mask 対象外のため
+  /// 取得・保存しない（スポットと同方針）。
+  @override
+  final String? venueAddress;
+  @override
+  final String? venueGooglePlaceId;
 
   /// 開場/開演/終演予定。公演日 0:00 からの分数（深夜公演は 1440 超を許容）。
   @override
@@ -810,7 +852,7 @@ class _$GenbaImpl extends _Genba {
 
   @override
   String toString() {
-    return 'Genba(id: $id, ownerId: $ownerId, artistName: $artistName, title: $title, eventDate: $eventDate, oshiGroupId: $oshiGroupId, oshiMemberIds: $oshiMemberIds, venue: $venue, doorTimeMinutes: $doorTimeMinutes, startTimeMinutes: $startTimeMinutes, endTimeMinutes: $endTimeMinutes, performanceType: $performanceType, performanceTypeOther: $performanceTypeOther, performanceId: $performanceId, isExpedition: $isExpedition, transportRequirement: $transportRequirement, lodgingRequirement: $lodgingRequirement, isCanceled: $isCanceled, attendanceStatus: $attendanceStatus, heroImageLocalPath: $heroImageLocalPath, heroImageStoragePath: $heroImageStoragePath, heroImageUploadStatus: $heroImageUploadStatus, heroImageAltText: $heroImageAltText, manualEndedAt: $manualEndedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'Genba(id: $id, ownerId: $ownerId, artistName: $artistName, title: $title, eventDate: $eventDate, oshiGroupId: $oshiGroupId, oshiMemberIds: $oshiMemberIds, venue: $venue, venueAddress: $venueAddress, venueGooglePlaceId: $venueGooglePlaceId, doorTimeMinutes: $doorTimeMinutes, startTimeMinutes: $startTimeMinutes, endTimeMinutes: $endTimeMinutes, performanceType: $performanceType, performanceTypeOther: $performanceTypeOther, performanceId: $performanceId, isExpedition: $isExpedition, transportRequirement: $transportRequirement, lodgingRequirement: $lodgingRequirement, isCanceled: $isCanceled, attendanceStatus: $attendanceStatus, heroImageLocalPath: $heroImageLocalPath, heroImageStoragePath: $heroImageStoragePath, heroImageUploadStatus: $heroImageUploadStatus, heroImageAltText: $heroImageAltText, manualEndedAt: $manualEndedAt, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -830,6 +872,10 @@ class _$GenbaImpl extends _Genba {
             const DeepCollectionEquality()
                 .equals(other._oshiMemberIds, _oshiMemberIds) &&
             (identical(other.venue, venue) || other.venue == venue) &&
+            (identical(other.venueAddress, venueAddress) ||
+                other.venueAddress == venueAddress) &&
+            (identical(other.venueGooglePlaceId, venueGooglePlaceId) ||
+                other.venueGooglePlaceId == venueGooglePlaceId) &&
             (identical(other.doorTimeMinutes, doorTimeMinutes) ||
                 other.doorTimeMinutes == doorTimeMinutes) &&
             (identical(other.startTimeMinutes, startTimeMinutes) ||
@@ -880,6 +926,8 @@ class _$GenbaImpl extends _Genba {
         oshiGroupId,
         const DeepCollectionEquality().hash(_oshiMemberIds),
         venue,
+        venueAddress,
+        venueGooglePlaceId,
         doorTimeMinutes,
         startTimeMinutes,
         endTimeMinutes,
@@ -926,6 +974,8 @@ abstract class _Genba extends Genba {
       final String? oshiGroupId,
       final List<String> oshiMemberIds,
       final String? venue,
+      final String? venueAddress,
+      final String? venueGooglePlaceId,
       final int? doorTimeMinutes,
       final int? startTimeMinutes,
       final int? endTimeMinutes,
@@ -965,6 +1015,15 @@ abstract class _Genba extends Genba {
   List<String> get oshiMemberIds;
   @override
   String? get venue;
+
+  /// 会場の住所・Google Place ID（Google検索＋手入力の一体型UIで取得。永続保存
+  /// してよい Google 由来値は Place ID を主とし、名称・住所はユーザーが確認・保存
+  /// した値として扱う, D-178/D-179）。座標は Places の Field Mask 対象外のため
+  /// 取得・保存しない（スポットと同方針）。
+  @override
+  String? get venueAddress;
+  @override
+  String? get venueGooglePlaceId;
 
   /// 開場/開演/終演予定。公演日 0:00 からの分数（深夜公演は 1440 超を許容）。
   @override

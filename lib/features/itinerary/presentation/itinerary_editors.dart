@@ -530,10 +530,7 @@ class _SpotEditorState extends ConsumerState<_SpotEditor> {
         ),
         TextField(
           controller: _address,
-          decoration: const InputDecoration(
-            labelText: '住所',
-            helperText: '共有時は既定で非公開として扱われます',
-          ),
+          decoration: const InputDecoration(labelText: '住所'),
         ),
         const Divider(height: 32),
         Text('訪問予定', style: Theme.of(context).textTheme.labelLarge),

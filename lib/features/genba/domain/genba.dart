@@ -202,6 +202,13 @@ abstract class Genba with _$Genba {
     @Default(<String>[]) List<String> oshiMemberIds,
     String? venue,
 
+    /// 会場の住所・Google Place ID（Google検索＋手入力の一体型UIで取得。永続保存
+    /// してよい Google 由来値は Place ID を主とし、名称・住所はユーザーが確認・保存
+    /// した値として扱う, D-178/D-179）。座標は Places の Field Mask 対象外のため
+    /// 取得・保存しない（スポットと同方針）。
+    String? venueAddress,
+    String? venueGooglePlaceId,
+
     /// 開場/開演/終演予定。公演日 0:00 からの分数（深夜公演は 1440 超を許容）。
     int? doorTimeMinutes,
     int? startTimeMinutes,

@@ -19,12 +19,14 @@ select plan(14);
 insert into auth.users (id, email)
 values ('11111111-1111-1111-1111-111111111111', 'user1@example.com');
 
-set local role authenticated;
-
+-- 認証切替ヘルパは authenticated ロールに CREATE 権限が無いため、
+-- role を切り替える前（＝スーパーユーザー時）に作成する（D-248）。
 create or replace function _as(uid text) returns void language sql as $$
   select set_config('request.jwt.claims',
     json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
+
+set local role authenticated;
 
 select _as('11111111-1111-1111-1111-111111111111');
 
@@ -77,7 +79,7 @@ select throws_ok(
             '11111111-1111-1111-1111-111111111111',
             'b5000000-0000-0000-0000-000000000001',
             'b5000000-0000-0000-0000-000000000002', 'google_routes')$$,
-  '23514',
+  '23514', null,
   'direct INSERT with source=google_routes is rejected'
 );
 select is(
@@ -98,7 +100,7 @@ select throws_ok(
             '11111111-1111-1111-1111-111111111111',
             'b5000000-0000-0000-0000-000000000001',
             'b5000000-0000-0000-0000-000000000002', now())$$,
-  '23514',
+  '23514', null,
   'INSERT with fetched_at is rejected'
 );
 select throws_ok(
@@ -109,7 +111,7 @@ select throws_ok(
             '11111111-1111-1111-1111-111111111111',
             'b5000000-0000-0000-0000-000000000001',
             'b5000000-0000-0000-0000-000000000002', 'k1')$$,
-  '23514',
+  '23514', null,
   'INSERT with cache_key is rejected'
 );
 select throws_ok(
@@ -121,7 +123,7 @@ select throws_ok(
             '11111111-1111-1111-1111-111111111111',
             'b5000000-0000-0000-0000-000000000001',
             'b5000000-0000-0000-0000-000000000002', 'abc')$$,
-  '23514',
+  '23514', null,
   'INSERT with encoded_polyline is rejected'
 );
 select is(
@@ -139,13 +141,13 @@ select is(
 select throws_ok(
   $$update public.itinerary_legs set source = 'google_routes'
     where id = 'b6000000-0000-0000-0000-000000000001'$$,
-  '23514',
+  '23514', null,
   'UPDATE to source=google_routes is rejected'
 );
 select throws_ok(
   $$update public.itinerary_legs set cache_key = 'x'
     where id = 'b6000000-0000-0000-0000-000000000001'$$,
-  '23514',
+  '23514', null,
   'UPDATE setting cache_key is rejected'
 );
 select is(
@@ -170,7 +172,7 @@ select throws_ok(
         'destination_entry_id', 'b5000000-0000-0000-0000-000000000002',
         'source', 'google_routes'),
       null)$$,
-  '23514',
+  '23514', null,
   'apply_mutation upsert with source=google_routes is rejected'
 );
 select is(

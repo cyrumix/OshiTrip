@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../core/error/failure.dart';
 import '../../../core/error/result.dart';
 import '../domain/routes_gateway.dart';
 
@@ -10,12 +9,13 @@ import '../domain/routes_gateway.dart';
 ///   （二重タップ・複数箇所からの同時起動でも Google 呼び出しは1回になる）。
 /// - 呼び出しは [recalculate] を明示的に呼んだときだけ発生する。初期表示・
 ///   並び替え・保存ではこのクラスの誰も何も呼ばないため、費用は構造的に
-///   増えない（呼び出し元が「経路詳細を開く」「最新ルートを更新」からのみ
-///   [recalculate] を呼ぶ設計にする, §8.3）。
-/// - 非プレミアムは Gateway を呼ばずに型付き拒否を返す（クライアント側の早期
-///   ガード。実強制は Edge Function 側の entitlement 検証であり、ここは
-///   UXヒントに過ぎない——クライアントの [isPremium] を偽装してもサーバーが
-///   拒否する）。
+///   増えない（呼び出し元が「経路を確認」「最新の経路」からのみ [recalculate]
+///   を呼ぶ設計にする, §8.3）。
+/// - **現仕様では経路取得を全ユーザーに開放する**（アプリ内にプレミアム/ノーマルの
+///   正式なアカウント区分・課金導線が無いため）。クライアント側でプレミアム判定に
+///   よる早期拒否は行わない。[isPremium] は将来のプレミアム化に備えて受け取るだけで
+///   現時点では取得可否に使わない。実際の可否制御は Edge Function 側の
+///   `ROUTES_REQUIRE_PREMIUM`（既定 false）・レート制限・kill switch が担う（D-232）。
 class RouteRecalculationController {
   RouteRecalculationController({required RoutesGateway gateway})
       : _gateway = gateway;
@@ -30,14 +30,10 @@ class RouteRecalculationController {
 
   Future<Result<RouteLiveResult>> recalculate({
     required RouteLiveRequest request,
+    // 将来のプレミアム化に備えて受け取るが、現仕様では取得可否に使わない（D-232）。
     required bool isPremium,
     required String fingerprint,
   }) {
-    if (!isPremium) {
-      return Future.value(
-        const Err(PermissionFailure(message: '最新ルートの取得はプレミアム限定の機能です')),
-      );
-    }
     final existing = _inFlight[fingerprint];
     if (existing != null) return existing;
     final future = _gateway.computeRoute(request).whenComplete(() {

@@ -7,6 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
+import '../../genba/application/genba_actions_controller.dart';
+import '../../genba/application/genba_providers.dart';
+import '../../genba/domain/genba.dart';
 import '../application/memory_actions_controller.dart';
 import '../application/memory_controllers.dart';
 import '../domain/memory.dart';
@@ -321,6 +324,8 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                 onChanged: (v) =>
                     _controller.updateEntry((e) => e.copyWith(bestMoment: v)),
               ),
+              const SizedBox(height: 12),
+              _ActualEndTimeCard(genbaId: widget.genbaId),
               const SizedBox(height: 24),
               const _StageHeader(
                 icon: Icons.wb_sunny_outlined,
@@ -469,6 +474,111 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// 「実際の終演時間」の記録カード（item 10）。最初に登録する終演時間は予想値。
+/// 実際に終わった時刻を記録すると、確認のうえ現場の終演時間（予定・状態導出の
+/// 両方）を上書きし、概要・当日・計画など終演時間を参照する箇所に反映する。
+class _ActualEndTimeCard extends ConsumerWidget {
+  const _ActualEndTimeCard({required this.genbaId});
+  final String genbaId;
+
+  static String _hhmm(int h, int m) =>
+      '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final genba = ref.watch(genbaByIdProvider(genbaId)).valueOrNull?.genba;
+    if (genba == null) return const SizedBox.shrink();
+    final eventDay = DateTime(
+      genba.eventDate.year,
+      genba.eventDate.month,
+      genba.eventDate.day,
+    );
+    final manual = genba.manualEndedAt?.toLocal();
+    final isActual = manual != null;
+    final current = manual ??
+        (genba.endTimeMinutes != null
+            ? eventDay.add(Duration(minutes: genba.endTimeMinutes!))
+            : null);
+    final subtitle = current == null
+        ? '終演時間が未登録です。タップして実際の終演時間を記録できます。'
+        : '${isActual ? '実際' : '予想'}: ${_hhmm(current.hour, current.minute)}'
+            '（タップして実際の終演時間を記録・更新）';
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        key: const Key('actual_end_time_tile'),
+        leading: const Icon(Icons.nightlife_outlined),
+        title: const Text('実際の終演時間'),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.edit_outlined),
+        onTap: () => _pickAndSave(context, ref, genba, eventDay, current),
+      ),
+    );
+  }
+
+  Future<void> _pickAndSave(
+    BuildContext context,
+    WidgetRef ref,
+    Genba genba,
+    DateTime eventDay,
+    DateTime? current,
+  ) async {
+    final seed = current != null
+        ? TimeOfDay(hour: current.hour, minute: current.minute)
+        : const TimeOfDay(hour: 21, minute: 0);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: seed,
+      helpText: '実際の終演時間',
+    );
+    if (picked == null || !context.mounted) return;
+    final startMin = genba.startTimeMinutes ?? 0;
+    final pickedMin = picked.hour * 60 + picked.minute;
+    var endedAt = DateTime(
+      eventDay.year,
+      eventDay.month,
+      eventDay.day,
+      picked.hour,
+      picked.minute,
+    );
+    // 開演より前の時刻は深夜終演（日跨ぎ）とみなし翌日にする。
+    if (startMin > 0 && pickedMin <= startMin) {
+      endedAt = endedAt.add(const Duration(days: 1));
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('終演時間の更新'),
+        content: Text(
+          '現場の終演時間を ${_hhmm(picked.hour, picked.minute)} に更新しますか？\n'
+          '概要・当日・計画など終演時間を参照する箇所に反映されます。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('更新する'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final failure = await ref
+        .read(genbaActionsControllerProvider(genba.id).notifier)
+        .setActualEndTime(genba, endedAt);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(failure == null ? '終演時間を更新しました' : failure.message),
       ),
     );
   }

@@ -71,7 +71,9 @@ class SupabaseRoutesProxyTransport implements RoutesProxyTransport {
 Failure routesProxyErrorToFailure(String? kind, int status) {
   switch (kind) {
     case 'not_entitled':
-      return const PermissionFailure(message: '最新ルートの取得はプレミアム限定の機能です');
+      // 現仕様では既定で全ユーザーが経路取得できる（ROUTES_REQUIRE_PREMIUM=false）。
+      // これはサーバーが ROUTES_REQUIRE_PREMIUM=true に設定された環境でのみ発生する。
+      return const PermissionFailure(message: 'この環境では経路取得がプレミアム限定に設定されています');
     case 'unauthorized':
       return const AuthFailure(message: 'ログインが必要です');
     case 'rate_limited':
@@ -132,6 +134,10 @@ class RoutesGatewayImpl implements RoutesGateway {
       'travelMode': wireMode,
       'representativeDepartureUtc':
           request.representativeDepartureUtc.toUtc().toIso8601String(),
+      // 経路案内・地名は日本語優先、国内利用・メートル法（item 2/8）。
+      'languageCode': 'ja',
+      'regionCode': 'JP',
+      'units': 'METRIC',
     };
     try {
       final res = await _transport.invoke(body);
@@ -184,6 +190,8 @@ class RoutesGatewayImpl implements RoutesGateway {
               headsign: s['headsign'] as String?,
               departureStopName: s['departureStopName'] as String?,
               arrivalStopName: s['arrivalStopName'] as String?,
+              departureTime: s['departureTime'] as String?,
+              arrivalTime: s['arrivalTime'] as String?,
             ),
           );
         }
@@ -192,6 +200,7 @@ class RoutesGatewayImpl implements RoutesGateway {
     return RouteLiveResult(
       durationMinutes: (data['durationMinutes'] as num?)?.toInt() ?? 0,
       distanceMeters: (data['distanceMeters'] as num?)?.toInt() ?? 0,
+      walkMinutes: (data['walkMinutes'] as num?)?.toInt() ?? 0,
       fareText: data['fareText'] as String?,
       transitSteps: steps,
       requestedAt: requestedAt,

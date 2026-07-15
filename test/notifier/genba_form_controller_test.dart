@@ -196,6 +196,48 @@ void main() {
     expect(saved.genba.manualEndedAt, manualEndedAt);
   });
 
+  test('会場のGoogle候補選択で会場名・住所・Place IDを保存する（item 7）', () async {
+    final container = createContainer();
+    await signInDemo(container);
+    final notifier = container.read(genbaFormControllerProvider(null).notifier);
+    await container.read(genbaFormControllerProvider(null).future);
+
+    notifier
+      ..mutate((s) => s.copyWith(artistName: 'A', title: 'T'))
+      ..mutate((s) => s.copyWith(eventDate: DateTime(2026, 8, 1)))
+      // 会場の候補選択に相当（会場名＋住所＋Place ID）。
+      ..mutate(
+        (s) => s.copyWith(
+          venue: '東京ドーム',
+          venueAddress: '東京都文京区後楽1-3-61',
+          venueGooglePlaceId: 'ChIJ_venue',
+        ),
+      );
+    final result = await notifier.submit();
+    expect(result.isOk, isTrue);
+    final saved =
+        (await container.read(genbaRepositoryProvider).watchAll().first).single;
+    expect(saved.genba.venue, '東京ドーム');
+    expect(saved.genba.venueAddress, '東京都文京区後楽1-3-61');
+    expect(saved.genba.venueGooglePlaceId, 'ChIJ_venue');
+  });
+
+  test('会場名を手入力で変えると Place ID の対応が外れる（item 7）', () {
+    const s0 = GenbaFormState(
+      venue: '東京ドーム',
+      venueAddress: '東京都文京区',
+      venueGooglePlaceId: 'ChIJ_venue',
+    );
+    // 手入力で名前を変えると placeId・住所はクリアされる。
+    final s1 = s0.copyWith(
+      venue: '東京ドー',
+      clearVenueGooglePlaceId: true,
+      venueAddress: '',
+    );
+    expect(s1.venueGooglePlaceId, isNull);
+    expect(s1.venueAddress, '');
+  });
+
   test('未ログインでは submit が AuthFailure', () async {
     final container = createContainer(signedIn: false);
     final notifier = container.read(genbaFormControllerProvider(null).notifier);
