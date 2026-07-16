@@ -15,40 +15,23 @@ import '../../genba/presentation/widgets/action_feedback.dart';
 import '../application/memory_actions_controller.dart';
 import '../application/memory_controllers.dart';
 import '../domain/memory.dart';
+import 'memory_edit_sheets.dart';
 
-/// 思い出詳細の閲覧タブ（design-spec §9）。
-enum _MemoryTab { impression, setlist, goods, notes }
-
-extension on _MemoryTab {
-  String get label => switch (this) {
-        _MemoryTab.impression => '感想',
-        _MemoryTab.setlist => 'セトリ',
-        _MemoryTab.goods => 'グッズ',
-        _MemoryTab.notes => 'メモ',
-      };
-}
-
-/// 思い出詳細（design-spec §9）。
+/// 思い出詳細＝その日のページ（design-spec §9・再設計 D-252/M2）。
 ///
-/// 最上部に写真カルーセル（1/N表示）、メタ情報とお気に入り、
-/// 「感想／セトリ／グッズ／メモ」の閲覧タブ。写真がない場合は感想や
-/// セトリを主役にできるレイアウトへ縮退する。編集入口はFAB（閲覧と分離）。
-class MemoryDetailScreen extends ConsumerStatefulWidget {
+/// タブでデータを分類せず、縦スクロールの1本のストーリーとして構成する。
+/// **空のセクションは表示しない**。現場に登録済みのデータ（会場・チケットの座席・
+/// 交通・宿泊）を思い出へ**自動で引き継いで**再掲し、「終わった現場がそのまま残って
+/// いる」ことを可視化する（本質の中核）。写真がなくても感想やセトリを主役にできる。
+class MemoryDetailScreen extends ConsumerWidget {
   const MemoryDetailScreen({super.key, required this.genbaId});
 
   final String genbaId;
 
   @override
-  ConsumerState<MemoryDetailScreen> createState() => _MemoryDetailScreenState();
-}
-
-class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
-  _MemoryTab _tab = _MemoryTab.impression;
-
-  @override
-  Widget build(BuildContext context) {
-    final aggregateAsync = ref.watch(genbaByIdProvider(widget.genbaId));
-    final bundleAsync = ref.watch(memoryBundleProvider(widget.genbaId));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final aggregateAsync = ref.watch(genbaByIdProvider(genbaId));
+    final bundleAsync = ref.watch(memoryBundleProvider(genbaId));
 
     return Scaffold(
       body: AsyncValueView<GenbaAggregate?>(
@@ -58,20 +41,15 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
         emptyView: const EmptyView(message: '思い出が見つかりませんでした'),
         data: (aggregate) {
           final genba = aggregate!.genba;
-          // 記録（bundle）の読み込み中・失敗を「記録なし」へ変換しない
-          // （loading/error/data を正しく伝播する, §15）。
+          // 記録（bundle）の読み込み中・失敗を「記録なし」へ変換しない（§15）。
           return AsyncValueView<MemoryBundle>(
             value: bundleAsync,
             loadingView: const LoadingSkeleton.hero(cardCount: 2),
-            onRetry: () => ref.invalidate(memoryBundleProvider(widget.genbaId)),
+            onRetry: () => ref.invalidate(memoryBundleProvider(genbaId)),
             data: (bundle) => CustomScrollView(
               slivers: [
                 SliverAppBar(
                   pinned: true,
-                  // AppBarTheme.backgroundColor は transparent（AppScaffold の
-                  // 背景を透過させるため）。pinned な SliverAppBar は
-                  // スクロール中の本文を隠す必要があるため、ここだけ不透明にする
-                  // （透明のままだと本文がタイトル行に透けて重なる）。
                   backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                   title: Text(genba.title, overflow: TextOverflow.ellipsis),
                   actions: [
@@ -80,7 +58,7 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                         tooltip: '思い出アルバム',
                         icon: const Icon(Icons.photo_library_outlined),
                         onPressed: () =>
-                            context.push('/memories/${widget.genbaId}/album'),
+                            context.push('/memories/$genbaId/album'),
                       ),
                   ],
                 ),
@@ -91,42 +69,14 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
                 SliverToBoxAdapter(
                   child: _MetaSection(genba: genba, bundle: bundle),
                 ),
-                if (bundle.hasAnyContent) ...[
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: AppSpace.lg),
-                      child: SegmentTabs(
-                        tabs: [for (final t in _MemoryTab.values) t.label],
-                        selectedIndex: _tab.index,
-                        onSelected: (i) =>
-                            setState(() => _tab = _MemoryTab.values[i]),
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: AnimatedSwitcher(
-                      // 控えめな切替（Reduce Motion 時は即時, §13/§14）。
-                      duration: reduceMotionOf(context)
-                          ? Duration.zero
-                          : AppDurations.normal,
-                      child: KeyedSubtree(
-                        key: ValueKey(_tab),
-                        child: _TabContent(tab: _tab, bundle: bundle),
-                      ),
-                    ),
-                  ),
-                ] else
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(AppSpace.xl),
-                      child: EmptyView(
-                        icon: Icons.auto_awesome,
-                        message: 'まだ記録がありません',
-                        description: '写真やひとことから、気軽に残しはじめられます。',
-                      ),
-                    ),
-                  ),
+                // ストーリー各セクションを個別の sliver にして、画面外セクションを
+                // 遅延ビルド/カリングできるようにする（大量記録時の負荷軽減, レビュー是正）。
+                ..._buildStorySlivers(
+                  context,
+                  genbaId: genbaId,
+                  aggregate: aggregate,
+                  bundle: bundle,
+                ),
                 const SliverToBoxAdapter(child: SizedBox(height: 96)),
               ],
             ),
@@ -135,9 +85,295 @@ class _MemoryDetailScreenState extends ConsumerState<MemoryDetailScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'memory_fab',
-        onPressed: () => context.push('/memories/${widget.genbaId}/edit'),
+        // 巨大フォームではなく、記録するセクションを選ぶ入口（§9・M3）。
+        onPressed: () => showMemoryRecordMenu(context, genbaId: genbaId),
         icon: const Icon(Icons.edit_outlined),
         label: const Text('記録する'),
+      ),
+    );
+  }
+}
+
+/// その日を上から下へ読み返すストーリーを、セクションごとの sliver で返す
+/// （空セクションは出さない・§9）。個別 sliver 化で画面外は遅延ビルドされる。
+List<Widget> _buildStorySlivers(
+  BuildContext context, {
+  required String genbaId,
+  required GenbaAggregate aggregate,
+  required MemoryBundle bundle,
+}) {
+  final entry = bundle.entry;
+
+  // 現場から引き継ぐ座席（チケットの seat）。
+  final seats = [
+    for (final t in aggregate.tickets)
+      if ((t.seat ?? '').trim().isNotEmpty) t.seat!.trim(),
+  ];
+  final hasPhotos = bundle.photos.isNotEmpty;
+  final hasImpression = (entry?.impression.isNotEmpty ?? false) ||
+      (entry?.bestMoment.isNotEmpty ?? false);
+  final hasSetlist = bundle.setlist.isNotEmpty;
+  final hasDayRecord = seats.isNotEmpty ||
+      (entry?.seatView.isNotEmpty ?? false) ||
+      (entry?.mcNotes.isNotEmpty ?? false) ||
+      aggregate.genba.manualEndedAt != null;
+  final hasExpedition = aggregate.transports.isNotEmpty ||
+      aggregate.lodgings.isNotEmpty ||
+      bundle.places.isNotEmpty ||
+      bundle.goods.isNotEmpty;
+  final tags = entry?.tags ?? const <String>[];
+
+  // 写真だけの思い出も「記録なし」ではない（カルーセルは表示済み, レビュー是正）。
+  final anyContent = hasPhotos ||
+      hasImpression ||
+      hasSetlist ||
+      hasDayRecord ||
+      hasExpedition ||
+      tags.isNotEmpty;
+
+  if (!anyContent) {
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpace.xl),
+          child: Column(
+            children: [
+              const EmptyView(
+                icon: Icons.auto_awesome,
+                message: 'まだ記録がありません',
+                description: '写真やひとことから、気軽に残しはじめられます。',
+              ),
+              const SizedBox(height: AppSpace.md),
+              FilledButton.icon(
+                onPressed: () => context.push('/memories/$genbaId/edit'),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('最初の記録をする'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  void openSheet(MemorySection section) =>
+      showMemorySectionSheet(context, genbaId: genbaId, section: section);
+
+  return [
+    if (hasImpression)
+      SliverToBoxAdapter(
+        child: _MemorySection(
+          title: '感想',
+          onEdit: () => openSheet(MemorySection.impression),
+          child: _ImpressionView(entry: entry!),
+        ),
+      ),
+    if (hasSetlist)
+      SliverToBoxAdapter(
+        child: _MemorySection(
+          title: 'セトリ',
+          onEdit: () => openSheet(MemorySection.setlist),
+          child: _SetlistView(setlist: bundle.setlist),
+        ),
+      ),
+    if (hasDayRecord)
+      SliverToBoxAdapter(
+        child: _MemorySection(
+          title: 'その日の記録',
+          onEdit: () => openSheet(MemorySection.dayRecord),
+          child: _DayRecordView(
+            genba: aggregate.genba,
+            seats: seats,
+            seatView: entry?.seatView ?? '',
+            mcNotes: entry?.mcNotes ?? '',
+          ),
+        ),
+      ),
+    if (hasExpedition)
+      SliverToBoxAdapter(
+        child: _MemorySection(
+          title: '遠征の記録',
+          // 現場に登録済みの交通・宿泊は自動で引き継いで読み取り専用で再掲する。
+          trailing: _CarryoverBadge(),
+          // グッズ・場所・食べものの編集はフル記録画面へ（写真紐づけが込み入るため）。
+          onEdit: () => context.push('/memories/$genbaId/edit'),
+          child: _ExpeditionView(
+            transports: aggregate.transports,
+            lodgings: aggregate.lodgings,
+            places: bundle.places,
+            goods: bundle.goods,
+          ),
+        ),
+      ),
+    if (tags.isNotEmpty)
+      SliverToBoxAdapter(
+        child: _MemorySection(
+          title: 'タグ',
+          onEdit: () => openSheet(MemorySection.tags),
+          child: Wrap(
+            spacing: AppSpace.sm,
+            runSpacing: AppSpace.xs,
+            children: [for (final tag in tags) Chip(label: Text(tag))],
+          ),
+        ),
+      ),
+    SliverToBoxAdapter(
+      child: _AddMoreChips(
+        genbaId: genbaId,
+        // 表示ラベルと遷移先を分離（文言変更・多言語化に強い, レビュー是正）。
+        // section == null は遠征＝フル記録画面。
+        missing: [
+          if (!hasImpression) (label: '感想', section: MemorySection.impression),
+          if (!hasSetlist) (label: 'セトリ', section: MemorySection.setlist),
+          if (!hasPhotos) (label: '写真', section: MemorySection.photos),
+          if (!hasDayRecord) (label: '座席・メモ', section: MemorySection.dayRecord),
+          if (tags.isEmpty) (label: 'タグ', section: MemorySection.tags),
+          if (!hasExpedition) (label: '遠征の記録', section: null),
+        ],
+      ),
+    ),
+  ];
+}
+
+/// セクションの共通枠（見出し＋任意の trailing＋「編集」＋本文）。
+/// 編集はそのセクションだけのボトムシートで行い、閲覧と分離する（§9・M3）。
+class _MemorySection extends StatelessWidget {
+  const _MemorySection({
+    required this.title,
+    required this.child,
+    this.trailing,
+    this.onEdit,
+  });
+
+  final String title;
+  final Widget child;
+  final Widget? trailing;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.lg,
+        AppSpace.md,
+        AppSpace.lg,
+        AppSpace.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: AppSpace.sm),
+                trailing!,
+              ],
+              const Spacer(),
+              if (onEdit != null)
+                TextButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('編集'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.sm),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// 現場から自動で引き継いだ内容であることを示す小さなバッジ。
+class _CarryoverBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm, vertical: 1),
+      decoration: BoxDecoration(
+        color: tokens.primarySoft,
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+      ),
+      child: Text(
+        '現場から自動',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+/// 追記チップ1件（表示ラベルと遷移先セクションを分離。section==null は遠征＝
+/// フル記録画面へ）。文言変更・多言語化で遷移先が変わらない（レビュー是正）。
+typedef _AddMoreItem = ({String label, MemorySection? section});
+
+/// まだ無いセクションを追記へ誘導するチップ列（§9）。
+class _AddMoreChips extends StatelessWidget {
+  const _AddMoreChips({required this.genbaId, required this.missing});
+
+  final String genbaId;
+  final List<_AddMoreItem> missing;
+
+  @override
+  Widget build(BuildContext context) {
+    if (missing.isEmpty) return const SizedBox.shrink();
+    final tokens = AppTokens.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.lg,
+        AppSpace.md,
+        AppSpace.lg,
+        AppSpace.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '追記できること',
+            style: Theme.of(context)
+                .textTheme
+                .labelMedium
+                ?.copyWith(color: tokens.textSecondary),
+          ),
+          const SizedBox(height: AppSpace.sm),
+          Wrap(
+            spacing: AppSpace.sm,
+            runSpacing: AppSpace.xs,
+            children: [
+              for (final item in missing)
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 16),
+                  label: Text('${item.label}を追加'),
+                  onPressed: () {
+                    final section = item.section;
+                    if (section != null) {
+                      showMemorySectionSheet(
+                        context,
+                        genbaId: genbaId,
+                        section: section,
+                      );
+                    } else {
+                      context.push('/memories/$genbaId/edit');
+                    }
+                  },
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -386,10 +622,7 @@ class _MetaSection extends ConsumerWidget {
                       style: theme.textTheme.labelMedium
                           ?.copyWith(color: tokens.textSecondary),
                     ),
-                    Text(
-                      genba.artistName,
-                      style: theme.textTheme.titleSmall,
-                    ),
+                    Text(genba.artistName, style: theme.textTheme.titleSmall),
                     if (genba.venue != null) Text('会場: ${genba.venue}'),
                     if (genba.startTimeMinutes != null)
                       Text('開演 ${formatMinutes(genba.startTimeMinutes!)}'),
@@ -439,47 +672,23 @@ class _MetaSection extends ConsumerWidget {
   }
 }
 
-class _TabContent extends StatelessWidget {
-  const _TabContent({required this.tab, required this.bundle});
-
-  final _MemoryTab tab;
-  final MemoryBundle bundle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpace.lg),
-      child: switch (tab) {
-        _MemoryTab.impression => _ImpressionView(bundle: bundle),
-        _MemoryTab.setlist => _SetlistView(bundle: bundle),
-        _MemoryTab.goods => _GoodsView(bundle: bundle),
-        _MemoryTab.notes => _NotesView(bundle: bundle),
-      },
-    );
-  }
-}
-
 /// 感想タブ: 日記カードとして読みやすい行間と余白（§9）。
 class _ImpressionView extends StatelessWidget {
-  const _ImpressionView({required this.bundle});
+  const _ImpressionView({required this.entry});
 
-  final MemoryBundle bundle;
+  final MemoryEntry entry;
 
   @override
   Widget build(BuildContext context) {
-    final entry = bundle.entry;
-    final hasImpression = entry?.impression.isNotEmpty ?? false;
-    final hasBestMoment = entry?.bestMoment.isNotEmpty ?? false;
-    if (!hasImpression && !hasBestMoment) {
-      return const _TabEmpty(message: '感想はまだありません。「記録する」から残せます。');
-    }
+    final hasImpression = entry.impression.isNotEmpty;
+    final hasBestMoment = entry.bestMoment.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (hasImpression)
           AppCard(
             child: Text(
-              entry!.impression,
+              entry.impression,
               style:
                   Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.8),
             ),
@@ -498,7 +707,7 @@ class _ImpressionView extends StatelessWidget {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: AppSpace.sm),
-                Text(entry!.bestMoment),
+                Text(entry.bestMoment),
               ],
             ),
           ),
@@ -509,20 +718,17 @@ class _ImpressionView extends StatelessWidget {
 }
 
 class _SetlistView extends StatelessWidget {
-  const _SetlistView({required this.bundle});
+  const _SetlistView({required this.setlist});
 
-  final MemoryBundle bundle;
+  final List<SetlistItem> setlist;
 
   @override
   Widget build(BuildContext context) {
-    if (bundle.setlist.isEmpty) {
-      return const _TabEmpty(message: 'セトリはまだ登録されていません。');
-    }
     return AppCard(
       padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
       child: Column(
         children: [
-          for (final item in bundle.setlist)
+          for (final item in setlist)
             ListTile(
               dense: true,
               leading: Text(
@@ -541,56 +747,162 @@ class _SetlistView extends StatelessWidget {
   }
 }
 
-/// グッズ・戦利品と行った場所（§9）。
-class _GoodsView extends StatelessWidget {
-  const _GoodsView({required this.bundle});
+/// その日の記録: 座席（チケットから自動引き継ぎ）・見え方・MC・実際の終演時間（§9）。
+class _DayRecordView extends StatelessWidget {
+  const _DayRecordView({
+    required this.genba,
+    required this.seats,
+    required this.seatView,
+    required this.mcNotes,
+  });
 
-  final MemoryBundle bundle;
+  final Genba genba;
+  final List<String> seats;
+  final String seatView;
+  final String mcNotes;
+
+  static String _hhmm(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
-    if (bundle.goods.isEmpty && bundle.places.isEmpty) {
-      return const _TabEmpty(message: 'グッズ・立ち寄り先はまだ登録されていません。');
-    }
+    final ended = genba.manualEndedAt?.toLocal();
+    final rows = <Widget>[
+      if (seats.isNotEmpty)
+        _InfoRow(
+          icon: Icons.event_seat_outlined,
+          label: '座席',
+          value: seats.join(' / '),
+          carriedOver: true,
+        ),
+      if (seatView.isNotEmpty)
+        _InfoRow(
+          icon: Icons.visibility_outlined,
+          label: '見え方',
+          value: seatView,
+        ),
+      if (ended != null)
+        _InfoRow(
+          icon: Icons.nightlife_outlined,
+          label: '実際の終演',
+          value: _hhmm(ended),
+        ),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (bundle.goods.isNotEmpty)
+        if (rows.isNotEmpty)
           AppCard(
-            padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final item in bundle.goods)
-                  ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.shopping_bag_outlined),
-                    title: Text(item.name),
-                    subtitle: item.price == null
-                        ? null
-                        : Text('¥${item.price} × ${item.quantity}'),
-                  ),
+                for (var i = 0; i < rows.length; i++) ...[
+                  if (i > 0) const SizedBox(height: AppSpace.sm),
+                  rows[i],
+                ],
               ],
             ),
           ),
-        if (bundle.places.isNotEmpty) ...[
-          const SizedBox(height: AppSpace.md),
-          AppCard(
-            padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
-            child: Column(
-              children: [
-                for (final place in bundle.places)
-                  ListTile(
-                    dense: true,
-                    leading: Icon(
-                      place.category == 'food'
-                          ? Icons.restaurant_outlined
-                          : Icons.place_outlined,
-                    ),
-                    title: Text(place.name),
-                    subtitle: place.memo == null ? null : Text(place.memo!),
-                  ),
-              ],
-            ),
+        if (mcNotes.isNotEmpty) ...[
+          if (rows.isNotEmpty) const SizedBox(height: AppSpace.md),
+          _NoteCard(title: 'MC・当日メモ', body: mcNotes),
+        ],
+      ],
+    );
+  }
+}
+
+/// 遠征の記録: 交通・宿泊（現場から自動引き継ぎ）＋行った場所・食べたもの・
+/// グッズ（思い出の記録）を読み取り専用で再掲する（§9・本質の中核）。
+class _ExpeditionView extends StatelessWidget {
+  const _ExpeditionView({
+    required this.transports,
+    required this.lodgings,
+    required this.places,
+    required this.goods,
+  });
+
+  final List<Transport> transports;
+  final List<Lodging> lodgings;
+  final List<VisitedPlace> places;
+  final List<GoodsItem> goods;
+
+  static String _md(DateTime d) => '${d.month}/${d.day}';
+
+  String _transportText(Transport t) {
+    final parts = <String>[
+      t.direction.label,
+      if (t.methodDisplay.isNotEmpty) t.methodDisplay,
+    ];
+    final route = [
+      if ((t.fromPlace ?? '').isNotEmpty) t.fromPlace!,
+      if ((t.toPlace ?? '').isNotEmpty) t.toPlace!,
+    ].join(' → ');
+    final head = parts.join('・');
+    return route.isEmpty ? head : '$head  $route';
+  }
+
+  String _lodgingText(Lodging l) {
+    final name = (l.name ?? '').isNotEmpty ? l.name! : '宿泊';
+    final ci = l.checkinDate;
+    final co = l.checkoutDate;
+    if (ci == null && co == null) return name;
+    final span = [
+      if (ci != null) _md(ci),
+      if (co != null) _md(co),
+    ].join('〜');
+    return '$name（$span）';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final spots = places.where((p) => p.category != 'food').toList();
+    final foods = places.where((p) => p.category == 'food').toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (transports.isNotEmpty)
+          _DigestCard(
+            icon: Icons.directions_transit_outlined,
+            lines: [for (final t in transports) _transportText(t)],
+          ),
+        if (lodgings.isNotEmpty) ...[
+          const SizedBox(height: AppSpace.sm),
+          _DigestCard(
+            icon: Icons.hotel_outlined,
+            lines: [for (final l in lodgings) _lodgingText(l)],
+          ),
+        ],
+        if (spots.isNotEmpty) ...[
+          const SizedBox(height: AppSpace.sm),
+          _DigestCard(
+            icon: Icons.place_outlined,
+            lines: [
+              for (final p in spots)
+                (p.memo ?? '').isEmpty ? p.name : '${p.name}（${p.memo}）',
+            ],
+          ),
+        ],
+        if (foods.isNotEmpty) ...[
+          const SizedBox(height: AppSpace.sm),
+          _DigestCard(
+            icon: Icons.restaurant_outlined,
+            lines: [
+              for (final p in foods)
+                (p.memo ?? '').isEmpty ? p.name : '${p.name}（${p.memo}）',
+            ],
+          ),
+        ],
+        if (goods.isNotEmpty) ...[
+          const SizedBox(height: AppSpace.sm),
+          _DigestCard(
+            icon: Icons.shopping_bag_outlined,
+            lines: [
+              for (final g in goods)
+                g.price == null
+                    ? g.name
+                    : '${g.name}  ¥${g.price} × ${g.quantity}',
+            ],
           ),
         ],
       ],
@@ -598,36 +910,84 @@ class _GoodsView extends StatelessWidget {
   }
 }
 
-/// MC・当日メモ / 座席・見え方 / タグ（§9）。
-class _NotesView extends StatelessWidget {
-  const _NotesView({required this.bundle});
+/// アイコン＋複数行のダイジェストカード（読み取り専用）。
+class _DigestCard extends StatelessWidget {
+  const _DigestCard({required this.icon, required this.lines});
 
-  final MemoryBundle bundle;
+  final IconData icon;
+  final List<String> lines;
 
   @override
   Widget build(BuildContext context) {
-    final entry = bundle.entry;
-    final hasMc = entry?.mcNotes.isNotEmpty ?? false;
-    final hasSeat = entry?.seatView.isNotEmpty ?? false;
-    final tags = entry?.tags ?? const <String>[];
-    if (!hasMc && !hasSeat && tags.isEmpty) {
-      return const _TabEmpty(message: 'メモはまだありません。');
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (hasMc) _NoteCard(title: 'MC・当日メモ', body: entry!.mcNotes),
-        if (hasSeat) ...[
-          const SizedBox(height: AppSpace.md),
-          _NoteCard(title: '座席・見え方', body: entry!.seatView),
-        ],
-        if (tags.isNotEmpty) ...[
-          const SizedBox(height: AppSpace.md),
-          Wrap(
-            spacing: AppSpace.sm,
-            children: [for (final tag in tags) Chip(label: Text(tag))],
+    final tokens = AppTokens.of(context);
+    return AppCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: tokens.textSecondary),
+          const SizedBox(width: AppSpace.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < lines.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 4),
+                  Text(lines[i]),
+                ],
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 「ラベル: 値」の1行（座席・見え方など）。現場からの自動引き継ぎには印を付ける。
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.carriedOver = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool carriedOver;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: tokens.textSecondary),
+        const SizedBox(width: AppSpace.sm),
+        Text(
+          '$label: ',
+          style:
+              theme.textTheme.bodyMedium?.copyWith(color: tokens.textSecondary),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        if (carriedOver)
+          Padding(
+            padding: const EdgeInsets.only(left: AppSpace.sm),
+            child: Icon(
+              Icons.link,
+              size: 14,
+              color: tokens.textSecondary,
+              semanticLabel: '現場から自動引き継ぎ',
+            ),
+          ),
       ],
     );
   }
@@ -655,26 +1015,6 @@ class _NoteCard extends StatelessWidget {
           const SizedBox(height: AppSpace.sm),
           Text(body),
         ],
-      ),
-    );
-  }
-}
-
-class _TabEmpty extends StatelessWidget {
-  const _TabEmpty({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpace.lg),
-      child: Text(
-        message,
-        style: Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.copyWith(color: AppTokens.of(context).textSecondary),
       ),
     );
   }

@@ -16,6 +16,7 @@ import '../../oshi/application/oshi_providers.dart';
 import '../application/memory_actions_controller.dart';
 import '../application/memory_controllers.dart';
 import '../domain/memory.dart';
+import 'year_summary_sheet.dart';
 
 /// 思い出一覧の絞り込み（design-spec §8）。
 ///
@@ -150,20 +151,132 @@ class _FilteredMemoryList extends ConsumerWidget {
       };
     }
 
+    // 年ごとにグルーピング（list は新しい順にソート済み, §8）。半券コレクション
+    // として蓄積が見えるよう、各年に「n現場・n参戦」のサマリーを添える。
+    final yearOrder = <int>[];
+    final byYear = <int, List<GenbaAggregate>>{};
+    for (final aggregate in filtered) {
+      final year = aggregate.genba.eventDate.year;
+      byYear.putIfAbsent(year, () {
+        yearOrder.add(year);
+        return <GenbaAggregate>[];
+      }).add(aggregate);
+    }
+
     return ListView(
       key: const PageStorageKey('memory_list'),
-      padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+      padding: const EdgeInsets.only(bottom: 40),
       children: [
-        for (final aggregate in filtered)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpace.lg,
-              vertical: 6,
+        for (final year in yearOrder) ...[
+          _YearHeader(
+            year: year,
+            count: byYear[year]!.length,
+            attended: byYear[year]!
+                .where(
+                  (a) => a.genba.attendanceStatus == AttendanceStatus.attended,
+                )
+                .length,
+            // タップで「◯年のふりかえり」を開く（写真数は sheet 側で
+            // バンドルから集計＝loading/error を潰さない, §8/M5）。
+            onTap: () => showYearSummarySheet(
+              context,
+              year: year,
+              items: byYear[year]!,
             ),
-            child: _MemoryCard(aggregate: aggregate),
           ),
+          for (final aggregate in byYear[year]!)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpace.lg,
+                vertical: 6,
+              ),
+              child: _MemoryCard(aggregate: aggregate),
+            ),
+        ],
         const SizedBox(height: 40),
       ],
+    );
+  }
+}
+
+/// 年の区切りヘッダ（design-spec §8）。「YYYY年 ── n現場・n参戦」。
+/// 参戦=ユーザーが明示した attended のみ（§12.1）。
+class _YearHeader extends StatelessWidget {
+  const _YearHeader({
+    required this.year,
+    required this.count,
+    required this.attended,
+    this.onTap,
+  });
+
+  final int year;
+  final int count;
+  final int attended;
+
+  /// タップで「◯年のふりかえり」を開く（§8/M5）。
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
+    final summary = attended > 0 ? '$count現場・$attended参戦' : '$count現場';
+    return Semantics(
+      header: true,
+      button: onTap != null,
+      container: true,
+      excludeSemantics: true,
+      label: '$year年、$summary。ふりかえりを見る',
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.lg,
+            AppSpace.lg,
+            AppSpace.lg,
+            AppSpace.sm,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                '$year',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(width: 3),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  '年',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: tokens.textSecondary),
+                ),
+              ),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Container(height: 1, color: tokens.divider),
+              ),
+              const SizedBox(width: AppSpace.md),
+              Text(
+                summary,
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: tokens.textSecondary),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: AppSpace.xs),
+                Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: tokens.textSecondary,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

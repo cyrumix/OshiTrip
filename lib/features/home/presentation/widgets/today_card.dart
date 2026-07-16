@@ -8,6 +8,7 @@ import '../../../../core/images/image_store.dart';
 import '../../../../core/providers.dart';
 import '../../../genba/domain/genba.dart';
 import '../../../genba/domain/genba_schedule.dart';
+import '../../../memory/presentation/memory_afterparty_sheet.dart';
 
 /// 当日ホームカード（§6.2）。
 ///
@@ -363,14 +364,16 @@ class _AfterglowCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
-              const Text('おつかれさまでした！今の気持ちをひとこと残しませんか？'),
+              const Text('おつかれさまでした！参戦・写真・ひとことを、サッとまとめませんか？'),
               const SizedBox(height: 12),
               FilledButton.icon(
-                onPressed: () => context.push('/memories/${genba.id}/edit'),
-                icon: const Icon(Icons.edit_outlined, size: 18),
+                // もぎり導線: 参戦→写真→ひとことの3ステップ（§9・M4）。
+                onPressed: () =>
+                    showAfterEventSheet(context, genbaId: genba.id),
+                icon: const Icon(Icons.auto_awesome, size: 18),
                 label: const Text(
-                  '短い感想を書く',
-                  semanticsLabel: '短い感想の入力へ進む',
+                  '思い出をまとめる',
+                  semanticsLabel: '終演直後の記録（参戦・写真・ひとこと）へ進む',
                 ),
               ),
             ],

@@ -4,6 +4,7 @@ import 'package:oshi_trip/app/design_system/design_system.dart';
 import 'package:oshi_trip/core/providers.dart';
 import 'package:oshi_trip/core/time/clock.dart';
 import 'package:oshi_trip/features/genba/domain/genba.dart';
+import 'package:oshi_trip/features/memory/domain/memory.dart';
 import 'package:oshi_trip/features/memory/presentation/memory_list_screen.dart';
 
 import '../helpers/fixtures.dart';
@@ -121,6 +122,155 @@ void main() {
     // お気に入りフィルタに現れる。
     await tapSegment(tester, 'お気に入り');
     expect(find.text('お気に入り候補公演'), findsOneWidget);
+    await unmountApp(tester);
+  });
+
+  testWidgets('思い出は年ごとにまとまり、各年に「n現場・n参戦」サマリーが出る（§8 半券ホルダー）', (tester) async {
+    final db = await signedInTestDb();
+    addTearDown(db.close);
+    final container = await pumpScreen(
+      tester,
+      db: db,
+      clock: clock,
+      child: const MemoryListScreen(),
+    );
+    final repo = container.read(genbaRepositoryProvider);
+    // 2026年: 2現場（うち1参戦）、2025年: 1現場（0参戦）。
+    await repo.upsertGenba(
+      makeGenba(
+        id: 'y26-a',
+        ownerId: ownerId,
+        title: '2026春公演',
+        eventDate: DateTime(2026, 5, 1),
+        attendanceStatus: AttendanceStatus.attended,
+      ),
+    );
+    await repo.upsertGenba(
+      makeGenba(
+        id: 'y26-b',
+        ownerId: ownerId,
+        title: '2026冬公演',
+        eventDate: DateTime(2026, 1, 20),
+      ),
+    );
+    await repo.upsertGenba(
+      makeGenba(
+        id: 'y25-a',
+        ownerId: ownerId,
+        title: '2025公演',
+        eventDate: DateTime(2025, 11, 3),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 年ヘッダとサマリー（参戦0の年は「n現場」のみ）。ラベルは「…。ふりかえりを見る」。
+    final h2026 = find.bySemanticsLabel(RegExp('2026年、2現場・1参戦'));
+    final h2025 = find.bySemanticsLabel(RegExp('2025年、1現場'));
+    expect(h2026, findsOneWidget);
+    expect(h2025, findsOneWidget);
+
+    // 新しい年が先（2026ヘッダが2025ヘッダより上）。
+    final y2026 = tester.getTopLeft(h2026);
+    final y2025 = tester.getTopLeft(h2025);
+    expect(y2026.dy, lessThan(y2025.dy));
+
+    // 同一年内は新しい現場が先（2026春=5月 が 2026冬=1月 より上）。
+    final springDy = tester.getTopLeft(find.text('2026春公演')).dy;
+    final winterDy = tester.getTopLeft(find.text('2026冬公演')).dy;
+    expect(springDy, lessThan(winterDy));
+    // 2025の現場は2026ヘッダより下（グルーピングされている）。
+    expect(tester.getTopLeft(find.text('2025公演')).dy, greaterThan(y2025.dy));
+    await unmountApp(tester);
+  });
+
+  testWidgets('年ヘッダをタップすると「◯年のふりかえり」が開く（§8/M5）', (tester) async {
+    final db = await signedInTestDb();
+    addTearDown(db.close);
+    final container = await pumpScreen(
+      tester,
+      db: db,
+      clock: clock,
+      child: const MemoryListScreen(),
+    );
+    final repo = container.read(genbaRepositoryProvider);
+    await repo.upsertGenba(
+      makeGenba(
+        id: 'r-1',
+        ownerId: ownerId,
+        title: 'ふりかえり公演A',
+        artistName: 'ABC',
+        eventDate: DateTime(2026, 5, 1),
+        venue: '東京ドーム',
+        attendanceStatus: AttendanceStatus.attended,
+      ),
+    );
+    await repo.upsertGenba(
+      makeGenba(
+        id: 'r-2',
+        ownerId: ownerId,
+        title: 'ふりかえり公演B',
+        artistName: 'ABC',
+        eventDate: DateTime(2026, 3, 1),
+        venue: '東京ドーム',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 年ヘッダをタップ → ふりかえりシート。
+    await tester.tap(find.bySemanticsLabel(RegExp('2026年、2現場・1参戦')));
+    await tester.pumpAndSettle();
+
+    // ふりかえりシートが開く（見出しはシート固有）。
+    expect(find.text('2026年のふりかえり'), findsOneWidget);
+    expect(find.text('よく会いに行った'), findsOneWidget);
+    expect(find.text('よく行った会場'), findsOneWidget);
+    // よく会いに行った推し・よく行った会場が集計される（カードにも出るため複数可）。
+    expect(find.text('ABC'), findsWidgets);
+    expect(find.text('東京ドーム'), findsWidgets);
+    // 主役の数字（現場数・参戦数）の単位はシート固有。
+    expect(find.text('参戦'), findsOneWidget);
+    expect(find.text('現場'), findsOneWidget);
+    await unmountApp(tester);
+  });
+
+  testWidgets('ふりかえりの写真数はバンドルから集計され、0に潰さない（レビュー是正）', (tester) async {
+    final db = await signedInTestDb();
+    addTearDown(db.close);
+    final container = await pumpScreen(
+      tester,
+      db: db,
+      clock: clock,
+      child: const MemoryListScreen(),
+    );
+    await container.read(genbaRepositoryProvider).upsertGenba(
+          makeGenba(
+            id: 'pc-1',
+            ownerId: ownerId,
+            title: '写真集計公演',
+            eventDate: DateTime(2026, 4, 1),
+          ),
+        );
+    // この現場に写真を2枚登録（ふりかえりで反映されること）。
+    final memoryRepo = container.read(memoryRepositoryProvider);
+    for (final id in ['ph-1', 'ph-2']) {
+      await memoryRepo.addPhoto(
+        MemoryPhoto(
+          id: id,
+          genbaId: 'pc-1',
+          ownerId: ownerId,
+          createdAt: fixedCreatedAt,
+          updatedAt: fixedCreatedAt,
+        ),
+      );
+    }
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel(RegExp('2026年、1現場')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2026年のふりかえり'), findsOneWidget);
+    // 写真ミニスタッツに 2枚（バンドルからの集計）。0枚に潰れていない。
+    expect(find.text('2枚'), findsOneWidget);
     await unmountApp(tester);
   });
 }

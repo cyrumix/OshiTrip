@@ -10,6 +10,7 @@ import 'package:oshi_trip/core/providers.dart';
 import 'package:oshi_trip/core/storage/kv_store.dart';
 import 'package:oshi_trip/core/time/clock.dart';
 import 'package:oshi_trip/features/genba/application/genba_providers.dart';
+import 'package:oshi_trip/features/genba/domain/genba.dart';
 
 import '../helpers/fixtures.dart';
 import '../helpers/test_db.dart';
@@ -145,7 +146,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('まだ記録がありません'), findsOneWidget);
 
+    // FAB「記録する」→ 記録メニュー → 感想シート（§9・M3: 巨大フォームを廃止し
+    // セクション別ボトムシートで記録する）。
     await tester.tap(find.text('記録する'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('感想を記録'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(
@@ -158,14 +163,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    // 戻ると詳細に感想が表示される（ja ロケールのため BackButton を直接タップ）
-    await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
-    expect(find.text('最高の現場だった'), findsOneWidget);
+    // セクション別シートからの入力が実データ（MemoryEntry）へ保存される（§9/M3）。
+    final bundle = await container
+        .read(memoryRepositoryProvider)
+        .watchByGenbaId('past-1')
+        .first;
+    expect(bundle.entry?.impression, '最高の現場だった');
     await unmountApp(tester);
   });
 
-  testWidgets('終演予定後は余韻中カードから感想入力へ誘導される', (tester) async {
+  testWidgets('終演予定後は余韻中カードの「もぎり」3ステップで参戦・感想を残せる（§9/M4）', (tester) async {
     // 18:00開演 / 21:00終演の現場に対し、現在 21:30
     final clock = FixedClock(DateTime(2026, 7, 2, 21, 30));
     final db = await prepareSignedInDb();
@@ -186,11 +193,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('余韻中'), findsOneWidget);
-    expect(find.text('短い感想を書く'), findsOneWidget);
+    expect(find.text('思い出をまとめる'), findsOneWidget);
 
-    await tester.tap(find.text('短い感想を書く'));
+    // もぎり導線を開く。
+    await tester.tap(find.text('思い出をまとめる'));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(AppBar, '思い出を記録'), findsOneWidget);
+
+    // ① 参戦した？ → 参戦した。
+    expect(find.text('参戦しましたか？'), findsOneWidget);
+    await tester.tap(find.text('参戦した'));
+    await tester.pumpAndSettle();
+
+    // ② 写真 → スキップ可。
+    expect(find.text('写真を残しますか？'), findsOneWidget);
+    await tester.tap(find.text('スキップ'));
+    await tester.pumpAndSettle();
+
+    // ③ ひとこと → 入力して完了。
+    expect(find.text('今日のひとこと'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, '短いひとことでOK・あとから加筆できます'),
+      'たのしかった',
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.tap(find.text('完了'));
+    await tester.pumpAndSettle();
+
+    // 参戦=attended・感想が実データへ保存される（半券がコレクションに加わる）。
+    final agg = container.read(genbaByIdProvider('today-1')).valueOrNull;
+    expect(agg?.genba.attendanceStatus, AttendanceStatus.attended);
+    final bundle = await container
+        .read(memoryRepositoryProvider)
+        .watchByGenbaId('today-1')
+        .first;
+    expect(bundle.entry?.impression, 'たのしかった');
     await unmountApp(tester);
   });
 }

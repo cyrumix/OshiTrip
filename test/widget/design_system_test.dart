@@ -337,7 +337,8 @@ void main() {
   });
 
   group('PhotoMemoryCard', () {
-    testWidgets('写真なしプレースホルダー・記録件数・参戦済み・お気に入りを表示する', (tester) async {
+    testWidgets('写真なしは券面（灰色プレースホルダーなし）で情報・記録件数・参戦済み・お気に入りを表示する',
+        (tester) async {
       var favoriteTapped = false;
       await pumpComponent(
         tester,
@@ -355,13 +356,16 @@ void main() {
           accentColor: const Color(0xFFFF5CA8),
         ),
       );
+      // 券面として公演情報が欠けない（日付・公演名・会場）。
       expect(find.text('春の単独公演'), findsOneWidget);
+      expect(find.text('2026/6/1'), findsOneWidget);
+      expect(find.text('Zepp'), findsOneWidget);
       expect(find.text('参戦済み'), findsOneWidget);
       expect(find.bySemanticsLabel('写真18枚'), findsOneWidget);
       expect(find.bySemanticsLabel('セトリ12曲'), findsOneWidget);
       expect(find.bySemanticsLabel('感想あり'), findsOneWidget);
-      // 写真なし → プレースホルダー（権利不明画像は使わない）。
-      expect(find.byIcon(Icons.music_note_outlined), findsOneWidget);
+      // D-252: 灰色の汎用プレースホルダー画像は使わない（券面で成立させる）。
+      expect(find.byIcon(Icons.music_note_outlined), findsNothing);
 
       await tester.tap(find.byType(FavoriteButton));
       expect(favoriteTapped, isTrue);

@@ -7,12 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/async_view.dart';
-import '../../genba/application/genba_actions_controller.dart';
-import '../../genba/application/genba_providers.dart';
-import '../../genba/domain/genba.dart';
 import '../application/memory_actions_controller.dart';
 import '../application/memory_controllers.dart';
 import '../domain/memory.dart';
+import 'memory_edit_widgets.dart';
 
 /// 思い出の段階入力（§8.2）。
 ///
@@ -66,10 +64,24 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
       ref.read(memoryEditControllerProvider(widget.genbaId).notifier);
 
   Future<void> _addPhoto() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-    final failure = await _controller.addPhoto(picked.path);
-    _showFailure(failure);
+    // 複数選択に対応＋例外安全（権限・OS/プラグイン例外, §8.2/§15, レビュー是正）。
+    final result = await pickPhotoPaths();
+    // 選択中に画面が閉じられた場合、破棄済み State から ref.read しない。
+    if (!mounted) return;
+    if (result.outcome == PhotoPickOutcome.canceled) return;
+    if (result.outcome == PhotoPickOutcome.failed) {
+      _showMessage('写真を選択できませんでした');
+      return;
+    }
+    for (final path in result.paths) {
+      if (!mounted) return;
+      final failure = await _controller.addPhoto(path);
+      if (!mounted) return;
+      if (failure != null) {
+        _showFailure(failure);
+        return;
+      }
+    }
   }
 
   Future<void> _deletePhoto(String id) async {
@@ -84,7 +96,15 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
     required MemorySubjectType subjectType,
     required String subjectId,
   }) async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    } on Exception {
+      _showMessage('写真を選択できませんでした');
+      return;
+    }
+    // 選択中に画面が閉じられた場合、破棄済み State から ref.read しない。
+    if (!mounted) return;
     if (picked == null) return;
     final failure = await _controller.addPhoto(
       picked.path,
@@ -92,6 +112,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
       subjectType: subjectType,
       subjectId: subjectId,
     );
+    if (!mounted) return;
     _showFailure(failure);
   }
 
@@ -174,6 +195,12 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
   void _showFailure(Object? failure) {
     if (failure == null || !mounted) return;
     final message = failure is Failure ? failure.message : '操作に失敗しました';
+    _showMessage(message);
+  }
+
+  /// 任意メッセージを SnackBar で示す（写真選択の失敗など）。
+  void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
@@ -325,7 +352,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                     _controller.updateEntry((e) => e.copyWith(bestMoment: v)),
               ),
               const SizedBox(height: 12),
-              _ActualEndTimeCard(genbaId: widget.genbaId),
+              ActualEndTimeCard(genbaId: widget.genbaId),
               const SizedBox(height: 24),
               const _StageHeader(
                 icon: Icons.wb_sunny_outlined,
@@ -350,7 +377,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                     _controller.updateEntry((e) => e.copyWith(seatView: v)),
               ),
               const SizedBox(height: 12),
-              _ListEditor(
+              ListEditor(
                 title: 'セトリ',
                 icon: Icons.queue_music,
                 inputController: _songInput,
@@ -362,8 +389,8 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                       label: '${item.position}. ${item.songTitle}',
                     ),
                 ],
-                onAdd: (text) =>
-                    _controller.addSetlistItem(text).then(_showFailure),
+                // 追加の成否は ListEditor 側で扱う（成功時のみクリア・失敗は表示）。
+                onAdd: (text) => _controller.addSetlistItem(text),
                 onDelete: (id) =>
                     _controller.deleteSetlistItem(id).then(_showFailure),
               ),
@@ -373,14 +400,14 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                 title: '後日',
                 subtitle: '落ち着いてからゆっくり',
               ),
-              _TagEditor(
+              TagEditor(
                 tags: bundle.entry?.tags ?? const [],
                 inputController: _tagInput,
                 onChanged: (tags) =>
                     _controller.updateEntry((e) => e.copyWith(tags: tags)),
               ),
               const SizedBox(height: 12),
-              _ItemsWithPhotosEditor(
+              ItemsWithPhotosEditor(
                 title: 'グッズ・戦利品',
                 icon: Icons.shopping_bag_outlined,
                 inputController: _goodsInput,
@@ -394,8 +421,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                       photos: _resolvePhotos(bundle.photosForSubject(item.id)),
                     ),
                 ],
-                onAdd: (text) =>
-                    _controller.addGoodsItem(text).then(_showFailure),
+                onAdd: (text) => _controller.addGoodsItem(text),
                 onDeleteItem: (id, label) => _deleteSubjectItem(
                   id: id,
                   label: label,
@@ -409,7 +435,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                 onDeletePhoto: _deletePhoto,
               ),
               const SizedBox(height: 12),
-              _ItemsWithPhotosEditor(
+              ItemsWithPhotosEditor(
                 title: '行った場所',
                 icon: Icons.place_outlined,
                 inputController: _placeInput,
@@ -424,9 +450,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                       photos: _resolvePhotos(bundle.photosForSubject(place.id)),
                     ),
                 ],
-                onAdd: (text) => _controller
-                    .addVisitedPlace(text, 'spot')
-                    .then(_showFailure),
+                onAdd: (text) => _controller.addVisitedPlace(text, 'spot'),
                 onDeleteItem: (id, label) => _deleteSubjectItem(
                   id: id,
                   label: label,
@@ -440,7 +464,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                 onDeletePhoto: _deletePhoto,
               ),
               const SizedBox(height: 12),
-              _ItemsWithPhotosEditor(
+              ItemsWithPhotosEditor(
                 title: '食べたもの',
                 icon: Icons.restaurant_outlined,
                 inputController: _foodInput,
@@ -455,9 +479,7 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
                       photos: _resolvePhotos(bundle.photosForSubject(place.id)),
                     ),
                 ],
-                onAdd: (text) => _controller
-                    .addVisitedPlace(text, 'food')
-                    .then(_showFailure),
+                onAdd: (text) => _controller.addVisitedPlace(text, 'food'),
                 onDeleteItem: (id, label) => _deleteSubjectItem(
                   id: id,
                   label: label,
@@ -474,111 +496,6 @@ class _MemoryEditScreenState extends ConsumerState<MemoryEditScreen> {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-/// 「実際の終演時間」の記録カード（item 10）。最初に登録する終演時間は予想値。
-/// 実際に終わった時刻を記録すると、確認のうえ現場の終演時間（予定・状態導出の
-/// 両方）を上書きし、概要・当日・計画など終演時間を参照する箇所に反映する。
-class _ActualEndTimeCard extends ConsumerWidget {
-  const _ActualEndTimeCard({required this.genbaId});
-  final String genbaId;
-
-  static String _hhmm(int h, int m) =>
-      '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final genba = ref.watch(genbaByIdProvider(genbaId)).valueOrNull?.genba;
-    if (genba == null) return const SizedBox.shrink();
-    final eventDay = DateTime(
-      genba.eventDate.year,
-      genba.eventDate.month,
-      genba.eventDate.day,
-    );
-    final manual = genba.manualEndedAt?.toLocal();
-    final isActual = manual != null;
-    final current = manual ??
-        (genba.endTimeMinutes != null
-            ? eventDay.add(Duration(minutes: genba.endTimeMinutes!))
-            : null);
-    final subtitle = current == null
-        ? '終演時間が未登録です。タップして実際の終演時間を記録できます。'
-        : '${isActual ? '実際' : '予想'}: ${_hhmm(current.hour, current.minute)}'
-            '（タップして実際の終演時間を記録・更新）';
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: ListTile(
-        key: const Key('actual_end_time_tile'),
-        leading: const Icon(Icons.nightlife_outlined),
-        title: const Text('実際の終演時間'),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.edit_outlined),
-        onTap: () => _pickAndSave(context, ref, genba, eventDay, current),
-      ),
-    );
-  }
-
-  Future<void> _pickAndSave(
-    BuildContext context,
-    WidgetRef ref,
-    Genba genba,
-    DateTime eventDay,
-    DateTime? current,
-  ) async {
-    final seed = current != null
-        ? TimeOfDay(hour: current.hour, minute: current.minute)
-        : const TimeOfDay(hour: 21, minute: 0);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: seed,
-      helpText: '実際の終演時間',
-    );
-    if (picked == null || !context.mounted) return;
-    final startMin = genba.startTimeMinutes ?? 0;
-    final pickedMin = picked.hour * 60 + picked.minute;
-    var endedAt = DateTime(
-      eventDay.year,
-      eventDay.month,
-      eventDay.day,
-      picked.hour,
-      picked.minute,
-    );
-    // 開演より前の時刻は深夜終演（日跨ぎ）とみなし翌日にする。
-    if (startMin > 0 && pickedMin <= startMin) {
-      endedAt = endedAt.add(const Duration(days: 1));
-    }
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('終演時間の更新'),
-        content: Text(
-          '現場の終演時間を ${_hhmm(picked.hour, picked.minute)} に更新しますか？\n'
-          '概要・当日・計画など終演時間を参照する箇所に反映されます。',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('更新する'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    final failure = await ref
-        .read(genbaActionsControllerProvider(genba.id).notifier)
-        .setActualEndTime(genba, endedAt);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(failure == null ? '終演時間を更新しました' : failure.message),
       ),
     );
   }
@@ -616,303 +533,5 @@ class _StageHeader extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-/// 名前＋写真を持つ項目（グッズ・行った場所・食べもの）の編集（§8.4）。
-/// 各項目に写真を紐づけ・削除でき、項目削除時は呼び出し側が
-/// 「アルバムに残す／写真も削除」を確認する。
-class _ItemsWithPhotosEditor extends StatelessWidget {
-  const _ItemsWithPhotosEditor({
-    required this.title,
-    required this.icon,
-    required this.inputController,
-    required this.inputHint,
-    required this.emptyHint,
-    required this.items,
-    required this.onAdd,
-    required this.onDeleteItem,
-    required this.onAddPhoto,
-    required this.onDeletePhoto,
-  });
-
-  final String title;
-  final IconData icon;
-  final TextEditingController inputController;
-  final String inputHint;
-  final String emptyHint;
-  final List<
-          ({String id, String label, List<({String id, File? file})> photos})>
-      items;
-  final Future<Object?> Function(String text) onAdd;
-  final void Function(String id, String label) onDeleteItem;
-  final void Function(String id) onAddPhoto;
-  final Future<void> Function(String photoId) onDeletePhoto;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: theme.textTheme.labelLarge),
-        if (items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              emptyHint,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
-        for (final item in items)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(item.label)),
-                    IconButton(
-                      tooltip: '${item.label}に写真を追加',
-                      icon: const Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 20,
-                      ),
-                      onPressed: () => onAddPhoto(item.id),
-                    ),
-                    IconButton(
-                      tooltip: '${item.label}を削除',
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () => onDeleteItem(item.id, item.label),
-                    ),
-                  ],
-                ),
-                if (item.photos.isNotEmpty)
-                  SizedBox(
-                    height: 72,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: item.photos.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 6),
-                      itemBuilder: (context, i) => _PhotoThumb(
-                        file: item.photos[i].file,
-                        size: 72,
-                        onDelete: () => onDeletePhoto(item.photos[i].id),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: inputController,
-                decoration: InputDecoration(hintText: inputHint, isDense: true),
-                onSubmitted: (_) => _submit(),
-              ),
-            ),
-            IconButton(
-              tooltip: '追加',
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: _submit,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _submit() {
-    final text = inputController.text.trim();
-    if (text.isEmpty) return;
-    inputController.clear();
-    // 結果はストリーム経由で反映される。
-    // ignore: unawaited_futures
-    onAdd(text);
-  }
-}
-
-/// 正方形の写真サムネイル（角丸・任意で削除ボタン）。§8.4/§9 の統一サムネイル。
-class _PhotoThumb extends StatelessWidget {
-  const _PhotoThumb({required this.file, required this.size, this.onDelete});
-
-  final File? file;
-  final double size;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: file != null
-                ? Image.file(
-                    file!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.broken_image),
-                  )
-                : const Icon(Icons.image_outlined),
-          ),
-        ),
-        if (onDelete != null)
-          Positioned(
-            top: 0,
-            right: 0,
-            child: IconButton(
-              tooltip: '写真を削除',
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.black45,
-                foregroundColor: Colors.white,
-              ),
-              iconSize: 14,
-              icon: const Icon(Icons.close),
-              onPressed: onDelete,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ListEditor extends StatelessWidget {
-  const _ListEditor({
-    required this.title,
-    required this.icon,
-    required this.inputController,
-    required this.inputHint,
-    required this.items,
-    required this.onAdd,
-    required this.onDelete,
-  });
-
-  final String title;
-  final IconData icon;
-  final TextEditingController inputController;
-  final String inputHint;
-  final List<({String id, String label})> items;
-  final Future<Object?> Function(String text) onAdd;
-  final Future<Object?> Function(String id) onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.labelLarge),
-        for (final item in items)
-          ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(icon, size: 18),
-            title: Text(item.label),
-            trailing: IconButton(
-              tooltip: '${item.label}を削除',
-              icon: const Icon(Icons.close, size: 18),
-              onPressed: () => onDelete(item.id),
-            ),
-          ),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: inputController,
-                decoration: InputDecoration(
-                  hintText: inputHint,
-                  isDense: true,
-                ),
-                onSubmitted: (_) => _submit(),
-              ),
-            ),
-            IconButton(
-              tooltip: '追加',
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: _submit,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _submit() {
-    final text = inputController.text.trim();
-    if (text.isEmpty) return;
-    inputController.clear();
-    // 結果はストリーム経由で反映される。
-    // ignore: unawaited_futures
-    onAdd(text);
-  }
-}
-
-class _TagEditor extends StatelessWidget {
-  const _TagEditor({
-    required this.tags,
-    required this.inputController,
-    required this.onChanged,
-  });
-
-  final List<String> tags;
-  final TextEditingController inputController;
-  final void Function(List<String> tags) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'タグ（写真整理・表情など）',
-          style: Theme.of(context).textTheme.labelLarge,
-        ),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final tag in tags)
-              InputChip(
-                label: Text(tag),
-                onDeleted: () => onChanged([...tags]..remove(tag)),
-              ),
-          ],
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: inputController,
-                decoration: const InputDecoration(
-                  hintText: 'タグを追加',
-                  isDense: true,
-                ),
-                onSubmitted: (_) => _submit(),
-              ),
-            ),
-            IconButton(
-              tooltip: 'タグを追加',
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: _submit,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _submit() {
-    final text = inputController.text.trim();
-    if (text.isEmpty) return;
-    inputController.clear();
-    onChanged([...tags, text]);
   }
 }
